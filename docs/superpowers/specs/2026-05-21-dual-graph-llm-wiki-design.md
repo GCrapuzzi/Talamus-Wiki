@@ -104,6 +104,27 @@ External API keys are optional fallbacks and are not required for V1.
 
 The pipeline must check availability of required local components before it performs destructive cleanup of `pending`.
 
+## Obsidian Markdown Guidance
+
+`FDE Brain` authoring should use the Obsidian Markdown skill as an implementation reference:
+
+```text
+kepano/obsidian-skills@obsidian-markdown
+```
+
+This skill is not a runtime dependency of the wiki. It is a writing and editing guide for agents that modify `FDE Brain`, especially for:
+
+- Obsidian Properties/frontmatter
+- wikilinks
+- aliases
+- tags
+- links to headings
+- callouts where appropriate
+- embeds only when useful
+- Obsidian-compatible Markdown conventions
+
+Claude Code and Codex should follow this guidance whenever they create or edit final notes in `FDE Brain`.
+
 ## Ingestion Pipeline
 
 Scheduled ingestion runs over the whole `AI Space/pending` folder. `pending` is intentionally unstructured and should be empty after a successful run.
