@@ -39,6 +39,19 @@
       "captured_at": "2026-05-22T14:49:04.546717+00:00",
       "ingestion_run": "38df73ce",
       "promoted_to": []
+    },
+    {
+      "raw_path": "AI Space/raw/unknown/2026-05-22-junk.xyz",
+      "raw_hash": "sha256:8fc56bdbfb33f707d8444d3c2067d76109772dc90d41c8f11a36009a1bdaea06",
+      "raw_size": 25,
+      "normalized_paths": [
+        "AI Space/review/needs-human/junk.md"
+      ],
+      "category": "unknown",
+      "parser": "none",
+      "captured_at": "2026-05-22T14:53:13.121102+00:00",
+      "ingestion_run": "08c2d1f6",
+      "promoted_to": []
     }
   ]
 }
