@@ -1,1 +1,30 @@
 .worktrees/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local temp files
+*.tmp
+*.temp
+~$*
+.DS_Store
+Thumbs.db
+
+# Editor folders outside Obsidian
+.vscode/
+.idea/
+
+# Graphify transient internals
+**/.graphify_chunk_*.json
+**/.graphify_cached.json
+**/.graphify_uncached.txt
+**/.graphify_semantic_new.json
