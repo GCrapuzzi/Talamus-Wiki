@@ -52,6 +52,19 @@
       "captured_at": "2026-05-22T14:53:13.121102+00:00",
       "ingestion_run": "08c2d1f6",
       "promoted_to": []
+    },
+    {
+      "raw_path": "AI Space/raw/image/2026-05-22-test-image.png",
+      "raw_hash": "sha256:a5c352a1b5721eadd8f655ad9e10bbc7a56cde9e93859555d9c97278f56582e3",
+      "raw_size": 4498,
+      "normalized_paths": [
+        "AI Space/normalized/image/test-image.md"
+      ],
+      "category": "image",
+      "parser": "glm-ocr",
+      "captured_at": "2026-05-22T15:02:10.201989+00:00",
+      "ingestion_run": "00db321f",
+      "promoted_to": []
     }
   ]
 }

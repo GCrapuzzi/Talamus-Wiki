@@ -1,0 +1,18 @@
+{
+  "run_id": "00db321f",
+  "started_at": "2026-05-22T15:02:10.201989+00:00",
+  "finished_at": "2026-05-22T15:02:15.122757+00:00",
+  "files": [
+    {
+      "pending_name": "test-image.png",
+      "raw_path": "AI Space/raw/image/2026-05-22-test-image.png",
+      "normalized_path": "AI Space/normalized/image/test-image.md",
+      "routed_to": "normalized",
+      "category": "image",
+      "promoted_to": null,
+      "error": null
+    }
+  ],
+  "commit_hash": null,
+  "overall_ok": true
+}
