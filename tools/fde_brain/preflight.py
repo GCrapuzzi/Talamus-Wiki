@@ -24,6 +24,24 @@ def check_cli(name: str, command: str) -> CheckResult:
     return CheckResult(name, False, f"{command} not found on PATH")
 
 
+def _ollama_model_names(stdout: str) -> list[str]:
+    names = []
+    for line in stdout.splitlines()[1:]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        names.append(stripped.split()[0])
+    return names
+
+
+def _model_name_matches(installed: str, requested: str) -> bool:
+    installed_l = installed.lower()
+    requested_l = requested.lower()
+    if ":" in requested_l:
+        return installed_l == requested_l
+    return installed_l == requested_l or installed_l.startswith(f"{requested_l}:")
+
+
 def check_ollama_model(model_name: str = "glm-ocr") -> CheckResult:
     try:
         result = subprocess.run(
@@ -40,7 +58,7 @@ def check_ollama_model(model_name: str = "glm-ocr") -> CheckResult:
         detail = result.stderr.strip() or f"ollama list exited with {result.returncode}"
         return CheckResult("GLM-OCR model", False, detail)
 
-    if model_name.lower() in result.stdout.lower():
+    if any(_model_name_matches(name, model_name) for name in _ollama_model_names(result.stdout)):
         return CheckResult("GLM-OCR model", True, f"{model_name} found in ollama list")
     return CheckResult("GLM-OCR model", False, f"{model_name} not found in ollama list")
 
