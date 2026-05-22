@@ -32,6 +32,17 @@ class OcrTests(unittest.TestCase):
         self.assertEqual(["C:/img.png"], [p.replace("\\", "/") for p in message["images"]])
 
     @patch("tools.fde_brain.ocr.ollama")
+    def test_caps_num_ctx_to_avoid_kv_cache_overflow(self, ollama_module) -> None:
+        ollama_module.chat.return_value = {"message": {"content": "x"}}
+
+        extract_text_from_image(Path("C:/img.png"))
+
+        options = ollama_module.chat.call_args.kwargs["options"]
+        self.assertEqual(0, options["temperature"])
+        self.assertIn("num_ctx", options)
+        self.assertLessEqual(options["num_ctx"], 32768)
+
+    @patch("tools.fde_brain.ocr.ollama")
     def test_returns_error_when_ollama_raises(self, ollama_module) -> None:
         ollama_module.chat.side_effect = RuntimeError("model offline")
 

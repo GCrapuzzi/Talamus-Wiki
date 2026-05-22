@@ -198,13 +198,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"dry-run complete; {len(log.files)} files processed")
         return 0 if log.overall_ok else 1
 
-    write_run_log(paths, log)
-
     if not args.no_commit and log.files:
         commit_msg = f"chore(ai-pipeline): ingest pending batch {captured_at.strftime('%Y-%m-%d')}"
-        commit_hash = _commit_changes(root, commit_msg)
-        log.commit_hash = commit_hash
-        write_run_log(paths, log)
+        log.commit_hash = _commit_changes(root, commit_msg)
+
+    write_run_log(paths, log)
 
     return 0 if log.overall_ok else 1
 
