@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
@@ -29,8 +30,12 @@ class NormalizedOutput:
     error: str | None = None
 
 
+_DATE_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-(\d+-)?")
+
+
 def _slug_from_raw(raw_path: Path) -> str:
-    return raw_path.stem.lower().replace(" ", "-")
+    stem = _DATE_PREFIX_RE.sub("", raw_path.stem)
+    return stem.lower().replace(" ", "-")
 
 
 def _frontmatter(
