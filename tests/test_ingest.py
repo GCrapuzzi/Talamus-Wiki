@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.fde_brain.distill import DistillResult
+from tools.fde_brain.distill_long import LongDistillResult, PromotedNote
 from tools.fde_brain.ingest import main
 from tools.fde_brain.paths import WorkspacePaths
 from tools.fde_brain.preflight import CheckResult
@@ -99,6 +100,78 @@ class IngestIntegrationTests(unittest.TestCase):
             review_files = list((paths.review / "needs-human").glob("*.md"))
             self.assertEqual(1, len(review_files))
             distill_mock.assert_not_called()
+
+    @patch("tools.fde_brain.ingest.distill_long_source")
+    @patch("tools.fde_brain.ingest._is_long_pdf_at", return_value=True)
+    @patch("tools.fde_brain.ingest.normalize_source")
+    @patch("tools.fde_brain.ingest.run_preflight", side_effect=_all_ok_preflight)
+    def test_long_pdf_uses_multi_note_distill(
+        self, _pf, normalize_mock, _is_long, distill_long_mock
+    ) -> None:
+        from tools.fde_brain.normalize import NormalizedOutput
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = _setup_workspace(root)
+            pdf_pending = paths.pending / "book.pdf"
+            pdf_pending.write_bytes(b"%PDF-1.4 stub")
+
+            normalized_path = paths.normalized_for("pdf") / "book.md"
+            normalized_path.parent.mkdir(parents=True, exist_ok=True)
+            normalized_path.write_text("---\n---\n\n# stub\n", encoding="utf-8")
+            normalize_mock.return_value = NormalizedOutput(
+                ok=True, output_path=normalized_path, routed_to="normalized", parser="pypdf"
+            )
+
+            notes = [
+                PromotedNote(title="Overview", type="overview", content="---\ntype: overview\n---\n\n# Overview\n", source_anchors=[]),
+                PromotedNote(title="Chapter Key Idea", type="chapter", content="---\ntype: chapter\n---\n\n# Chapter Key Idea\n", source_anchors=[]),
+                PromotedNote(title="Cool Pattern", type="pattern", content="---\ntype: pattern\n---\n\n# Cool Pattern\n", source_anchors=[]),
+            ]
+            distill_long_mock.return_value = LongDistillResult(ok=True, notes=notes, raw_responses=[])
+
+            exit_code = main(["--root", str(root), "--no-commit"])
+
+            self.assertEqual(0, exit_code)
+            distill_long_mock.assert_called_once()
+            brain_notes = sorted(p.name for p in paths.fde_brain.glob("*.md"))
+            self.assertEqual(["Chapter-Key-Idea.md", "Cool-Pattern.md", "Overview.md"], brain_notes)
+
+            registry = json.loads(paths.registry_path.read_text(encoding="utf-8"))
+            promoted = registry["entries"][0]["promoted_to"]
+            self.assertEqual(3, len(promoted))
+
+    @patch("tools.fde_brain.ingest.distill_long_source")
+    @patch("tools.fde_brain.ingest._is_long_pdf_at", return_value=False)
+    @patch("tools.fde_brain.ingest.distill_via_claude")
+    @patch("tools.fde_brain.ingest.normalize_source")
+    @patch("tools.fde_brain.ingest.run_preflight", side_effect=_all_ok_preflight)
+    def test_short_pdf_uses_single_note_distill(
+        self, _pf, normalize_mock, distill_mock, _is_long, distill_long_mock
+    ) -> None:
+        from tools.fde_brain.normalize import NormalizedOutput
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = _setup_workspace(root)
+            pdf_pending = paths.pending / "paper.pdf"
+            pdf_pending.write_bytes(b"%PDF-1.4 stub")
+
+            normalized_path = paths.normalized_for("pdf") / "paper.md"
+            normalized_path.parent.mkdir(parents=True, exist_ok=True)
+            normalized_path.write_text("---\n---\n\n# stub\n", encoding="utf-8")
+            normalize_mock.return_value = NormalizedOutput(
+                ok=True, output_path=normalized_path, routed_to="normalized", parser="pypdf"
+            )
+            distill_mock.return_value = DistillResult(
+                ok=True, promoted=False, note_content=None, note_slug=None, raw_response="NO_PROMOTION"
+            )
+
+            exit_code = main(["--root", str(root), "--no-commit"])
+
+            self.assertEqual(0, exit_code)
+            distill_mock.assert_called_once()
+            distill_long_mock.assert_not_called()
 
     @patch("tools.fde_brain.ingest.run_preflight", side_effect=_all_ok_preflight)
     def test_empty_pending_no_changes(self, _pf) -> None:

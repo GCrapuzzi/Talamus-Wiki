@@ -13,8 +13,12 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from pypdf import PdfReader
+
 from tools.fde_brain.classify import classify
 from tools.fde_brain.distill import distill_via_claude
+from tools.fde_brain.distill_long import distill_long_source
+from tools.fde_brain.length import is_long_pdf
 from tools.fde_brain.normalize import NormalizedOutput, normalize_source
 from tools.fde_brain.paths import WorkspacePaths
 from tools.fde_brain.preflight import run_preflight
@@ -64,6 +68,64 @@ def _rel(path: Path | None, root: Path) -> str | None:
         return path.as_posix()
 
 
+_SLUG_SAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _title_to_filename(title: str) -> str:
+    cleaned = _SLUG_SAFE_RE.sub("-", title).strip("-")
+    return cleaned or "note"
+
+
+def _is_long_pdf_at(raw_path: Path) -> bool:
+    try:
+        reader = PdfReader(str(raw_path))
+    except Exception:
+        return False
+    return is_long_pdf(reader)
+
+
+def _promote_short(
+    normalized_output_path: Path,
+    raw_path: Path,
+    paths: WorkspacePaths,
+) -> list[Path]:
+    distill_result = distill_via_claude(
+        normalized_path=normalized_output_path,
+        raw_path=raw_path,
+    )
+    if not (distill_result.ok and distill_result.promoted and distill_result.note_content):
+        return []
+    slug = distill_result.note_slug or normalized_output_path.stem
+    promoted_path = paths.fde_brain / f"{slug}.md"
+    paths.fde_brain.mkdir(parents=True, exist_ok=True)
+    promoted_path.write_text(distill_result.note_content, encoding="utf-8")
+    return [promoted_path]
+
+
+def _promote_long(
+    normalized_output_path: Path,
+    raw_path: Path,
+    paths: WorkspacePaths,
+    run_id: str,
+) -> list[Path]:
+    result = distill_long_source(
+        normalized_path=normalized_output_path,
+        raw_path=raw_path,
+        paths=paths,
+        run_id=run_id,
+    )
+    if not result.ok:
+        return []
+    written: list[Path] = []
+    paths.fde_brain.mkdir(parents=True, exist_ok=True)
+    for note in result.notes:
+        filename = f"{_title_to_filename(note.title)}.md"
+        promoted_path = paths.fde_brain / filename
+        promoted_path.write_text(note.content, encoding="utf-8")
+        written.append(promoted_path)
+    return written
+
+
 def _process_one(
     src: Path,
     paths: WorkspacePaths,
@@ -84,17 +146,20 @@ def _process_one(
         paths=paths,
     )
 
-    promoted_path: Path | None = None
+    promoted_paths: list[Path] = []
     if normalized.routed_to == "normalized" and normalized.output_path is not None:
-        distill_result = distill_via_claude(
-            normalized_path=normalized.output_path,
-            raw_path=raw_path,
-        )
-        if distill_result.ok and distill_result.promoted and distill_result.note_content:
-            slug = distill_result.note_slug or normalized.output_path.stem
-            promoted_path = paths.fde_brain / f"{slug}.md"
-            paths.fde_brain.mkdir(parents=True, exist_ok=True)
-            promoted_path.write_text(distill_result.note_content, encoding="utf-8")
+        if category == "pdf" and _is_long_pdf_at(raw_path):
+            promoted_paths = _promote_long(
+                normalized.output_path, raw_path, paths, run_id
+            )
+        else:
+            promoted_paths = _promote_short(
+                normalized.output_path, raw_path, paths
+            )
+
+    promoted_rels = [
+        rel for rel in (_rel(p, paths.root) for p in promoted_paths) if rel
+    ]
 
     entry = RegistryEntry(
         raw_path=_rel(raw_path, paths.root) or raw_path.as_posix(),
@@ -105,7 +170,7 @@ def _process_one(
         parser=normalized.parser,
         captured_at=captured_at.isoformat(),
         ingestion_run=run_id,
-        promoted_to=[_rel(promoted_path, paths.root) or ""] if promoted_path else [],
+        promoted_to=promoted_rels,
     )
     append_entry(paths.registry_path, entry)
 
@@ -115,7 +180,7 @@ def _process_one(
         normalized_path=_rel(normalized.output_path, paths.root),
         routed_to=normalized.routed_to,
         category=category,
-        promoted_to=_rel(promoted_path, paths.root),
+        promoted_to=promoted_rels,
         error=normalized.error,
     )
 
@@ -183,7 +248,6 @@ def main(argv: list[str] | None = None) -> int:
                 normalized_path=None,
                 routed_to="failed",
                 category="unknown",
-                promoted_to=None,
                 error=f"orchestrator exception: {exc}",
             )
             log.overall_ok = False

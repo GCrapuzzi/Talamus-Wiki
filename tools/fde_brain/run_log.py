@@ -18,8 +18,8 @@ class FileOutcome:
     normalized_path: str | None
     routed_to: str
     category: str
-    promoted_to: str | None
-    error: str | None
+    error: str | None = None
+    promoted_to: list[str] = field(default_factory=list)
 
 
 @dataclass
