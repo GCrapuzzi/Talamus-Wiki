@@ -17,7 +17,9 @@ This workspace is a Dual Graph LLM Wiki for Forward Deployed AI Engineering.
 - Do not write generated Graphify Obsidian exports into `FDE Brain/`.
 - Do not put drafts, temporary notes, or raw dumps in `FDE Brain/`.
 - Every knowledge-base answer must cite sources.
-- If a query uses `AI Space/normalized/`, promote stable/reusable knowledge into `FDE Brain/` in the same turn.
+- If a query uses `AI Space/normalized/`, promote stable/reusable knowledge into `FDE Brain/` in the same turn unless current user instructions explicitly forbid file changes.
+- Current user instructions such as read-only, review-only, no edits, or no file changes override automatic promotion behavior.
+- Current user instructions such as no commits override automatic commit behavior.
 - Never permanently delete originals.
 - Do not clean `AI Space/pending/` unless items were safely archived, reviewed, or failed.
 
@@ -29,9 +31,10 @@ This workspace is a Dual Graph LLM Wiki for Forward Deployed AI Engineering.
 4. If Brain Graph is insufficient, query Source Graph in `AI Space/graph/sources/`.
 5. Read relevant files in `AI Space/normalized/`.
 6. Answer with citations.
-7. Promote stable/reusable knowledge into `FDE Brain/` before finishing the turn.
-8. Update Brain Graph or mark it stale.
-9. Log and commit the promotion.
+7. If file changes are allowed, promote stable/reusable knowledge into `FDE Brain/` before finishing the turn.
+8. If a query uses `AI Space/normalized/` but file changes are forbidden, answer with citations and clearly state that promotion was skipped due to the current instruction; do not modify files or commit.
+9. Update Brain Graph or mark it stale only after allowed ingestion or allowed promotion changes.
+10. Log and commit only after allowed ingestion or allowed promotion changes, and only when commits are allowed.
 
 ## Citation Rules
 
@@ -80,7 +83,7 @@ graphify extract <input> --backend claude-cli --out <output>
 
 ## Git
 
-Commit after successful ingestion runs and query-driven promotions.
+Commit after successful ingestion runs and query-driven promotions only when those ingestion or promotion changes were allowed and commits are allowed.
 
 Use focused commit messages:
 
