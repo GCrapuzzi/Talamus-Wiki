@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,12 +10,26 @@ if __package__ in (None, ""):
 
 import ollama
 
-OCR_MODEL = "glm-ocr"
+DEFAULT_OCR_MODEL = "glm-ocr:q8_0"
+DEFAULT_OCR_NUM_CTX = 16384
 OCR_PROMPT = (
     "Extract all text from this image. Return only the extracted text, "
     "preserving structure (paragraphs, lists, headings). No commentary."
 )
-OCR_NUM_CTX = 8192
+
+
+def _model() -> str:
+    return os.environ.get("OCR_MODEL", DEFAULT_OCR_MODEL)
+
+
+def _num_ctx() -> int:
+    raw = os.environ.get("OCR_NUM_CTX")
+    if raw is None:
+        return DEFAULT_OCR_NUM_CTX
+    try:
+        return int(raw)
+    except ValueError:
+        return DEFAULT_OCR_NUM_CTX
 
 
 @dataclass(frozen=True)
@@ -26,9 +41,10 @@ class OcrResult:
 
 
 def extract_text_from_image(image_path: Path) -> OcrResult:
+    model = _model()
     try:
         response = ollama.chat(
-            model=OCR_MODEL,
+            model=model,
             messages=[
                 {
                     "role": "user",
@@ -36,9 +52,9 @@ def extract_text_from_image(image_path: Path) -> OcrResult:
                     "images": [str(image_path)],
                 }
             ],
-            options={"temperature": 0, "num_ctx": OCR_NUM_CTX},
+            options={"temperature": 0, "num_ctx": _num_ctx()},
         )
         text = response["message"]["content"].strip()
-        return OcrResult(ok=True, text=text, model=OCR_MODEL)
+        return OcrResult(ok=True, text=text, model=model)
     except Exception as exc:
-        return OcrResult(ok=False, text="", model=OCR_MODEL, error=str(exc))
+        return OcrResult(ok=False, text="", model=model, error=str(exc))

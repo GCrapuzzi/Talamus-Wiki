@@ -1,8 +1,9 @@
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.fde_brain.ocr import OcrResult, extract_text_from_image
+from tools.fde_brain.ocr import DEFAULT_OCR_MODEL, OcrResult, extract_text_from_image
 
 
 class OcrTests(unittest.TestCase):
@@ -16,7 +17,7 @@ class OcrTests(unittest.TestCase):
 
         self.assertTrue(result.ok)
         self.assertEqual("Hello world\nLine two", result.text)
-        self.assertEqual("glm-ocr", result.model)
+        self.assertEqual(DEFAULT_OCR_MODEL, result.model)
         self.assertIsNone(result.error)
 
     @patch("tools.fde_brain.ocr.ollama")
@@ -26,7 +27,7 @@ class OcrTests(unittest.TestCase):
         extract_text_from_image(Path("C:/img.png"))
 
         call_kwargs = ollama_module.chat.call_args.kwargs
-        self.assertEqual("glm-ocr", call_kwargs["model"])
+        self.assertEqual(DEFAULT_OCR_MODEL, call_kwargs["model"])
         message = call_kwargs["messages"][0]
         self.assertEqual("user", message["role"])
         self.assertEqual(["C:/img.png"], [p.replace("\\", "/") for p in message["images"]])
@@ -41,6 +42,17 @@ class OcrTests(unittest.TestCase):
         self.assertEqual(0, options["temperature"])
         self.assertIn("num_ctx", options)
         self.assertLessEqual(options["num_ctx"], 32768)
+
+    @patch("tools.fde_brain.ocr.ollama")
+    def test_env_var_overrides_model_and_num_ctx(self, ollama_module) -> None:
+        ollama_module.chat.return_value = {"message": {"content": "x"}}
+
+        with patch.dict(os.environ, {"OCR_MODEL": "glm-ocr:custom", "OCR_NUM_CTX": "4096"}):
+            extract_text_from_image(Path("C:/img.png"))
+
+        call_kwargs = ollama_module.chat.call_args.kwargs
+        self.assertEqual("glm-ocr:custom", call_kwargs["model"])
+        self.assertEqual(4096, call_kwargs["options"]["num_ctx"])
 
     @patch("tools.fde_brain.ocr.ollama")
     def test_returns_error_when_ollama_raises(self, ollama_module) -> None:
