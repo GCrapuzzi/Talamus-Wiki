@@ -1,0 +1,36 @@
+{
+  "run_id": "38df73ce",
+  "started_at": "2026-05-22T14:49:04.546717+00:00",
+  "finished_at": "2026-05-22T14:50:20.525193+00:00",
+  "files": [
+    {
+      "pending_name": "test-doc.txt",
+      "raw_path": "AI Space/raw/text/2026-05-22-test-doc.txt",
+      "normalized_path": "AI Space/normalized/text/test-doc.md",
+      "routed_to": "normalized",
+      "category": "text",
+      "promoted_to": null,
+      "error": null
+    },
+    {
+      "pending_name": "test-image.png",
+      "raw_path": "AI Space/raw/image/2026-05-22-test-image.png",
+      "normalized_path": "AI Space/failed/technical-failures/test-image.md",
+      "routed_to": "failed",
+      "category": "image",
+      "promoted_to": null,
+      "error": "model failed to load, this may be due to resource limitations or an internal error, check ollama server logs for details (status code: 500)"
+    },
+    {
+      "pending_name": "test-note.md",
+      "raw_path": "AI Space/raw/markdown/2026-05-22-test-note.md",
+      "normalized_path": "AI Space/normalized/markdown/test-note.md",
+      "routed_to": "normalized",
+      "category": "markdown",
+      "promoted_to": null,
+      "error": null
+    }
+  ],
+  "commit_hash": null,
+  "overall_ok": false
+}

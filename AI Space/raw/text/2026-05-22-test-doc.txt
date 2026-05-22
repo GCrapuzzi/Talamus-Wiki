@@ -1,0 +1,7 @@
+Note on knowledge graphs.
+
+A knowledge graph organizes information as nodes (concepts, entities)
+connected by typed edges (relations). It supports queries over
+relationships rather than over plain text. Modern LLM pipelines use
+knowledge graphs as a routing layer: the graph identifies which
+documents to read, then the model reads those documents.

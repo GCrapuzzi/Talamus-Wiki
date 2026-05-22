@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "entries": [
+    {
+      "raw_path": "AI Space/raw/text/2026-05-22-test-doc.txt",
+      "raw_hash": "sha256:750c9eec3f0a4c5b5fc3d5a48ee4e312298306919ff22425a4fa3b13425e1427",
+      "raw_size": 349,
+      "normalized_paths": [
+        "AI Space/normalized/text/test-doc.md"
+      ],
+      "category": "text",
+      "parser": "passthrough",
+      "captured_at": "2026-05-22T14:49:04.546717+00:00",
+      "ingestion_run": "38df73ce",
+      "promoted_to": []
+    },
+    {
+      "raw_path": "AI Space/raw/image/2026-05-22-test-image.png",
+      "raw_hash": "sha256:a5c352a1b5721eadd8f655ad9e10bbc7a56cde9e93859555d9c97278f56582e3",
+      "raw_size": 4498,
+      "normalized_paths": [
+        "AI Space/failed/technical-failures/test-image.md"
+      ],
+      "category": "image",
+      "parser": "glm-ocr",
+      "captured_at": "2026-05-22T14:49:04.546717+00:00",
+      "ingestion_run": "38df73ce",
+      "promoted_to": []
+    },
+    {
+      "raw_path": "AI Space/raw/markdown/2026-05-22-test-note.md",
+      "raw_hash": "sha256:85f2f4f8d5b356cc41ee6551f03e7c5fead95a8840b5efa71fb912ac6eb0d8e6",
+      "raw_size": 401,
+      "normalized_paths": [
+        "AI Space/normalized/markdown/test-note.md"
+      ],
+      "category": "markdown",
+      "parser": "passthrough",
+      "captured_at": "2026-05-22T14:49:04.546717+00:00",
+      "ingestion_run": "38df73ce",
+      "promoted_to": []
+    }
+  ]
+}
