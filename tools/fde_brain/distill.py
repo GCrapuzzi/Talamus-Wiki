@@ -67,9 +67,11 @@ def distill_via_claude(
 
     try:
         completed = subprocess.run(
-            ["claude", "-p", prompt],
+            ["claude", "-p"],
+            input=prompt,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=timeout_sec,
             check=False,
         )

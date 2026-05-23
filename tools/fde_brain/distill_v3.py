@@ -141,9 +141,11 @@ def _split_into_l1_chunks(content: str) -> list[tuple[str, str, str]]:
 
 def _run_claude(prompt: str, timeout_sec: int) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["claude", "-p", prompt],
+        ["claude", "-p"],
+        input=prompt,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=timeout_sec,
         check=False,
     )

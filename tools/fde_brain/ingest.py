@@ -115,6 +115,7 @@ def _promote_long(
         run_id=run_id,
     )
     if not result.ok:
+        _log("distill", f"FAILED: {result.error}")
         return []
     written: list[Path] = []
     paths.fde_brain.mkdir(parents=True, exist_ok=True)
