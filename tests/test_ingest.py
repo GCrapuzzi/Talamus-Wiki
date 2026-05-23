@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.fde_brain.distill import DistillResult
-from tools.fde_brain.distill_long import LongDistillResult, PromotedNote
+from tools.fde_brain.distill_v3 import DistillV3Result, PromotedNote
 from tools.fde_brain.ingest import main
 from tools.fde_brain.paths import WorkspacePaths
 from tools.fde_brain.preflight import CheckResult
@@ -101,7 +101,7 @@ class IngestIntegrationTests(unittest.TestCase):
             self.assertEqual(1, len(review_files))
             distill_mock.assert_not_called()
 
-    @patch("tools.fde_brain.ingest.distill_long_source")
+    @patch("tools.fde_brain.ingest.distill_v3")
     @patch("tools.fde_brain.ingest._is_long_pdf_at", return_value=True)
     @patch("tools.fde_brain.ingest.normalize_source")
     @patch("tools.fde_brain.ingest.run_preflight", side_effect=_all_ok_preflight)
@@ -128,7 +128,7 @@ class IngestIntegrationTests(unittest.TestCase):
                 PromotedNote(title="Chapter Key Idea", type="chapter", content="---\ntype: chapter\n---\n\n# Chapter Key Idea\n", source_anchors=[]),
                 PromotedNote(title="Cool Pattern", type="pattern", content="---\ntype: pattern\n---\n\n# Cool Pattern\n", source_anchors=[]),
             ]
-            distill_long_mock.return_value = LongDistillResult(ok=True, notes=notes, raw_responses=[])
+            distill_long_mock.return_value = DistillV3Result(ok=True, notes=notes, raw_responses=[])
 
             exit_code = main(["--root", str(root), "--no-commit"])
 
@@ -141,7 +141,7 @@ class IngestIntegrationTests(unittest.TestCase):
             promoted = registry["entries"][0]["promoted_to"]
             self.assertEqual(3, len(promoted))
 
-    @patch("tools.fde_brain.ingest.distill_long_source")
+    @patch("tools.fde_brain.ingest.distill_v3")
     @patch("tools.fde_brain.ingest._is_long_pdf_at", return_value=False)
     @patch("tools.fde_brain.ingest.distill_via_claude")
     @patch("tools.fde_brain.ingest.normalize_source")

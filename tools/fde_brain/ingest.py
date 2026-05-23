@@ -17,7 +17,7 @@ from pypdf import PdfReader
 
 from tools.fde_brain.classify import classify
 from tools.fde_brain.distill import distill_via_claude
-from tools.fde_brain.distill_long import distill_long_source
+from tools.fde_brain.distill_v3 import distill_v3
 from tools.fde_brain.length import is_long_pdf
 from tools.fde_brain.normalize import NormalizedOutput, normalize_source
 from tools.fde_brain.paths import WorkspacePaths
@@ -108,9 +108,9 @@ def _promote_long(
     paths: WorkspacePaths,
     run_id: str,
 ) -> list[Path]:
-    result = distill_long_source(
+    del raw_path  # V3 derives every locator from the normalized path
+    result = distill_v3(
         normalized_path=normalized_output_path,
-        raw_path=raw_path,
         paths=paths,
         run_id=run_id,
     )
