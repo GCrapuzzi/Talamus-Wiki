@@ -14,8 +14,10 @@ from pypdf import PdfReader
 
 from tools.fde_brain.categories import Category
 from tools.fde_brain.chapters import extract_chapters_from_pdf
+from tools.fde_brain.layout import page_has_visual_content
 from tools.fde_brain.ocr import extract_text_from_image
 from tools.fde_brain.paths import WorkspacePaths
+from tools.fde_brain.pdf_render import render_page_to_tempfile
 
 MIN_DIGITAL_PDF_CHARS = 50
 
@@ -83,6 +85,29 @@ def _normalize_passthrough(
     return NormalizedOutput(ok=True, output_path=dest, routed_to="normalized", parser="passthrough")
 
 
+def _ocr_page_via_render(raw_path: Path, page_index: int) -> str:
+    tmp_png: Path | None = None
+    try:
+        tmp_png = render_page_to_tempfile(raw_path, page_index)
+        result = extract_text_from_image(tmp_png)
+        return result.text if result.ok else ""
+    except Exception:
+        return ""
+    finally:
+        if tmp_png is not None:
+            tmp_png.unlink(missing_ok=True)
+
+
+def _combine_page_text(pypdf_text: str, ocr_text: str) -> str:
+    if not ocr_text:
+        return pypdf_text
+    if not pypdf_text:
+        return ocr_text
+    if len(ocr_text) > len(pypdf_text):
+        return ocr_text
+    return f"{pypdf_text}\n\n[Visual content extracted via GLM-OCR]\n\n{ocr_text}"
+
+
 def _normalize_pdf(
     raw_path: Path,
     raw_hash: str,
@@ -92,9 +117,16 @@ def _normalize_pdf(
     try:
         reader = PdfReader(str(raw_path))
         pages_text: list[str] = []
-        for page in reader.pages:
-            extracted = page.extract_text() or ""
-            pages_text.append(extracted.strip())
+        ocr_used_pages = 0
+        for idx, page in enumerate(reader.pages):
+            pypdf_text = (page.extract_text() or "").strip()
+            if page_has_visual_content(page):
+                ocr_text = _ocr_page_via_render(raw_path, idx)
+                if ocr_text:
+                    ocr_used_pages += 1
+                pages_text.append(_combine_page_text(pypdf_text, ocr_text))
+            else:
+                pages_text.append(pypdf_text)
     except Exception as exc:
         dest = paths.failed / "technical-failures" / f"{_slug_from_raw(raw_path)}.md"
         body = (

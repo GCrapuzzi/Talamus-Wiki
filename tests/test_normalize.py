@@ -154,6 +154,90 @@ class NormalizePdfTests(unittest.TestCase):
             self.assertIn("_Pages 2–3_", content)
             self.assertIn("_Pages 4–5_", content)
 
+    def test_layout_aware_ocr_fallback_invokes_ocr_on_visual_pages(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = WorkspacePaths(root)
+            paths.ensure_directories()
+            raw = paths.raw_for("pdf") / "2026-05-22-mixed.pdf"
+            raw.parent.mkdir(parents=True, exist_ok=True)
+            raw.write_bytes(b"%PDF-1.4 stub")
+
+            fake_reader_cls = _fake_pdf_reader(
+                pages_text=[
+                    "Text only page one with enough content to exceed the digital threshold for normalization.",
+                    "Mixed page with visual content but also some text in it. Adding length to keep things going.",
+                    "Final text only page wrapping up the document with a few more characters of body text.",
+                ],
+            )
+
+            def layout_side_effect(page):
+                return getattr(page, "_visual", False)
+
+            fake_reader = fake_reader_cls("ignored")
+            fake_reader.pages[1]._visual = True
+
+            ocr_calls: list[Path] = []
+
+            def render_side_effect(raw, idx):
+                ocr_calls.append((raw, idx))
+                return tmp_png_for(idx)
+
+            def tmp_png_for(idx):
+                p = Path(tmp) / f"render-{idx}.png"
+                p.write_bytes(b"fake-png")
+                return p
+
+            ocr_side_effect = OcrResult(ok=True, text="Visual OCR text for page two", model="glm-ocr")
+
+            with patch("tools.fde_brain.normalize.PdfReader", return_value=fake_reader), \
+                 patch("tools.fde_brain.normalize.page_has_visual_content", side_effect=layout_side_effect), \
+                 patch("tools.fde_brain.normalize.render_page_to_tempfile", side_effect=render_side_effect), \
+                 patch("tools.fde_brain.normalize.extract_text_from_image", return_value=ocr_side_effect) as ocr_mock:
+                out = normalize_source(
+                    raw_path=raw,
+                    category="pdf",
+                    raw_hash="sha256:mixed",
+                    captured_at=datetime.now(timezone.utc),
+                    paths=paths,
+                )
+
+            self.assertTrue(out.ok, msg=str(out))
+            self.assertEqual("normalized", out.routed_to)
+            self.assertEqual(1, ocr_mock.call_count)
+            assert out.output_path is not None
+            content = out.output_path.read_text(encoding="utf-8")
+            self.assertIn("Visual OCR text for page two", content)
+            self.assertIn("Text only page one", content)
+            self.assertIn("Final text only page", content)
+
+    def test_pdf_without_visual_content_skips_ocr(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = WorkspacePaths(root)
+            paths.ensure_directories()
+            raw = paths.raw_for("pdf") / "2026-05-22-text.pdf"
+            raw.parent.mkdir(parents=True, exist_ok=True)
+            raw.write_bytes(b"%PDF-1.4 stub")
+
+            fake_reader_cls = _fake_pdf_reader(
+                pages_text=["Plain text page that has plenty of characters for the threshold and contains zero visual."],
+            )
+
+            with patch("tools.fde_brain.normalize.PdfReader", new=fake_reader_cls), \
+                 patch("tools.fde_brain.normalize.page_has_visual_content", return_value=False), \
+                 patch("tools.fde_brain.normalize.extract_text_from_image") as ocr_mock:
+                out = normalize_source(
+                    raw_path=raw,
+                    category="pdf",
+                    raw_hash="sha256:text",
+                    captured_at=datetime.now(timezone.utc),
+                    paths=paths,
+                )
+
+            self.assertTrue(out.ok)
+            ocr_mock.assert_not_called()
+
     @patch("tools.fde_brain.normalize.PdfReader", new_callable=lambda: _fake_pdf_reader(["", ""]))
     def test_pdf_with_no_text_routes_to_review(self, _reader) -> None:
         with tempfile.TemporaryDirectory() as tmp:
