@@ -1,0 +1,344 @@
+{
+  "run_id": "82c4eb8c",
+  "started_at": "2026-05-26T08:07:41.859415+00:00",
+  "normalized_path": "AI Space/normalized/pdf/ai-engineering.md",
+  "chunks_processed": 18,
+  "chunks": [
+    {
+      "chapter_title": "Cover",
+      "anchor": "cover",
+      "notes_returned": 0,
+      "notes_valid": 0,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Copyright",
+      "anchor": "copyright",
+      "notes_returned": 0,
+      "notes_valid": 0,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Table of Contents",
+      "anchor": "table-of-contents",
+      "notes_returned": 0,
+      "notes_valid": 0,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Preface",
+      "anchor": "preface",
+      "notes_returned": 4,
+      "notes_valid": 4,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 1. Introduction to Building AI Applications with Foundation Models",
+      "anchor": "chapter-1-introduction-to-building-ai-applications-with-foundation-models",
+      "notes_returned": 8,
+      "notes_valid": 8,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 2. Understanding Foundation Models",
+      "anchor": "chapter-2-understanding-foundation-models",
+      "notes_returned": 16,
+      "notes_valid": 16,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 3. Evaluation Methodology",
+      "anchor": "chapter-3-evaluation-methodology",
+      "notes_returned": 10,
+      "notes_valid": 10,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 4. Evaluate AI Systems",
+      "anchor": "chapter-4-evaluate-ai-systems",
+      "notes_returned": 12,
+      "notes_valid": 12,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 5. Prompt Engineering",
+      "anchor": "chapter-5-prompt-engineering",
+      "notes_returned": 12,
+      "notes_valid": 12,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 6. RAG and Agents",
+      "anchor": "chapter-6-rag-and-agents",
+      "notes_returned": 22,
+      "notes_valid": 22,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 7. Finetuning",
+      "anchor": "chapter-7-finetuning",
+      "notes_returned": 16,
+      "notes_valid": 16,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 8. Dataset Engineering",
+      "anchor": "chapter-8-dataset-engineering",
+      "notes_returned": 14,
+      "notes_valid": 14,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 9. Inference Optimization",
+      "anchor": "chapter-9-inference-optimization",
+      "notes_returned": 15,
+      "notes_valid": 15,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Chapter 10. AI Engineering Architecture and User Feedback",
+      "anchor": "chapter-10-ai-engineering-architecture-and-user-feedback",
+      "notes_returned": 11,
+      "notes_valid": 11,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Epilogue",
+      "anchor": "epilogue",
+      "notes_returned": 0,
+      "notes_valid": 0,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Index",
+      "anchor": "index",
+      "notes_returned": 0,
+      "notes_valid": 0,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "About the Author",
+      "anchor": "about-the-author",
+      "notes_returned": 0,
+      "notes_valid": 0,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "chapter_title": "Colophon",
+      "anchor": "colophon",
+      "notes_returned": 0,
+      "notes_valid": 0,
+      "attempts": 1,
+      "error": null
+    }
+  ],
+  "notes_total": 141,
+  "wikilinks_dropped": [
+    {
+      "note": "Lindy's Law",
+      "dropped": [
+        "RAG"
+      ]
+    },
+    {
+      "note": "AI Engineering vs ML Engineering",
+      "dropped": [
+        "Prompt Engineering",
+        "RAG"
+      ]
+    },
+    {
+      "note": "AI Application Development Loop",
+      "dropped": [
+        "Prompt Engineering",
+        "RAG",
+        "Finetuning"
+      ]
+    },
+    {
+      "note": "Language Model",
+      "dropped": [
+        "BERT"
+      ]
+    },
+    {
+      "note": "Self-Supervised Learning",
+      "dropped": [
+        "CLIP"
+      ]
+    },
+    {
+      "note": "Foundation Model",
+      "dropped": [
+        "Prompt Engineering",
+        "Finetuning",
+        "CLIP"
+      ]
+    },
+    {
+      "note": "AI Engineering",
+      "dropped": [
+        "ML Engineering"
+      ]
+    },
+    {
+      "note": "AI Engineering Stack",
+      "dropped": [
+        "Prompt Engineering"
+      ]
+    },
+    {
+      "note": "Factual Consistency Verification",
+      "dropped": [
+        "TruthfulQA"
+      ]
+    },
+    {
+      "note": "In-Context Learning",
+      "dropped": [
+        "Context Length"
+      ]
+    },
+    {
+      "note": "Prompt Attack Defenses",
+      "dropped": [
+        "Guardrails"
+      ]
+    },
+    {
+      "note": "Retrieval-Augmented Generation",
+      "dropped": [
+        "Feature Engineering"
+      ]
+    },
+    {
+      "note": "Embedding-Based Retrieval",
+      "dropped": [
+        "Vector Database",
+        "MTEB Benchmark"
+      ]
+    },
+    {
+      "note": "Retrieval Evaluation Metrics",
+      "dropped": [
+        "MTEB Benchmark"
+      ]
+    },
+    {
+      "note": "Multimodal RAG",
+      "dropped": [
+        "CLIP"
+      ]
+    },
+    {
+      "note": "ReAct Pattern",
+      "dropped": [
+        "Reflexion"
+      ]
+    },
+    {
+      "note": "Transfer Learning",
+      "dropped": [
+        "Sample Efficiency"
+      ]
+    },
+    {
+      "note": "Finetuning vs RAG Decision Framework",
+      "dropped": [
+        "Evaluation Pipeline"
+      ]
+    },
+    {
+      "note": "Finetuning Memory Bottleneck",
+      "dropped": [
+        "PEFT"
+      ]
+    },
+    {
+      "note": "Model Merging",
+      "dropped": [
+        "Task Arithmetic"
+      ]
+    },
+    {
+      "note": "Data Coverage and Diversity",
+      "dropped": [
+        "Scaling Laws"
+      ]
+    },
+    {
+      "note": "AI-Powered Data Synthesis",
+      "dropped": [
+        "Back-Translation"
+      ]
+    },
+    {
+      "note": "Synthetic Data Verification",
+      "dropped": [
+        "AI-as-Judge"
+      ]
+    },
+    {
+      "note": "Training Data Processing Pipeline",
+      "dropped": [
+        "Active Learning"
+      ]
+    },
+    {
+      "note": "Training Data Formats by Task",
+      "dropped": [
+        "Chain-of-Thought"
+      ]
+    },
+    {
+      "note": "KV Cache",
+      "dropped": [
+        "PagedAttention",
+        "FlashAttention"
+      ]
+    },
+    {
+      "note": "Kernel Optimization Techniques",
+      "dropped": [
+        "FlashAttention"
+      ]
+    },
+    {
+      "note": "AI Application Architecture Progression",
+      "dropped": [
+        "Write Actions"
+      ]
+    },
+    {
+      "note": "AI Observability Metrics",
+      "dropped": [
+        "AI Judge",
+        "Time to First Token",
+        "Time Per Output Token"
+      ]
+    },
+    {
+      "note": "Conversational Feedback Signals",
+      "dropped": [
+        "RLHF"
+      ]
+    }
+  ]
+}
