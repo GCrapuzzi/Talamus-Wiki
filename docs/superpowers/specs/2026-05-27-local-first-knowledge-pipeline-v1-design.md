@@ -14,14 +14,14 @@ wikilinks, and lexical search indexes.
 ## Purpose
 
 Build a local-first knowledge pipeline that turns messy source material into a
-source-grounded, graph-ready, Obsidian-compatible knowledge base for AI agents
-and humans.
+source-grounded, graph-ready knowledge base for AI agents and humans.
 
-The first target user is a Forward Deployed AI Engineer or AI Engineer who needs
-to ingest books, notes, PDFs, images, and work material into a reusable second
-brain. The tool must also be designed as a future open source product:
-beginner-friendly by default, powerful by configuration, and scalable enough to
-support a future local UI that can eventually replace Obsidian.
+The tool is designed as an open source product first. It should work for
+individuals, consultants, researchers, operators, students, and professional
+teams that need to turn source material into reusable knowledge. Obsidian is the
+first storage adapter because it is practical and widely adopted, but the core
+product must remain storage-agnostic and scalable enough to support a future
+local UI that can replace Obsidian.
 
 ## Product Positioning
 
@@ -33,7 +33,7 @@ It is a local-first knowledge compiler:
 messy source
 -> validated Markdown source package
 -> rich source-grounded canonical notes
--> Obsidian rendering
+-> storage adapter rendering
 -> deterministic graph and lexical index
 -> cited answers from real Markdown notes
 ```
@@ -69,8 +69,8 @@ Rules:
 3. Few V1 formats, robustly handled.
 4. No hardcoded strategic choice: converters, OCR, LLMs, search, graph, and
    storage must be adapters behind stable interfaces.
-5. Canonical data model first; Obsidian Markdown is a rendering target, not the
-   primary data model.
+5. Canonical data model first; storage-specific Markdown is a rendering target,
+   not the primary data model.
 6. Source provenance is mandatory for every important claim.
 7. Wikilinks belong inside note bodies when they help reading and traversal.
 8. Link generation is LLM-assisted but system-validated.
@@ -146,37 +146,39 @@ Explicit V2 or later:
 
 The architecture must still support these later through adapters.
 
-## Source Storage Layers
+## Default Project Storage Layers
 
-The workspace keeps three canonical storage layers:
+The tool should initialize a project directory with three canonical storage
+layers. The exact folder names are configurable; the names below are default
+product names, not user-specific workspace names.
 
 ```text
-AI Space/raw/
+knowledge/raw/
   Preserved originals.
 
-AI Space/normalized/
+knowledge/normalized/
   Source-faithful Markdown packages.
 
-FDE Brain/
-  Obsidian-rendered final notes.
+knowledge/notes/
+  Canonical final notes and storage-adapter-rendered notes.
 ```
 
 Derived layers:
 
 ```text
-AI Space/index/
+knowledge/index/
   Lexical/BM25 and optional hybrid search indexes.
 
-AI Space/graph/
+knowledge/graph/
   Deterministic graph outputs built from canonical notes.
 
-AI Space/logs/
+knowledge/logs/
   Run, decision, validation, migration, and promotion logs.
 
-AI Space/review/
+knowledge/review/
   Items needing human review.
 
-AI Space/failed/
+knowledge/failed/
   Technical failures.
 ```
 
@@ -187,7 +189,7 @@ Graph and index files are derived and must be rebuildable.
 Every processed source becomes a normalized package:
 
 ```text
-AI Space/normalized/<source_type>/<source_slug>/
+knowledge/normalized/<source_type>/<source_slug>/
   manifest.json
   sections/
     001-title.md
@@ -262,9 +264,9 @@ Quality checks:
 Low-quality items route to:
 
 ```text
-AI Space/review/low-confidence-normalization/
-AI Space/review/needs-human/
-AI Space/failed/technical-failures/
+knowledge/review/low-confidence-normalization/
+knowledge/review/needs-human/
+knowledge/failed/technical-failures/
 ```
 
 The system should preserve raw and normalized material even when a section is not
@@ -316,8 +318,8 @@ Canonical note object fields:
   "id": "stable-id",
   "title": "Retrieval-Augmented Generation",
   "aliases": ["RAG", "retrieval augmented generation"],
-  "folder": "AI Engineering/Retrieval",
-  "tags": ["ai-engineering", "retrieval", "rag"],
+  "folder": "Retrieval",
+  "tags": ["retrieval", "rag"],
   "summary": "Human-facing summary.",
   "retrieval_text": "Search-optimized terms and explanations.",
   "body_sections": {
@@ -344,8 +346,8 @@ Canonical note object fields:
   ],
   "sources": [
     {
-      "raw_path": "AI Space/raw/pdf/example.pdf",
-      "normalized_path": "AI Space/normalized/pdf/example/sections/004-rag.md",
+      "raw_path": "knowledge/raw/pdf/example.pdf",
+      "normalized_path": "knowledge/normalized/pdf/example/sections/004-rag.md",
       "locator": "pages 42-48",
       "source_hash": "sha256:...",
       "supported_claims": ["..."]
@@ -402,11 +404,12 @@ Rules:
 - Broken links must not be rendered into final notes.
 - Important missing concepts should be logged for review.
 
-## Obsidian Storage Adapter
+## Storage Adapters
 
-Obsidian is the first storage adapter, not the permanent product boundary.
+The core is storage-agnostic. Obsidian is the first official storage adapter,
+not the permanent product boundary.
 
-The canonical note object renders to Obsidian Markdown:
+The canonical note object can render to Obsidian Markdown:
 
 - YAML frontmatter / Properties
 - aliases
@@ -420,12 +423,15 @@ The canonical note object renders to Obsidian Markdown:
 The future local UI should be able to read the same canonical data and render
 its own interface without requiring Obsidian.
 
+Future storage adapters may render to a proprietary local UI store, plain
+Markdown, a database-backed workspace, or other user-selected formats.
+
 ## Deterministic Graph Layer
 
 Graphify is excluded from the core.
 
-The graph is built deterministically from canonical notes and rendered Obsidian
-notes.
+The graph is built deterministically from canonical notes and any rendered
+storage-adapter notes.
 
 Graph nodes:
 
@@ -561,11 +567,11 @@ Config must be versioned and migratable.
 Every meaningful run should produce logs:
 
 ```text
-AI Space/logs/runs/
-AI Space/logs/decisions/
-AI Space/logs/errors/
-AI Space/logs/migrations/
-AI Space/logs/retrieval/
+knowledge/logs/runs/
+knowledge/logs/decisions/
+knowledge/logs/errors/
+knowledge/logs/migrations/
+knowledge/logs/retrieval/
 ```
 
 Logs should include:
@@ -612,7 +618,7 @@ and get:
 - raw originals preserved
 - normalized Markdown packages created
 - quality reports written
-- rich Obsidian notes generated
+- rich storage-adapter notes generated
 - body wikilinks rendered and validated
 - deterministic graph built
 - lexical search index built
@@ -690,7 +696,7 @@ Mitigation:
 
 - canonical note objects are the primary data model
 - Obsidian is only the first storage adapter
-- graph and search use canonical metadata, not Obsidian-only behavior
+- graph and search use canonical metadata, not storage-adapter-specific behavior
 
 ## Documentation Requirements
 
@@ -706,6 +712,7 @@ Required docs:
 - model setup
 - adapter configuration
 - Obsidian adapter behavior
+- storage adapter behavior
 - privacy/local-first explanation
 - licensing and optional adapter license notes
 
@@ -722,4 +729,3 @@ After this design is accepted, create an implementation plan that:
 7. Updates ask retrieval to use search plus graph plus real Markdown notes.
 8. Adds beginner CLI commands and progress/resume infrastructure.
 9. Updates docs and protocol files.
-
