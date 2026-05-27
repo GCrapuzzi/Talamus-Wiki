@@ -1,29 +1,43 @@
 ---
 type: method
-tags: [retrieval, tf-idf, bm25, elasticsearch, information-retrieval]
+status: evergreen
+aliases:
+  - Term-based Retrieval
+  - Lexical Retrieval
+  - Keyword Search
+tags:
+  - ai-engineering
+  - rag
+  - search
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#retrieval-algorithms
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/113-retrieval-algorithms.md
+    locator: pages 281-290
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Given a query, the most straightforward way to find relevant documents is with key-words.
+      - Term-based retrieval computes relevance at a lexical level rather than a semantic level.
+created: 2026-05-26T21:55:46.054597+00:00
+updated: 2026-05-26T21:55:46.054597+00:00
+ingestion_run: 8d527d59
 ---
 
-# Term-Based Retrieval
+# Term-based Retrieval
 
-Retrieval based on lexical matching — ranking documents by keyword relevance scores.
+## Summary
 
-### TF-IDF
-- **Term Frequency (TF)**: number of times a term appears in a document. More occurrences → higher relevance.
-- **Inverse Document Frequency (IDF)**: `log(N / C(t))` where N = total documents, C(t) = documents containing term t. Rarer terms → more informative.
-- **Score**: `∑ IDF(tᵢ) × f(tᵢ, D)` for all query terms.
+A retrieval mechanism that determines relevance by matching explicit keywords and terms between the query and the document, typically using statistical scoring methods like TF-IDF or BM25.
 
-### Key Solutions
-- **Elasticsearch** (built on Lucene): uses an **inverted index** — dictionary mapping terms → documents containing them, with term frequency and document counts.
-- **BM25** (Okapi Best Matching 25): TF-IDF variant that normalizes term frequency by document length. Still a formidable baseline against modern retrieval algorithms.
+## Core Idea
 
-### Tokenization considerations
-- Simple word splitting can break multi-word terms ("hot dog" → "hot" + "dog")
-- Mitigate with common n-gram detection
-- Lowercase conversion, punctuation removal, stop word elimination
-- Tools: NLTK, spaCy, Stanford CoreNLP
+This approach is highly effective when the query contains specific, unique terminology. Its limitation is that it fails to capture semantic meaning or synonyms (e.g., if the query uses 'automobile' but the document uses 'car').
 
-Pros: fast, cheap, strong out-of-box performance. Cons: lexical-only (no semantic understanding), limited tuning levers.
+## Practical Use
+
+Ideal for domain-specific searches where exact terminology is expected (e.g., searching for specific product codes or legal statutes). Requires preprocessing steps like tokenization and stop word removal.
+
+## Related
+
+- [[TF-IDF-Scoring|TF-IDF Scoring]]
+- [[BM25-Scoring|BM25 Scoring]]
+- [[Tokenization|Tokenization]]

@@ -1,18 +1,42 @@
 ---
-type: concept
-tags: [dataset-engineering, data-centric-ai, training-data]
+type: framework
+status: evergreen
+aliases:
+  - Data-Centric AI
+  - data-centric approach
+  - data-first AI
+tags:
+  - ai-engineering
+  - data-strategy
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#chapter-8-dataset-engineering
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/139-chapter-8.-dataset-engineering.md
+    locator: pages 387-388
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - The goal of dataset engineering is to create a dataset that allows you to train the best model.
+      - Data-centric AI tries to improve AI performance by enhancing the data.
+      - In recent years, more benchmarks have become data-centric.
+created: 2026-05-26T21:55:46.290321+00:00
+updated: 2026-05-26T21:55:46.290321+00:00
+ingestion_run: 8d527d59
 ---
 
 # Data-Centric AI
 
-A paradigm that improves AI performance by enhancing data rather than models, contrasting with **model-centric AI** which focuses on architectures, scale, and training techniques.
+## Summary
 
-Data-centric benchmarks flip the traditional setup: given a fixed model, participants compete to build the best dataset. Examples include DataComp (CLIP training datasets evaluated on 38 downstream tasks), DataPerf, and dcbench.
+An AI development paradigm that prioritizes improving model performance by enhancing the quality, structure, and quantity of the training data, rather than solely focusing on improving model architecture or size.
 
-Andrew Ng's 2021 data-centric competition asked participants to improve a base dataset via label fixing, edge-case addition, and augmentation—keeping the model constant.
+## Core Idea
 
-In practice, meaningful progress requires investment in both model and data improvements. The division is a useful research lens, not a strict either/or.
+The quality of the model is fundamentally limited by the quality of the data. By focusing on data improvements (e.g., fixing labels, adding edge cases, augmenting data), performance gains can be achieved with fewer computational resources.
+
+## Practical Use
+
+When faced with budget constraints, an AI engineer should first evaluate if performance bottlenecks are due to model limitations (requiring more compute/architecture changes) or data limitations (requiring more data labeling, cleaning, or augmentation). This guides resource allocation.
+
+## Related
+
+- [[Model-Centric-AI|Model-Centric AI]]
+- [[Dataset-Engineering-Lifecycle|Dataset Engineering Lifecycle]]

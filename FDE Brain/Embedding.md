@@ -1,32 +1,43 @@
 ---
-type: concept
-tags: [embeddings, representation-learning, CLIP, multimodal, vector-search]
+type: glossary
+status: evergreen
+aliases:
+  - Embedding
+  - Vector Representation
+  - Numerical Embedding
+tags:
+  - ai-engineering
+  - llm-architecture
+  - vector-databases
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#introduction-to-embedding
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/066-introduction-to-embedding.md
+    locator: pages 158-159
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - An embedding is a numerical representation that aims to capture the meaning of the original data.
+      - The goal of the embedding algorithm is to produce embeddings that capture the essence of the original data.
+created: 2026-05-26T21:55:45.703622+00:00
+updated: 2026-05-26T21:55:45.703622+00:00
+ingestion_run: 8d527d59
 ---
 
 # Embedding
 
-A numerical vector representation that captures the meaning of input data. Computers process numbers, so any input (text, image, audio) must be converted to embeddings before model processing.
+## Summary
 
-**Properties:**
-- Typical dimensionality: 100–10,000 elements (lower-dimensional than raw data).
-- Quality criterion: more-similar inputs should have closer embeddings (measured by cosine similarity).
+A numerical vector representation that converts complex data (text, images, etc.) into a lower-dimensional space, aiming to capture the semantic meaning of the original data.
 
-**Common embedding models and sizes:**
-| Model | Size |
-|---|---|
-| BERT base / large | 768 / 1024 |
-| CLIP (image & text) | 512 |
-| OpenAI text-embedding-3-small / large | 1536 / 3072 |
-| Cohere Embed v3 | 1024 (full) / 384 (light) |
+## Core Idea
 
-**Multimodal embeddings**: CLIP maps text and images into a joint space. ImageBind extends this to six modalities. A **multimodal embedding space** enables cross-modal operations like text-based image search.
+Since computers process numbers, embeddings translate abstract concepts into quantifiable coordinates. The goal is that the geometric distance between two vectors reflects the semantic similarity between the original data points.
 
-**Applications**: [[Semantic Similarity]], classification, topic modeling, recommender systems, [[Retrieval-Augmented Generation]], vector search, data deduplication.
+## Practical Use
 
-**Evaluation**: MTEB (Massive Text Embedding Benchmark) measures embedding quality across multiple tasks.
+Used as the foundational step for Retrieval-Augmented Generation (RAG), classification, and similarity search. Engineers must select an embedding model (e.g., OpenAI, Cohere, BERT) appropriate for the data modality and task.
 
-General-purpose LLMs (GPT, Llama) produce intermediate embeddings, but specialized embedding models typically produce higher-quality representations.
+## Related
+
+- [[Joint-Embedding-Space|Joint Embedding Space]]
+- Cosine Similarity
+- MTEB

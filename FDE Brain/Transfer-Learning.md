@@ -1,20 +1,42 @@
 ---
-type: concept
-tags: [transfer-learning, finetuning, foundation-models, sample-efficiency]
+type: framework
+status: evergreen
+aliases:
+  - Transfer Learning
+  - Knowledge Transfer
+  - Pre-training knowledge reuse
+tags:
+  - ai-engineering
+  - llm-architecture
+  - transfer-learning
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#finetuning-overview
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/124-finetuning-overview.md
+    locator: pages 332-334
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Transfer learning focuses on how to transfer the knowledge gained from one task to accelerate learning for a new, related task.
+      - Transfer learning improves sample efficiency, allowing a model to learn the same behavior with fewer examples.
+created: 2026-05-26T21:55:46.158934+00:00
+updated: 2026-05-26T21:55:46.158934+00:00
+ingestion_run: 8d527d59
 ---
 
 # Transfer Learning
 
-Transfer learning focuses on transferring knowledge gained from one task to accelerate learning for a new, related task. First introduced by Bozinovski and Fulgosi (1976).
+## Summary
 
-Two main forms:
-- **Finetuning-based transfer**: adjust model weights on a target task starting from a pre-trained checkpoint
-- **Feature-based transfer**: extract embeddings from a pre-trained model and feed them to a downstream model (e.g., ImageNet features for object detection)
+The process of transferring knowledge gained from solving one task (source domain) to accelerate learning for a new, related task (target domain).
 
-Transfer learning improves Sample Efficiency—a finetuned model can match from-scratch performance with orders of magnitude fewer examples. OpenAI's InstructGPT paper (2022) framed finetuning as *unlocking* capabilities already present in the base model but hard to elicit via prompting alone.
+## Core Idea
 
-For LLMs, knowledge from self-supervised pre-training on text completion transfers to specialized tasks (legal QA, text-to-SQL) that have limited labeled data.
+It drastically improves sample efficiency, allowing models to achieve high performance on specialized tasks with significantly fewer labeled examples than training from scratch. Foundation models are valuable because they are pre-trained on massive, general datasets.
+
+## Practical Use
+
+When starting a new domain-specific AI project (e.g., legal Q&A), do not train a model from scratch. Instead, select a large, pre-trained base model (foundation model) and use transfer learning techniques (like finetuning) to adapt its general knowledge to the specific domain.
+
+## Related
+
+- [[Finetuning|Finetuning]]
+- [[Feature-based-Transfer|Feature-based Transfer]]

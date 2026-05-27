@@ -1,21 +1,42 @@
 ---
-type: concept
-tags: [self-supervision, training, data-labeling, scaling, fundamentals]
+type: method
+status: evergreen
+aliases:
+  - Self-supervised Learning
+  - Self-supervision
+tags:
+  - ai-engineering
+  - ml-training
+  - data-strategy
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#from-language-models-to-large-language-models
-  - AI Space/normalized/pdf/ai-engineering.md#from-large-language-models-to-foundation-models
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/017-from-large-language-models-to-foundation-models.md
+    locator: pages 32-35
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - In self-supervised learning, labels are inferred from the input data.
+      - Self-supervised learning means that language models can learn from text sequences without requiring any labeling.
+      - OpenAI used a variant of self-supervision called natural language supervision to train their language-image model CLIP...
+created: 2026-05-26T21:55:45.345972+00:00
+updated: 2026-05-26T21:55:45.345972+00:00
+ingestion_run: 8d527d59
 ---
 
-# Self-Supervised Learning
+# Self-supervised Learning
 
-A training paradigm where labels are inferred from the input data itself, eliminating the manual labeling bottleneck that constrains supervised learning.
+## Summary
 
-In language modeling, each input sequence provides both context and labels: the sentence "I love street food." yields multiple training samples where preceding tokens predict the next token. This means language models can learn from any text corpus — books, articles, Reddit — enabling massive dataset construction at zero labeling cost.
+A machine learning paradigm where the model generates its own labels (pseudo-labels) from the input data, eliminating the need for expensive manual labeling. This is crucial for scaling large models.
 
-Distinct from **unsupervised learning** (no labels at all) and **supervised learning** (explicit human-provided labels).
+## Core Idea
 
-**Why it matters for scale:** Supervised labeling costs ~$0.05/image; labeling 1M images for ImageNet costs ~$50K. Scaling to 1M categories would cost ~$50M. Domain-expert labeling (e.g. CT scans, Latin translations) costs far more. Self-supervision removes this ceiling entirely, enabling the data scale that turned language models into LLMs.
+By inferring labels from the data itself (e.g., predicting missing words in a sentence, or pairing images with co-occurring text), models can be trained on massive, readily available datasets (like the entire internet), enabling unprecedented scale.
 
-Extends beyond text: OpenAI's CLIP used **natural language supervision** — harvesting 400M (image, text) pairs co-occurring on the internet — to train a multimodal model without manual labels.
+## Practical Use
+
+When building a model with limited labeled data, utilize self-supervised techniques. For multimodal data, use techniques like finding co-occurring (image, text) pairs to train joint embedding models (like CLIP).
+
+## Related
+
+- [[Natural-Language-Supervision|Natural Language Supervision]]
+- [[Foundation-Model|Foundation Model]]

@@ -1,29 +1,43 @@
 ---
 type: glossary
-tags: [evaluation, language-modeling, metrics, information-theory]
+status: evergreen
+aliases:
+  - Cross Entropy
+  - LLM Loss Function
+  - Negative Log-Likelihood (NLL)
+tags:
+  - ai-engineering
+  - llm-evaluation
+  - loss-function
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#cross-entropy
-  - AI Space/normalized/pdf/ai-engineering.md#bits-per-character-and-bits-per-byte
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/059-cross-entropy.md
+    locator: pages 144-144
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - A language model’s cross entropy on a dataset measures how difficult it is for the language model to predict what comes next in this dataset.
+      - Cross entropy depends on the training data’s predictability (Entropy) and how the model's distribution diverges from the true distribution (KL Divergence).
+created: 2026-05-26T21:55:45.654715+00:00
+updated: 2026-05-26T21:55:45.654715+00:00
+ingestion_run: 8d527d59
 ---
 
 # Cross Entropy
 
-Cross entropy $H(P, Q)$ measures how difficult it is for a language model (learned distribution $Q$) to predict the next token in a dataset (true distribution $P$).
+## Summary
 
-$$H(P, Q) = H(P) + D_{KL}(P \| Q)$$
+A metric used to evaluate how well a language model's predicted probability distribution (Q) matches the true probability distribution (P) of the training data. It measures the average number of bits needed to encode the true data using the model's predicted distribution.
 
-where $H(P)$ is the dataset's entropy (intrinsic unpredictability) and $D_{KL}(P \| Q)$ is the KL divergence between the true and learned distributions.
+## Core Idea
 
-Key properties:
-- Cross entropy is **not symmetric**: $H(P,Q) \neq H(Q,P)$
-- A perfectly trained model achieves $H(P,Q) = H(P)$ (KL divergence goes to zero)
-- Cross entropy is the primary training objective for autoregressive language models
+Cross Entropy quantifies the difficulty of predicting the next token in a sequence. Minimizing this value during training forces the language model to adjust its learned distribution (Q) to closely approximate the true underlying data distribution (P).
 
-Related metrics that are interconvertible given necessary information:
-- **Bits-per-character (BPC)**: cross entropy normalized by average characters per token
-- **Bits-per-byte (BPB)**: cross entropy normalized by bytes—more standardized across character encodings
-- **[[Perplexity]]**: $2^{H(P,Q)}$ (exponential of cross entropy)
+## Practical Use
 
-Cross entropy also quantifies compression efficiency: a BPB of 3.43 means the model can compress text to less than half its original size.
+1. **Training Objective:** Used as the primary loss function during LLM training (optimization objective). 2. **Evaluation:** Provides a quantitative measure of model performance; a lower cross entropy indicates better alignment with the true data distribution. 3. **Diagnosis:** Helps diagnose if the model is failing to capture the true statistical properties of the data.
+
+## Related
+
+- Entropy
+- Kullback–Leibler (KL) Divergence
+- Negative Log-Likelihood

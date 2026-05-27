@@ -1,33 +1,40 @@
 ---
-type: concept
-tags: [model-merging, task-arithmetic, SLERP, TIES, frankenmerging, federated-learning]
+type: pattern
+status: evergreen
+aliases:
+  - Model Merging
+  - Adapter Combination
+tags:
+  - ai-engineering
+  - finetuning
+  - deployment
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#model-merging-and-multi-task-finetuning
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/138-summary.md
+    locator: pages 385-386
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - The idea of combining finetuned models brought the chapter to model merging; its goal is to combine multiple models into one model that works better than these models separately.
+created: 2026-05-26T21:55:46.286947+00:00
+updated: 2026-05-26T21:55:46.286947+00:00
+ingestion_run: 8d527d59
 ---
 
 # Model Merging
 
-Combining multiple models into a single model that provides more value than using them separately. Complementary to finetuning—can be done without GPUs.
+## Summary
 
-**Use cases**:
-- Improve performance by combining models good at different subtasks
-- Reduce memory by merging task-specific adapters into one model
-- Multi-task finetuning without catastrophic forgetting (finetune tasks in parallel, then merge)
-- On-device deployment (one multi-task model instead of several)
-- Federated learning (merge device-specific model copies)
-- Model upscaling (create larger models from smaller ones)
+The process of combining the weights or knowledge from multiple independently finetuned models (or adapters) into a single, unified model that ideally performs better than the individual components.
 
-**Three main approaches**:
+## Core Idea
 
-1. **Summing**
-   - *Linear combination*: weighted average of parameters. Most effective for models finetuned on same base. Enables Task Arithmetic—add task vectors to combine capabilities, subtract to remove behaviors
-   - *SLERP*: spherical interpolation between two models on a hypersphere surface. Interpolation factor 0–1 controls contribution balance. Only merges two models at a time
-   - *Pruning before merging* (TIES, DARE): reset redundant task-vector parameters (top 20% often sufficient) to reduce interference between merged tasks
+It enables the aggregation of specialized knowledge from multiple sources or tasks into one cohesive, deployable asset, improving overall system performance and utility.
 
-2. **Layer stacking (frankenmerging)**: take layers from different models and stack them. Creates novel architectures. Goliath-120B merged two Llama 2-70B models. Can create MoE models via sparse upcycling. Enables depthwise scaling for model upscaling (SOLAR 10.7B from 7B)
+## Practical Use
 
-3. **Concatenation**: concat adapter parameters (e.g., LoRA rank r1 + r2). Not recommended—no memory savings over serving separately
+Combine multiple LoRA adapters trained on different datasets (e.g., one for medical jargon, one for legal summarization) into a single model for comprehensive, multi-domain deployment.
 
-Many top models on Hugging Face's Open LLM Leaderboard are merged models.
+## Related
+
+- [[LoRA-Low-Rank-Adaptation|LoRA (Low-Rank Adaptation)]]
+- PEFT

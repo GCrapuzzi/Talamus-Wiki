@@ -1,31 +1,38 @@
 ---
 type: concept
-tags: [quantization, inference-optimization, memory, numerical-precision, PTQ, QAT]
+status: evergreen
+aliases:
+  - Quantization
+  - Low-bit quantization
+tags:
+  - ai-engineering
+  - model-optimization
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#numerical-representations
-  - AI Space/normalized/pdf/ai-engineering.md#quantization
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/164-summary.md
+    locator: pages 471-472
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Model-level techniques include model-agnostic techniques like quantization...
+created: 2026-05-26T21:55:46.495345+00:00
+updated: 2026-05-26T21:55:46.495345+00:00
+ingestion_run: 8d527d59
 ---
 
 # Quantization
 
-Converting model values from a higher-precision format to a lower-precision format to reduce memory footprint. A 10B-param model in FP32 = 40 GB; in FP16 = 20 GB.
+## Summary
 
-**Common numerical formats (bits / type)**:
-- FP32 (32-bit, single precision) — training default historically
-- FP16 (16-bit, half precision) — limited range
-- BF16 (16-bit, wider range, less precision than FP16) — designed by Google for TPUs
-- TF32 (19-bit, NVIDIA) — GPU-optimized
-- INT8, INT4 — increasingly popular for inference
+A model-level optimization technique that reduces the precision of model weights and activations (e.g., from 32-bit floating point to 8-bit integers), significantly reducing memory footprint and computational requirements.
 
-**What to quantize**: weights (most common, stable impact) or activations (less common, riskier).
+## Core Idea
 
-**When to quantize**:
-- **Post-training quantization (PTQ)**: most common, quantize after training. Supported by PyTorch, TensorFlow, HuggingFace
-- **Quantization-aware training (QAT)**: simulate low-precision during training so model learns to perform well at low precision. Doesn't reduce training cost
-- **Low-precision training**: train directly in reduced precision (e.g., INT8). Harder but reduces training cost
+Quantization makes models cheaper and faster to run by reducing the data size, making it a generally applicable technique across many model types.
 
-**Mixed precision**: keep sensitive operations (loss, certain weights) in higher precision, rest in lower. Automatic mixed precision (AMP) available in major frameworks.
+## Practical Use
 
-**Caution**: load models in their intended format. Llama 2 (BF16) loaded in FP16 showed significantly degraded quality.
+When deploying a model on resource-constrained edge devices or when cost per inference is a major concern, quantize the model first. Always benchmark the quantized model against the original to check for performance degradation.
+
+## Related
+
+- [[Inference-Optimization-Techniques|Inference Optimization Techniques]]

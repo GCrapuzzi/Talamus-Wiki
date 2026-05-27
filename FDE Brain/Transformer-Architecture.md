@@ -1,31 +1,41 @@
 ---
-type: framework
-tags: [transformer, architecture, seq2seq, attention, foundation-models]
+type: concept
+status: evergreen
+aliases:
+  - Transformer Architecture
+  - Attention mechanism model
+  - Language foundation model backbone
+tags:
+  - ai-engineering
+  - llm-architecture
+  - nlp
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#model-architecture
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/054-summary.md
+    locator: pages 135-136
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - The dominating architecture for language-based foundation models is transformer.
+created: 2026-05-26T21:55:45.631717+00:00
+updated: 2026-05-26T21:55:45.631717+00:00
+ingestion_run: 8d527d59
 ---
 
 # Transformer Architecture
 
-The dominant architecture for language-based foundation models (since Vaswani et al., 2017). Built on the [[Attention Mechanism]], it solved two problems with the prior seq2seq (RNN-based) architecture:
+## Summary
 
-1. **Information bottleneck**: seq2seq decoder used only the final hidden state (like summarizing a book from its summary). Transformers attend to all input tokens directly.
-2. **Sequential processing**: RNNs process tokens sequentially. Transformers process input tokens in parallel.
+The dominant neural network architecture for modern language-based foundation models, designed to process sequential data by weighing the importance of different parts of the input relative to each other.
 
-**Inference has two phases:**
-- **Prefill**: processes input tokens in parallel, producing KV vectors for all input tokens
-- **Decode**: generates output tokens one at a time (still sequential)
+## Core Idea
 
-**Transformer block** contains:
-- **Attention module**: query, key, value, and output projection weight matrices
-- **MLP module**: linear (feedforward) layers separated by nonlinear activation functions (ReLU, GELU)
+The Transformer architecture revolutionized NLP by efficiently handling long-range dependencies in text, making it the standard backbone for large language models.
 
-A transformer model also includes:
-- **Embedding module** (before blocks): embedding matrix + positional embedding matrix
-- **Output layer / unembedding layer** (after blocks): maps output vectors to token probabilities
+## Practical Use
 
-Model size is determined by: model dimension, number of transformer blocks (layers), feedforward dimension, and vocabulary size.
+When selecting a model, understanding the Transformer's limitations (e.g., quadratic complexity in attention) is key to choosing appropriate model sizes or implementing optimized attention mechanisms.
 
-See also: [[Attention Mechanism]], [[State Space Models]].
+## Related
+
+- [[Model-Size-Metrics|Model Size Metrics]]
+- Sampling

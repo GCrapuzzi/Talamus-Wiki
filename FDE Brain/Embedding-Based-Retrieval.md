@@ -1,32 +1,42 @@
 ---
 type: method
-tags: [retrieval, embeddings, semantic-search, vector-database]
+status: evergreen
+aliases:
+  - Embedding-based Retrieval
+  - Semantic Retrieval
+  - Vector Search
+tags:
+  - ai-engineering
+  - rag
+  - embeddings
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#retrieval-algorithms
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/113-retrieval-algorithms.md
+    locator: pages 281-290
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Term-based retrieval computes relevance at a lexical level rather than a semantic level.
+      - Embedding-based retrieval is typically considered dense.
+created: 2026-05-26T21:55:46.055849+00:00
+updated: 2026-05-26T21:55:46.055849+00:00
+ingestion_run: 8d527d59
 ---
 
-# Embedding-Based Retrieval
+# Embedding-based Retrieval
 
-Ranks documents by semantic similarity rather than lexical overlap. Also called **semantic retrieval**.
+## Summary
 
-### Workflow
-1. **Indexing**: convert data chunks into embeddings using an embedding model; store in a Vector Database
-2. **Query embedding**: convert query into an embedding using the same model
-3. **Vector search**: fetch k chunks whose embeddings are closest to the query embedding
+A retrieval mechanism that determines relevance by mapping both the query and the document chunks into a high-dimensional vector space (embeddings). Relevance is calculated by measuring the geometric distance (e.g., cosine similarity) between these vectors.
 
-Real-world systems add components like rerankers and caches.
+## Core Idea
 
-### Pros
-- Captures meaning, not just surface terms
-- Supports natural-language queries
-- Can outperform term-based retrieval with finetuning
+This approach captures semantic meaning, allowing the system to retrieve documents that are conceptually related to the query, even if they do not share the same keywords. It moves beyond simple lexical matching.
 
-### Cons
-- Embedding generation adds cost (especially with frequent data changes)
-- Can obscure specific keywords (error codes, product names)
-- Vector storage and search can be expensive (often 20-50% of model API spend)
-- Slower indexing and querying than term-based
+## Practical Use
 
-Embedding quality is evaluated via MTEB Benchmark and task-specific metrics.
+Used when the user's intent is conceptual rather than literal (e.g., querying 'vehicle for travel' to retrieve documents containing 'automobile'). Requires robust embedding models and vector databases.
+
+## Related
+
+- [[Retrieval-Algorithms-Overview|Retrieval Algorithms Overview]]
+- [[Sparse-vs.-Dense-Retrieval|Sparse vs. Dense Retrieval]]

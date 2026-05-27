@@ -1,30 +1,41 @@
 ---
 type: concept
-tags: [ai-engineering, ml-engineering, model-adaptation, discipline]
+status: evergreen
+aliases:
+  - AI Engineering
+  - Building applications on top of foundation models
+tags:
+  - ai-engineering
+  - architecture
+  - workflow
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#from-foundation-models-to-ai-engineering
-  - AI Space/normalized/pdf/ai-engineering.md#ai-engineering-versus-ml-engineering
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/018-from-foundation-models-to-ai-engineering.md
+    locator: pages 36-39
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - AI engineering refers to the process of building applications on top of foundation models.
+created: 2026-05-26T21:55:45.350519+00:00
+updated: 2026-05-26T21:55:45.350519+00:00
+ingestion_run: 8d527d59
 ---
 
 # AI Engineering
 
-The discipline of building applications on top of existing foundation models, as opposed to training models from scratch (traditional ML Engineering).
+## Summary
 
-Three factors driving its rapid growth:
+The discipline of building applications by leveraging and adapting existing, powerful Foundation Models (FMs), rather than building models from scratch.
 
-1. **General-purpose AI capabilities** — foundation models handle tasks previously impossible, vastly expanding the application space.
-2. **Increased AI investment** — AI cost per use case dropped ~100× between April 2022 and April 2023 (per Scribd). Global AI investment projected at $200B by 2025.
-3. **Low entrance barrier** — model-as-a-service APIs give access to powerful models via single calls. AI can also write code, enabling non-engineers to build applications.
+## Core Idea
 
-**How it differs from ML engineering:**
+AI Engineering shifts the focus from developing the core model (ML Engineering) to integrating, customizing, and deploying applications using pre-trained, general-purpose FMs. This significantly lowers the barrier to entry and accelerates time-to-market.
 
-| Dimension | Traditional ML | AI Engineering |
-|---|---|---|
-| Model source | Train your own | Adapt someone else's |
-| Compute pressure | Moderate | Higher (bigger models) |
-| Output type | Close-ended | Open-ended |
-| Key challenge | Model development | Model adaptation + evaluation |
+## Practical Use
 
-Adaptation techniques split into **prompt-based** (no weight updates — easier, less data) and **finetuning** (weight updates — harder, more powerful). The workflow inverts: ML engineering goes Data → Model → Product; AI engineering goes Product → Data → Model.
+When starting a new project, determine if the core capability requires novel model training (ML Engineering) or if existing FMs can be adapted, fine-tuned, or orchestrated via APIs (AI Engineering). This guides the architectural decision.
+
+## Related
+
+- [[Foundation-Models|Foundation Models]]
+- ML Engineering
+- [[Prompt-Engineering|Prompt Engineering]]

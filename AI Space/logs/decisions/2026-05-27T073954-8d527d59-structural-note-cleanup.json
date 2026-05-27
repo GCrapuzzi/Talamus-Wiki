@@ -1,0 +1,98 @@
+﻿{
+    "run_id":  "8d527d59",
+    "cleaned_at":  "2026-05-27T07:39:54.1432440Z",
+    "reason":  "Removed notes generated from structural AI Engineering sections: cover, table of contents, index, epilogue/about/colophon when present.",
+    "removed":  [
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\AI-Agent-Planning-and-Tool-Use.md",
+                        "rel":  "FDE Brain/AI-Agent-Planning-and-Tool-Use.md",
+                        "section":  "180",
+                        "length":  1533
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\AI-as-a-Judge-Evaluation-Method.md",
+                        "rel":  "FDE Brain/AI-as-a-Judge-Evaluation-Method.md",
+                        "section":  "003",
+                        "length":  1533
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\AI-as-a-Judge.md",
+                        "rel":  "FDE Brain/AI-as-a-Judge.md",
+                        "section":  "180",
+                        "length":  1439
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\AI-Engineering-AIE.md",
+                        "rel":  "FDE Brain/AI-Engineering-AIE.md",
+                        "section":  "180",
+                        "length":  1483
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\AI-Engineering-Stack.md",
+                        "rel":  "FDE Brain/AI-Engineering-Stack.md",
+                        "section":  "003",
+                        "length":  1578
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\Chain-of-Thought-CoT-Prompting.md",
+                        "rel":  "FDE Brain/Chain-of-Thought-CoT-Prompting.md",
+                        "section":  "180",
+                        "length":  1410
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\Computational-Bottlenecks.md",
+                        "rel":  "FDE Brain/Computational-Bottlenecks.md",
+                        "section":  "180",
+                        "length":  1517
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\Data-Curation-and-Dataset-Engineering.md",
+                        "rel":  "FDE Brain/Data-Curation-and-Dataset-Engineering.md",
+                        "section":  "180",
+                        "length":  1463
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\Foundation-Model-Adaptation-Techniques.md",
+                        "rel":  "FDE Brain/Foundation-Model-Adaptation-Techniques.md",
+                        "section":  "001",
+                        "length":  1540
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\LLM-Deployment-Optimization.md",
+                        "rel":  "FDE Brain/LLM-Deployment-Optimization.md",
+                        "section":  "001",
+                        "length":  1384
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\Parameter-Efficient-Fine-Tuning-PEFT.md",
+                        "rel":  "FDE Brain/Parameter-Efficient-Fine-Tuning-PEFT.md",
+                        "section":  "180",
+                        "length":  1429
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\Perplexity-Metric.md",
+                        "rel":  "FDE Brain/Perplexity-Metric.md",
+                        "section":  "003",
+                        "length":  1455
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\RAG-Architecture-Retrieval-Augmented-Generation.md",
+                        "rel":  "FDE Brain/RAG-Architecture-Retrieval-Augmented-Generation.md",
+                        "section":  "003",
+                        "length":  1565
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\Retrieval-Augmented-Generation-RAG.md",
+                        "rel":  "FDE Brain/Retrieval-Augmented-Generation-RAG.md",
+                        "section":  "180",
+                        "length":  1491
+                    },
+                    {
+                        "path":  "C:\\Users\\Giovanni Crapuzzi\\Documents\\Formazione\\FDE Brain\\FDE Brain\\System-Prompt-and-User-Prompt-Separation.md",
+                        "rel":  "FDE Brain/System-Prompt-and-User-Prompt-Separation.md",
+                        "section":  "003",
+                        "length":  1497
+                    }
+                ],
+    "accepted_promoted_count":  624
+}

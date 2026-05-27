@@ -1,28 +1,43 @@
 ---
-type: pattern
-tags: [structured-outputs, JSON-mode, constrained-sampling, semantic-parsing, agentic]
+type: concept
+status: evergreen
+aliases:
+  - Structured Outputs
+  - Formatted Generation
+  - Machine-Readable Output
+tags:
+  - ai-engineering
+  - llm-deployment
+  - data-validation
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#structured-outputs
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/052-structured-outputs.md
+    locator: pages 123-128
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Structured outputs are crucial for tasks requiring structured outputs.
+      - Outputs are needed by downstream applications, especially in agentic workflows.
+created: 2026-05-26T21:55:45.599054+00:00
+updated: 2026-05-26T21:55:45.599054+00:00
+ingestion_run: 8d527d59
 ---
 
 # Structured Outputs
 
-Techniques to get models to generate outputs in specific formats (JSON, SQL, YAML, regex, etc.). Critical for semantic parsing tasks and agentic workflows where outputs feed into downstream tools.
+## Summary
 
-**Five approaches, from lightweight to heavyweight:**
+The requirement for LLMs to generate outputs that adhere to a specific, predictable format (e.g., JSON, SQL, Regex) for reliable consumption by downstream applications or systems.
 
-1. **Prompting**: instruct the model to use a format. No guarantee of compliance. Can add a validation LLM call (AI-as-judge) but doubles cost/latency.
+## Core Idea
 
-2. **Post-processing**: script common model mistakes (e.g., missing closing bracket). LinkedIn's defensive YAML parser: 90% → 99.99% validity. Works only when errors are predictable and minor. Tip: YAML is less verbose than JSON → fewer output tokens.
+In production AI systems, raw natural language output is often insufficient. Structured outputs ensure that the model's generated data can be reliably parsed, validated, and used by APIs, databases, or agentic workflows, minimizing integration failure points.
 
-3. **Test time compute**: regenerate until output matches expected format.
+## Practical Use
 
-4. **Constrained sampling**: filter the logit vector at each decoding step to allow only tokens valid under a grammar. Requires per-format grammar definitions. Can increase latency. Tools: guidance, outlines, instructor, llama.cpp.
+When designing an AI pipeline, define the required output schema (e.g., a JSON object with specific keys). Implement a structured output mechanism (like JSON mode or Pydantic integration) to enforce this schema, rather than relying solely on prompt instructions.
 
-5. **Finetuning**: most effective and general. Train on examples in desired format. Can add a classifier head for classification tasks (feature-based transfer) to guarantee output format.
+## Related
 
-OpenAI's JSON mode guarantees valid JSON syntax but not schema compliance or completeness (truncation risk).
-
-As models improve at instruction-following, lightweight approaches become more reliable.
+- [[Semantic-Parsing|Semantic Parsing]]
+- Agentic Workflows
+- [[Constrained-Sampling|Constrained Sampling]]

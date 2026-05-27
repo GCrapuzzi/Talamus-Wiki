@@ -1,29 +1,41 @@
 ---
 type: method
-tags: [evaluation, embeddings, cosine-similarity, semantic-search]
+status: evergreen
+aliases:
+  - Semantic Similarity
+  - Meaning similarity
+  - Embedding distance
+tags:
+  - ai-engineering
+  - evaluation
+  - metrics
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#similarity-measurements-against-reference-data
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/065-similarity-measurements-against-reference-data.md
+    locator: pages 151-157
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Semantic similarity aims to compute the similarity in semantics. This first requires transforming a text into a numerical representation, which is called an embedding.
+created: 2026-05-26T21:55:45.697217+00:00
+updated: 2026-05-26T21:55:45.697217+00:00
+ingestion_run: 8d527d59
 ---
 
 # Semantic Similarity
 
-Measures whether two texts have the same *meaning*, not just surface overlap. Also called **embedding similarity**.
+## Summary
 
-**Process:**
-1. Convert texts to numerical vectors ([[Embedding]]) using a model (BERT, Sentence Transformers, or proprietary APIs).
-2. Compute **cosine similarity**: $\frac{A \cdot B}{\|A\| \|B\|}$. Score of 1 = identical, −1 = opposite.
+A reference-based metric that computes the similarity between two texts based on their underlying meaning (semantics), rather than their literal word overlap.
 
-**Metrics**: BERTScore (BERT embeddings), MoverScore (mixed algorithms).
+## Core Idea
 
-**Advantages over [[Lexical Similarity]]:**
-- Doesn't require as comprehensive a reference set—semantically equivalent paraphrases score high even if lexically different.
-- "What's up?" and "How are you?" correctly score as similar.
+It requires transforming text into a numerical vector representation (embedding). Texts with similar meanings will have vectors that are close together in the embedding space, even if they use completely different words.
 
-**Drawbacks:**
-- Quality depends entirely on the embedding model—bad embeddings yield misleading scores.
-- Embedding computation adds non-trivial compute and latency.
-- Technically subjective (different embedding algorithms → different scores), though score computation itself is exact.
+## Practical Use
 
-Works across modalities (text, images, audio) when using multimodal embedding models.
+Use this method for open-ended tasks (e.g., summarization, translation) where multiple correct phrasings are possible. It is generally superior to lexical similarity for complex language generation tasks.
+
+## Related
+
+- Embeddings
+- Vector Space Models

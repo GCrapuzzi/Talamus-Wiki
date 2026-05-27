@@ -1,26 +1,43 @@
 ---
 type: method
-tags: [inference, decoding, speculative-decoding, latency-optimization]
+status: evergreen
+aliases:
+  - Speculative Decoding
+  - Speculative Sampling
+  - Parallel Decoding
+tags:
+  - ai-engineering
+  - inference
+  - optimization
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#model-optimization
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/162-model-optimization.md
+    locator: pages 450-463
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Speculative decoding (also called speculative sampling) uses a faster but less powerful model to generate a sequence of tokens, which are then verified by the target model.
+      - The target model verifies these K generated tokens in parallel.
+      - Speculative decoding effectively turns the computation profile of decoding into that of prefilling.
+created: 2026-05-26T21:55:46.478471+00:00
+updated: 2026-05-26T21:55:46.478471+00:00
+ingestion_run: 8d527d59
 ---
 
 # Speculative Decoding
 
-Uses a fast, weaker **draft model** to propose K tokens, then the **target model** verifies them in parallel. Accepted tokens are kept; the target model generates one additional token after the last accepted draft token.
+## Summary
 
-### Why it works
-1. **Verification is cheaper than generation** — verification is parallelizable (prefill-like), generation is sequential.
-2. **Many tokens are predictable** — a weaker model can get "easy" tokens right, yielding high acceptance rates.
-3. **Decode has idle FLOPs** — bandwidth-bound decoding leaves spare compute for free verification.
+An inference technique that uses a faster, less powerful 'draft model' to predict a sequence of tokens (K tokens). The main, target model then verifies this sequence in parallel, accepting the longest valid subsequence (j tokens).
 
-### Key properties
-- Worst case (all rejected): produces 1 token (target-generated) + verification overhead.
-- Best case (all accepted): produces K + 1 tokens per loop.
-- **Does not change model quality** — only the target model's distribution matters.
-- Acceptance rates are domain-dependent; structured outputs (code) have higher rates.
-- Draft model should share vocabulary/tokenizer with target.
+## Core Idea
 
-DeepMind: 4B draft model for Chinchilla-70B achieved >2× latency reduction (1.8 ms/token draft vs 14.1 ms/token target). Supported in vLLM, TensorRT-LLM, llama.cpp. Implementable in ~50 lines of PyTorch.
+It transforms the computation profile of sequential, autoregressive decoding (which is slow and bandwidth-heavy) into a profile closer to parallel prefilling. This dramatically reduces latency by leveraging the fact that verification is parallelizable while generation is sequential.
+
+## Practical Use
+
+Implement speculative decoding when latency is the primary constraint for text generation. The process involves: 1) Draft model generates K tokens. 2) Target model verifies K tokens in parallel. 3) Target model accepts j tokens and generates the next token. This is most effective when the acceptance rate is high (e.g., code generation).
+
+## Related
+
+- Autoregressive Decoding
+- [[Inference-Optimization-Hierarchy|Inference Optimization Hierarchy]]

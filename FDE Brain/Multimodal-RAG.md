@@ -1,31 +1,41 @@
 ---
 type: pattern
-tags: [multimodal, rag, clip, text-to-sql, tabular-data]
+status: evergreen
+aliases:
+  - Multimodal RAG
+  - Multimodal Retrieval-Augmented Generation
+tags:
+  - ai-engineering
+  - rag
+  - multimodal
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#rag-beyond-texts
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/115-rag-beyond-texts.md
+    locator: pages 297-298
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - If your generator is multimodal, its contexts might be augmented not only with text documents but also with images, videos, audio, etc.
+      - Given a query, the retriever fetches both texts and images relevant to it.
+created: 2026-05-26T21:55:46.072811+00:00
+updated: 2026-05-26T21:55:46.072811+00:00
+ingestion_run: 8d527d59
 ---
 
 # Multimodal RAG
 
-Extends RAG to retrieve not just text but images, video, audio, etc.
+## Summary
 
-### Metadata-based retrieval
-Retrieve images by matching query against titles, tags, captions.
+An extension of RAG that incorporates non-textual data (images, video, audio) into the context provided to the LLM.
 
-### Content-based retrieval
-Requires a **multimodal embedding model** (e.g., CLIP) that generates embeddings for both text and images in a shared space.
+## Core Idea
 
-Workflow:
-1. Generate CLIP embeddings for all data (text + images) → store in vector database
-2. Generate CLIP embedding for query
-3. Search vector database for nearest neighbors across modalities
+When the generator is multimodal, the retriever must fetch and process multiple data types (text, images, etc.) relevant to the query, moving beyond simple text document retrieval.
 
-### Tabular RAG (Text-to-SQL)
-For structured data, RAG uses a different workflow:
-1. **Text-to-SQL**: generate SQL from user query + table schemas
-2. **SQL execution**: run the query
-3. **Generation**: produce response from SQL results + original query
+## Practical Use
 
-If many tables exist, an intermediate step predicts which tables are relevant.
+Used when the query requires visual or auditory context (e.g., 'What is the color of the house in this picture?'). Retrieval can be augmented either by fetching content based on metadata (captions, tags) or by comparing content embeddings.
+
+## Related
+
+- [[Multimodal-Embedding-Models|Multimodal Embedding Models]]
+- Vector Databases

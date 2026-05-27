@@ -1,22 +1,43 @@
 ---
-type: glossary
-tags: [foundation-model, multimodal, model-as-a-service, definition]
+type: concept
+status: evergreen
+aliases:
+  - Foundation Model
+  - General-purpose model
+  - Large Multimodal Model (LMM)
+tags:
+  - ai-engineering
+  - llm
+  - ml-architecture
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#from-large-language-models-to-foundation-models
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/017-from-large-language-models-to-foundation-models.md
+    locator: pages 32-35
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - Foundation models mark a breakthrough from the traditional structure of AI research.
+      - Foundation models... are capable of a wide range of tasks.
+      - The word foundation signifies both the importance of these models in AI applications and the fact that they can be built upon for different needs.
+created: 2026-05-26T21:55:45.342861+00:00
+updated: 2026-05-26T21:55:45.342861+00:00
+ingestion_run: 8d527d59
 ---
 
 # Foundation Model
 
-A large-scale model — language or multimodal — trained on broad data that can be adapted to many downstream tasks. The term signifies both the model's importance as a building block and its capacity to be built upon.
+## Summary
 
-Key properties:
+A large, general-purpose model trained on vast, diverse datasets (text, image, audio, etc.) that can be adapted and fine-tuned for a wide range of downstream tasks without task-specific retraining.
 
-- **Multimodal**: extends beyond text to images, video, audio, 3D assets, protein structures. A multimodal model generates the next token conditioned on tokens from multiple modalities.
-- **General-purpose**: capable of a wide range of tasks out of the box (translation, classification, coding, summarization), unlike prior task-specific models. Can be specialized via Prompt Engineering, [[Retrieval-Augmented Generation]], or Finetuning.
-- **Model as a service**: training requires data, compute, and talent only a few orgs can afford. The resulting models are exposed via APIs, democratizing access.
+## Core Idea
 
-Foundation models mark a structural break in AI research: previously siloed fields (NLP, computer vision, speech) converge into unified architectures. They also shift the workflow from task-specific model development to adapting general models — the core of [[AI Engineering]].
+Foundation models represent a paradigm shift from traditional, task-specific AI models (e.g., a model only for sentiment analysis). Their scale and general training allow them to perform a wide range of tasks 'out of the box,' making them highly adaptable building blocks for complex applications.
 
-Embedding models like CLIP (non-generative) underpin generative multimodal models such as Flamingo, LLaVA, and Gemini.
+## Practical Use
+
+When designing an AI application, start with a foundation model (e.g., GPT-4V, Gemini) rather than building a model from scratch for a single task. Use prompt engineering or fine-tuning to maximize performance on a specific business need (e.g., capturing a brand's voice in product descriptions).
+
+## Related
+
+- [[Multimodal-Model|Multimodal Model]]
+- [[Self-supervised-Learning|Self-supervised Learning]]

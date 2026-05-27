@@ -1,39 +1,41 @@
 ---
-type: framework
-tags: [evaluation, model-selection, elo, bradley-terry, chatbot-arena, ranking]
+type: pattern
+status: evergreen
+aliases:
+  - Comparative Evaluation
+  - Pairwise Comparison
+  - A vs B Evaluation
+tags:
+  - ai-engineering
+  - evaluation
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#ranking-models-with-comparative-evaluation
-  - AI Space/normalized/pdf/ai-engineering.md#challenges-of-comparative-evaluation
-  - AI Space/normalized/pdf/ai-engineering.md#the-future-of-comparative-evaluation
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/075-summary.md
+    locator: pages 180-182
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - "When evaluating models, you can... rank them using comparative signals: which of the two models is better?"
+      - Comparative evaluation is common in sports, especially chess, and is gaining traction in AI evaluation.
+created: 2026-05-26T21:55:45.775570+00:00
+updated: 2026-05-26T21:55:45.775570+00:00
+ingestion_run: 8d527d59
 ---
 
 # Comparative Evaluation
 
-Rank models by having evaluators (human or AI) compare outputs pairwise, rather than scoring each model independently ([[AI as a Judge]] pointwise).
+## Summary
 
-**Why comparative > pointwise for subjective tasks:**
-- Easier to say "A is better than B" than to assign absolute scores
-- As models surpass human ability, humans may still detect *differences* even when they can't score absolutely
-- Harder to game than benchmark leaderboards (no reference data to train on)
-- Never saturates as long as new models appear
+Evaluating two models against each other to determine which is superior, rather than scoring each model independently.
 
-**Process:**
-1. For each query, two models generate responses
-2. An evaluator picks the winner (ties optionally allowed)
-3. A **rating algorithm** (Elo, Bradley–Terry, TrueSkill) computes rankings from match history
-4. Ranking quality = predictive accuracy on future matches
+## Core Idea
 
-LMSYS Chatbot Arena switched from Elo to Bradley–Terry because Elo was sensitive to evaluator/prompt ordering.
+When models are powerful and open-ended, determining relative performance (which is better) can provide more discriminating signals than absolute scoring, especially for preference-driven tasks.
 
-**Challenges:**
-- **Quadratic scaling**: $n$ models → $\binom{n}{2}$ pairs. 57 models = 1,596 pairs. Mitigated by transitivity assumptions and smart matching algorithms that sample uncertainty-reducing matches.
-- **Transitivity may not hold**: Human preference isn't necessarily transitive, and different pairs are evaluated by different people on different prompts.
-- **Lack of standardization**: Crowdsourced evaluators may prefer fluent-but-wrong answers, use trivial prompts (0.55% of Arena prompts were just "hello"/"hi"), or lack domain expertise.
-- **No absolute performance**: Knowing B beats A 51% of the time doesn't tell you if either model is *good enough*, or how win-rate translates to real-world task completion.
-- **New model onboarding**: Each new model must be compared against existing models, potentially shifting all rankings.
+## Practical Use
 
-**Not the same as A/B testing**: In A/B testing users see one option; in comparative evaluation they see both simultaneously.
+When building an evaluation pipeline for open-ended applications, implement pairwise comparison tests (e.g., 'Which response is better?') to gather preference signals, which are crucial for training preference models.
 
-Best used as a complement to benchmark evaluation and A/B testing, not a replacement.
+## Related
+
+- [[Preference-Models|Preference Models]]
+- [[Hybrid-Evaluation-Pipeline|Hybrid Evaluation Pipeline]]

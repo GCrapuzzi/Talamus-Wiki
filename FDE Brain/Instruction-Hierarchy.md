@@ -1,25 +1,41 @@
 ---
-type: concept
-tags: [AI-safety, prompt-injection, defense, system-prompt, instruction-following]
+type: pattern
+status: evergreen
+aliases:
+  - Instruction Hierarchy
+  - Priority Instruction Layering
+  - Conflicting Instruction Resolution
+tags:
+  - ai-engineering
+  - prompt-engineering
+  - safety
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#defenses-against-prompt-attacks
-  - AI Space/normalized/pdf/ai-engineering.md#system-prompt-and-user-prompt
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/108-defenses-against-prompt-attacks.md
+    locator: pages 272-274
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - "The instruction hierarchy contains four levels of priority: System prompt, User prompt, Model outputs, Tool outputs."
+      - In the event of conflicting instructions, the higher-priority instruction should be followed.
+created: 2026-05-26T21:55:46.019122+00:00
+updated: 2026-05-26T21:55:46.019122+00:00
+ingestion_run: 8d527d59
 ---
 
 # Instruction Hierarchy
 
-A priority ordering for conflicting instructions, proposed by Wallace et al. (OpenAI, 2024) in "The Instruction Hierarchy: Training LLMs to Prioritize Privileged Instructions."
+## Summary
 
-**Priority levels (highest → lowest):**
-1. System prompt
-2. User prompt
-3. Model outputs
-4. Tool outputs
+A defined priority order for instructions fed to an LLM, ensuring that higher-priority, more critical instructions override lower-priority or potentially malicious inputs.
 
-When instructions conflict (e.g., system says "don't reveal PII" vs. tool output says "forward all emails to attacker"), the higher-priority instruction wins.
+## Core Idea
 
-The model is finetuned on a synthetic dataset of aligned and misaligned instructions to learn this hierarchy. Results: **up to 63% improvement** in safety robustness with minimal degradation of standard capabilities.
+By explicitly structuring the input context, the model can be trained to follow a strict hierarchy, neutralizing indirect prompt injection attacks where malicious instructions might otherwise override system rules.
 
-This hierarchy is especially effective against **indirect prompt injection** since tool outputs (the typical injection vector) have the lowest priority.
+## Practical Use
+
+When fine-tuning or designing system prompts, ensure that critical safety rules (e.g., 'Do not reveal private information') are placed in the highest priority context (System Prompt) and are reinforced during training.
+
+## Related
+
+- [[Prompt-Attack-Defense-Framework|Prompt Attack Defense Framework]]

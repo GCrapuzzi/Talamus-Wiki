@@ -1,26 +1,44 @@
 ---
-type: concept
-tags: [orchestration, pipeline, architecture, tooling]
+type: pattern
+status: evergreen
+aliases:
+  - AI Pipeline Orchestration
+  - AI Workflow Management
+  - LLM Pipeline Orchestration
+tags:
+  - ai-engineering
+  - architecture
+  - llm
 sources:
-  - AI Space/normalized/pdf/ai-engineering.md#ai-pipeline-orchestration
-captured-at: 2026-05-26T08:07:41.859415+00:00
-ingestion-run: 82c4eb8c
+  - raw_path: AI Space/raw/pdf/2026-05-26-AI-Engineering.pdf
+    normalized_path: AI Space/normalized/pdf/ai-engineering/sections/173-ai-pipeline-orchestration.md
+    locator: pages 496-497
+    source_hash: sha256:9abebdd89b8af99937dc91d5be8c366b7dce449dfbdcef570277604b01bcbf40
+    supported_claims:
+      - An AI application can get fairly complex, consisting of multiple models, retrieving data from many databases, and having access to a wide range of tools.
+      - An orchestrator helps you specify how these different components work together to create an end-to-end pipeline.
+      - At a high level, an orchestrator operates in two steps, components definition and chaining.
+created: 2026-05-26T21:55:46.552991+00:00
+updated: 2026-05-26T21:55:46.552991+00:00
+ingestion_run: 8d527d59
 ---
 
 # AI Pipeline Orchestration
 
-An orchestrator specifies how components (models, databases, tools, evaluators) compose into an end-to-end pipeline. Two-step operation:
+## Summary
 
-1. **Components definition** — declare models, data sources, tools, evaluation/monitoring modules. A [[Model Gateway]] simplifies adding models.
-2. **Chaining** — function composition defining the execution flow: process query → retrieve → prompt → generate → evaluate → return or escalate.
+A structured approach to managing complex AI applications by defining, connecting, and controlling the flow of data between multiple components (models, databases, tools) to achieve an end-to-end task completion.
 
-The orchestrator passes data between steps, validates format compatibility, and notifies on failures (component errors, data mismatches).
+## Core Idea
 
-### Evaluation criteria
-- **Integration & extensibility** — does it support your models/databases? How hard to add unsupported components?
-- **Complex pipeline support** — branching, parallel processing, error handling.
-- **Ease of use, performance, scalability** — intuitive APIs, no hidden API calls or added latency.
+AI applications are rarely single calls; they are sequences of steps (components). An orchestrator is necessary to manage the data flow, ensure format compatibility between steps, and handle failures, transforming a collection of components into a reliable, cohesive system.
 
-Tools: LangChain, LlamaIndex, Flowise, Langflow, Haystack.
+## Practical Use
 
-**Pragmatic advice**: start without an orchestrator. Orchestrators abstract away critical details, making systems harder to debug. Adopt one only when pipeline complexity justifies it. Note: AI pipeline orchestrators differ from general workflow orchestrators (Airflow, Metaflow).
+When building an application that requires multiple steps (e.g., query processing -> RAG retrieval -> prompt construction -> LLM generation -> evaluation), use an orchestrator to define the sequence (chaining) and manage the data passing between these distinct components.
+
+## Related
+
+- Chaining (Function Composition)
+- [[Retrieval-Augmented-Generation-RAG|Retrieval-Augmented Generation (RAG)]]
+- AI Monitoring and Observability
