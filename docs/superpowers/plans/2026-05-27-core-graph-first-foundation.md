@@ -43,7 +43,7 @@ Deferred from this foundation plan:
 - OCR/VLM adapters
 - LLM note extraction prompts
 - ingestion from arbitrary `pending` files
-- migration of existing `FDE Brain` notes into the new generic project layout
+- migration or removal of the legacy `tools/fde_brain` prototype
 - final packaging release to PyPI
 - UI
 
@@ -51,7 +51,7 @@ Next implementation plans should cover:
 
 1. Conversion adapters and validated normalized packages.
 2. Rich canonical note extraction and validation.
-3. Workspace migration from `tools/fde_brain` to `src/brain`.
+3. Workspace migration or retirement of `tools/fde_brain` after `src/brain` is stable.
 4. Update infrastructure and release automation.
 
 ## File Structure
@@ -1931,7 +1931,7 @@ Run:
 git status --short
 ```
 
-Expected: only files intentionally changed by the current task are dirty. Do not stage `.claude/`, `.obsidian/`, partial Graphify output, or user-modified notes.
+Expected: only files intentionally changed by the current task are dirty. Do not stage `.claude/`, `.obsidian/`, partial Graphify output, or unrelated legacy workspace files.
 
 - [ ] **Step 5: Commit verification fixes only if needed**
 

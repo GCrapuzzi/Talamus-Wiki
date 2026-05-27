@@ -1,101 +1,75 @@
 # Agent Protocol
 
-This workspace is a Dual Graph LLM Wiki for Forward Deployed AI Engineering.
+This workspace is no longer treated as a personal `FDE Brain` knowledge vault.
+It is now the development workspace for an open-source, local-first knowledge
+compiler.
 
-## Roles
+## Current Direction
 
-- `FDE Brain/` is the final Obsidian vault.
-- `AI Space/` is the AI operating area.
-- Claude Code is the scheduled pipeline runner.
-- Codex is the manual development and maintenance agent.
-- Both Claude Code and Codex can answer questions against the knowledge base.
+- Product target: generic `brain` CLI and Python package.
+- Default project layout: `knowledge/raw`, `knowledge/normalized`,
+  `knowledge/notes`, `knowledge/graph`, `knowledge/index`, `knowledge/logs`,
+  `knowledge/review`, and `knowledge/failed`.
+- Obsidian is the first storage adapter, not the permanent product boundary.
+- Graphify is not part of the core architecture.
+- The deterministic graph is an index and routing layer, not source truth.
+- Answers must be grounded in real Markdown notes or normalized source files,
+  with citations.
 
-## Non-Negotiable Rules
+## Active Plan
 
-- Do not treat Graphify output as source truth.
-- Use Graphify to find candidate files, then read the real Markdown files.
-- Do not write generated Graphify Obsidian exports into `FDE Brain/`.
-- Do not put drafts, temporary notes, or raw dumps in `FDE Brain/`.
-- Every knowledge-base answer must cite sources.
-- If a query uses `AI Space/normalized/`, promote stable/reusable knowledge into `FDE Brain/` in the same turn unless current user instructions explicitly forbid file changes.
-- Current user instructions such as read-only, review-only, no edits, or no file changes override automatic promotion behavior.
-- Current user instructions such as no commits override automatic commit behavior.
-- Never permanently delete originals.
-- Do not clean `AI Space/pending/` unless items were safely archived, reviewed, or failed.
-
-## Retrieval Order
-
-1. Query Brain Graph in `AI Space/graph/brain/`.
-2. Read the relevant notes in `FDE Brain/`.
-3. Answer with citations from the note and its precompiled sources.
-4. If Brain Graph is insufficient, query Source Graph in `AI Space/graph/sources/`.
-5. Read relevant files in `AI Space/normalized/`.
-6. Answer with citations.
-7. If file changes are allowed, promote stable/reusable knowledge into `FDE Brain/` before finishing the turn.
-8. If a query uses `AI Space/normalized/` but file changes are forbidden, answer with citations and clearly state that promotion was skipped due to the current instruction; do not modify files or commit.
-9. Update Brain Graph or mark it stale only after allowed ingestion or allowed promotion changes.
-10. Log and commit only after allowed ingestion or allowed promotion changes, and only when commits are allowed.
-
-## Citation Rules
-
-Prefer the finest available locator:
-
-- final note and heading
-- normalized source file and heading, chapter, section, page, or line
-- raw source and page or chapter
-- URL and access date for web sources
-
-If a locator is coarse, say so.
-
-## FDE Brain Authoring
-
-`FDE Brain/` must be Obsidian-native Markdown:
-
-- use Properties/frontmatter
-- use wikilinks
-- use aliases
-- use tags
-- link to headings when useful
-- keep provenance inside the note
-
-Use `kepano/obsidian-skills@obsidian-markdown` as the authoring reference.
-For Codex, the skill is installed as `obsidian-markdown`; restart Codex after installation if the skill is not visible in the active skill list.
-
-## Graphify
-
-Use two graphs:
-
-- Brain Graph: `AI Space/graph/brain/`
-- Source Graph: `AI Space/graph/sources/`
-
-Preferred backend:
-
-```powershell
-graphify extract <input> --backend ollama --model gemma4:e4b --max-concurrency 1 --token-budget 12000 --api-timeout 1800 --out <output>
-```
-
-Manual Claude fallback is allowed only when explicitly requested:
-
-```powershell
-graphify extract <input> --backend claude --max-concurrency 1 --out <output>
-```
-
-## Review And Failure Routing
-
-- Ambiguous content: `AI Space/review/ambiguous/`
-- Conflicts: `AI Space/review/conflicts/`
-- Human judgment needed: `AI Space/review/needs-human/`
-- Low-confidence OCR or parsing: `AI Space/review/low-confidence-normalization/`
-- Technical failures: `AI Space/failed/technical-failures/`
-
-## Git
-
-Commit after successful ingestion runs and query-driven promotions only when those ingestion or promotion changes were allowed and commits are allowed.
-
-Use focused commit messages:
+Use this plan as the implementation source of truth:
 
 ```text
-chore(ai-pipeline): ingest pending batch YYYY-MM-DD
-docs(fde-brain): promote source knowledge from query
-chore(graph): refresh brain and source graphs
+docs/superpowers/plans/2026-05-27-core-graph-first-foundation.md
 ```
+
+That plan intentionally builds the core graph-first foundation only:
+
+- Apache-2.0 package foundation
+- generic `src/brain/` package
+- beginner CLI commands
+- canonical note/source models
+- Obsidian renderer
+- same-batch wikilink resolution
+- deterministic graph builder
+- built-in BM25 fallback
+- graph-first `ask context`
+- agent skill and tool-calling docs
+
+Do not add Docling/OCR conversion, LLM extraction, ingestion scheduling, or UI
+inside this foundation pass.
+
+## Legacy Workspace Areas
+
+- `FDE Brain/` is a legacy Obsidian vault scaffold. Existing generated Markdown
+  notes in that folder are not important and should not be preserved.
+- `FDE Brain/.obsidian/` is local UI state. Do not commit its `workspace.json`
+  or `graph.json`.
+- `AI Space/` contains legacy operating data from the earlier personal wiki
+  prototype. It may be useful as reference, but it is not the new product
+  layout.
+- `tools/fde_brain/` is legacy implementation. Leave it intact unless a plan
+  explicitly migrates or removes it.
+
+## Retrieval Rule
+
+For the new product, retrieval is graph-first:
+
+1. Use the deterministic graph to route a question to candidate notes or source
+   sections.
+2. Read the real Markdown note or normalized source files.
+3. Use BM25 only when graph routing is insufficient or empty.
+4. Follow validated wikilinks when they add necessary context.
+5. Cite the real files, not graph metadata.
+
+## Git Safety
+
+- Keep commits focused.
+- Do not stage `.claude/`.
+- Do not stage `FDE Brain/.obsidian/workspace.json`.
+- Do not stage `FDE Brain/.obsidian/graph.json`.
+- Do not include unrelated legacy graph output such as
+  `AI Space/graph/brain/graphify-out/` unless a plan explicitly says so.
+- Raw source originals should not be permanently deleted unless the user
+  explicitly asks for that exact deletion.

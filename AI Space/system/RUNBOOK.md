@@ -1,124 +1,71 @@
-# FDE Brain Runbook
+# Development Runbook
 
-## Validate Workspace
+This runbook reflects the new open-source product direction. The old
+Graphify-centered `tools.fde_brain` commands are legacy prototype commands.
+
+## Current Source Of Truth
+
+Design:
 
 ```powershell
-python -m tools.fde_brain.validate_workspace --root .
+Get-Content docs/superpowers/specs/2026-05-27-local-first-knowledge-pipeline-v1-design.md
 ```
 
-Expected:
+Implementation plan:
+
+```powershell
+Get-Content docs/superpowers/plans/2026-05-27-core-graph-first-foundation.md
+```
+
+## Foundation Development Flow
+
+Use Superpowers Subagent-Driven execution against the current plan:
 
 ```text
-workspace validation ok
+docs/superpowers/plans/2026-05-27-core-graph-first-foundation.md
 ```
 
-## Check Local Engines
+Foundation scope:
+
+- package foundation
+- generic `src/brain/` package
+- `brain init`, `brain status`, `brain doctor`
+- canonical note/source models
+- Obsidian renderer
+- deterministic graph builder
+- BM25 fallback
+- graph-first `ask context`
+- agent skill and tool-calling docs
+
+Do not include conversion adapters, OCR, LLM extraction, scheduling, or UI in
+this foundation pass.
+
+## Expected Verification
+
+During implementation, run the commands specified in the plan. Final foundation
+verification should include:
 
 ```powershell
-python -m tools.fde_brain.preflight
+$env:PYTHONPATH="src"
+python -m unittest discover -s tests -v
 ```
 
-Required tools:
-
-- Claude Code
-- Codex CLI
-- Git
-- Ollama
-- GLM-OCR model in Ollama
-- Gemma distillation model in Ollama
-- Graphify
-
-## Ingest Pending Files
+Beginner smoke flow:
 
 ```powershell
-python -m tools.fde_brain.ingest --root .
+$tmp = Join-Path $env:TEMP "brain-foundation-smoke"
+Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+$env:PYTHONPATH="src"
+python -m brain.cli init --root $tmp
+python -m brain.cli status --root $tmp
+python -m brain.cli doctor --root $tmp
 ```
 
-Optional flags:
+## Legacy Areas
 
-- `--no-commit` runs the pipeline without creating the final git commit.
-- `--dry-run` validates and enumerates pending files without moving, logging, or committing.
-- `--distill-model gemma4:e4b` selects the local Ollama model used for section-level distillation.
-
-Flow:
-
-1. Read files from `AI Space/pending/`.
-2. Archive originals into `AI Space/raw/<category>/`.
-3. Normalize each source into a V2 package:
-   - `AI Space/normalized/<category>/<source_slug>/manifest.json`
-   - `AI Space/normalized/<category>/<source_slug>/sections/*.md`
-   - `AI Space/normalized/<category>/<source_slug>/quality-report.json`
-4. Distill normalized sections locally with Gemma through Ollama.
-5. Write Obsidian-native final notes to `FDE Brain/` only when stable reusable knowledge is found.
-6. Update `AI Space/normalized/registry.json`.
-7. Mark Source Graph stale after normalized changes and Brain Graph stale after promoted notes.
-8. Write the run log before the optional ingestion commit.
-
-The pipeline does not call Claude automatically. Claude is manual fallback only.
-
-## Refresh Graphs
-
-Print the Brain Graph command:
-
-```powershell
-python -m tools.fde_brain.graphify brain --root .
-```
-
-Run the Brain Graph refresh:
-
-```powershell
-python -m tools.fde_brain.graphify brain --root . --run
-```
-
-Print the Source Graph command:
-
-```powershell
-python -m tools.fde_brain.graphify sources --root .
-```
-
-Run the Source Graph refresh:
-
-```powershell
-python -m tools.fde_brain.graphify sources --root . --run
-```
-
-Default Graphify extraction:
-
-```powershell
-graphify extract <path> --backend ollama --model gemma4:e4b --max-concurrency 1 --token-budget 12000 --api-timeout 1800 --out <graph-dir>
-```
-
-Graphify writes graph files under:
-
-```text
-<graph-dir>/graphify-out/graph.json
-```
-
-If refresh fails, `.stale` remains in the graph directory.
-
-## Ask The Knowledge Base
-
-Print citation-ready context for any agent:
-
-```powershell
-python -m tools.fde_brain.ask context "your question" --root .
-```
-
-Draft a cited local answer with Gemma:
-
-```powershell
-python -m tools.fde_brain.ask answer "your question" --model gemma --root . --read-only
-```
-
-Other answer backends:
-
-```powershell
-python -m tools.fde_brain.ask answer "your question" --model claude --root .
-python -m tools.fde_brain.ask answer "your question" --model codex --root .
-```
-
-`ask` uses Graphify for routing when graph files exist, then reads real Markdown files before producing context or answers.
-
-## Pending Folder Contract
-
-`AI Space/pending/` is a temporary drop zone. It may contain arbitrary files and notes. It should be empty after a successful scheduled ingestion run, but only after files are safely archived, reviewed, or failed.
+- `FDE Brain/` is a legacy Obsidian vault scaffold. It should not drive product
+  architecture.
+- `AI Space/` is legacy operating space from the personal prototype.
+- `tools/fde_brain/` remains available as reference until an explicit migration
+  plan removes it.
+- Graphify output is legacy and not part of the new core.
