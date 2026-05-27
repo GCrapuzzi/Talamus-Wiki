@@ -9,7 +9,7 @@ Approved design direction for the next project phase.
 This document supersedes the earlier Graphify-centered design. Graphify is no
 longer part of the core architecture. The project will build its own
 deterministic graph and retrieval layer from canonical notes, metadata,
-wikilinks, and lexical search indexes.
+wikilinks, with lexical search indexes as fallback and recall support.
 
 ## Purpose
 
@@ -40,8 +40,9 @@ messy source
 
 The strongest product claim is token efficiency without losing source fidelity:
 agents should not read an entire wiki or giant index. They should retrieve a
-small candidate set through a graph plus lexical search, read the real notes,
-optionally follow validated wikilinks, and answer with citations.
+small candidate set through the deterministic graph, read the real notes,
+optionally use lexical fallback or follow validated wikilinks, and answer with
+citations.
 
 ## Licensing Decision
 
@@ -75,7 +76,9 @@ Rules:
 7. Wikilinks belong inside note bodies when they help reading and traversal.
 8. Link generation is LLM-assisted but system-validated.
 9. Deterministic graph construction replaces Graphify semantic extraction.
-10. Lexical/BM25 search is a first-class retrieval layer, not a fallback hack.
+10. The deterministic graph is the primary index for question routing.
+11. Lexical/BM25 search is a fallback and recall layer when the graph is
+    insufficient or when knowledge has not yet been promoted into final notes.
 
 ## Beginner-First UX
 
@@ -167,7 +170,7 @@ Derived layers:
 
 ```text
 knowledge/index/
-  Lexical/BM25 and optional hybrid search indexes.
+  Lexical/BM25 and optional hybrid fallback indexes.
 
 knowledge/graph/
   Deterministic graph outputs built from canonical notes.
@@ -467,12 +470,16 @@ Graph node attributes:
 - confidence
 - updated timestamp
 
-The graph must be lightweight. It is an index and routing layer, not the source
-of truth.
+The graph must be lightweight. It is the primary index and routing layer for
+LLMs, not the source of truth. The LLM can inspect graph structure, summaries,
+aliases, relations, and source pointers to decide which notes or normalized
+sections to read next. It must then answer from the real files and cite those
+files, not from graph metadata alone.
 
 ## Lexical And Hybrid Retrieval
 
-Retrieval must combine deterministic graph traversal with lexical search.
+Retrieval is graph-first. Lexical search exists to improve recall when graph
+routing is insufficient.
 
 V1 should include or implement a local BM25-style index over:
 
@@ -498,21 +505,28 @@ Fallback candidates:
 Default retrieval flow:
 
 ```text
-1. Run lexical search over note retrieval text and aliases.
-2. Use the graph to expand to close neighbors.
-3. Read the real Markdown notes.
-4. Optionally follow validated wikilinks at depth 1 or 2.
-5. Answer with citations from notes and their precompiled sources.
+1. Load the deterministic graph or a graph slice that fits the model budget.
+2. Use graph summaries, aliases, relations, and source pointers to route the
+   question to candidate notes.
+3. Read the real Markdown notes selected by the graph.
+4. Use BM25/lexical search only when the graph returns no useful candidates,
+   confidence is low, or the required knowledge may still live in normalized
+   sources rather than final notes.
+5. Expand through validated wikilinks at depth 1 or 2 when the selected notes
+   point to necessary context.
+6. Answer with citations from notes and their precompiled sources.
 ```
 
 ## Ask Layer
 
-The ask tool must never answer from graph metadata alone.
+The ask tool uses the graph as the primary index. It must never answer from
+graph metadata alone.
 
 It should:
 
-- retrieve candidate notes through search and graph
+- retrieve candidate notes through graph-first routing
 - read real Markdown notes
+- use BM25/lexical search as fallback or recall expansion
 - optionally expand through body wikilinks
 - include citations
 - report which model answered
@@ -521,6 +535,48 @@ It should:
 
 If retrieval falls back to normalized sources, stable reusable knowledge should
 be promoted into final notes when file changes are allowed.
+
+## Agent Skills And Tool Calling
+
+The product must include explicit guidance and callable tools for LLM agents.
+LLMs should not be expected to infer the project protocol from the folder
+layout.
+
+Required agent-facing assets:
+
+- a general knowledge-base usage skill
+- an Obsidian/storage-adapter authoring skill
+- a note extraction skill
+- a graph-first retrieval skill
+- a source citation skill
+- tool schemas or CLI commands for ingest, status, graph routing, lexical
+  fallback, note reading, normalized source reading, validation, and review
+
+These assets should explain:
+
+- the graph is an index, not source truth
+- how to inspect graph summaries and relations
+- when to read final notes
+- when to use BM25 fallback
+- when to follow wikilinks
+- when to inspect normalized sources
+- how to cite sources
+- how to avoid broken links and hallucinated notes
+- how to promote reusable source knowledge when allowed
+
+The tool should expose stable commands that agent frameworks can call:
+
+```powershell
+brain graph query "<question>"
+brain notes read <note-id-or-path>
+brain search "<query>"
+brain sources read <source-section-id-or-path>
+brain validate
+brain review list
+```
+
+Future integrations may expose the same operations through MCP or provider-
+specific tool schemas.
 
 ## Update Infrastructure
 
@@ -649,13 +705,13 @@ Acceptance checks:
 
 ## Risks And Mitigations
 
-### Risk 1: Graph Plus BM25 Misses The Right Notes
+### Risk 1: Graph-First Retrieval Misses The Right Notes
 
 Mitigation:
 
 - retrieval_text is mandatory
 - aliases and related terms are generated and validated
-- BM25 is first-class
+- BM25 is available as fallback and recall expansion
 - graph expansion follows validated relations and body wikilinks
 - optional hybrid/vector adapters can be added later
 
@@ -713,6 +769,7 @@ Required docs:
 - adapter configuration
 - Obsidian adapter behavior
 - storage adapter behavior
+- agent skill and tool-calling guide
 - privacy/local-first explanation
 - licensing and optional adapter license notes
 
@@ -725,7 +782,8 @@ After this design is accepted, create an implementation plan that:
 3. Reworks conversion around validated normalized packages.
 4. Adds or evaluates Docling as the V1 PDF quality converter.
 5. Builds deterministic graph generation.
-6. Adds lexical/BM25 search.
-7. Updates ask retrieval to use search plus graph plus real Markdown notes.
-8. Adds beginner CLI commands and progress/resume infrastructure.
-9. Updates docs and protocol files.
+6. Adds graph-first ask retrieval that reads real notes before answering.
+7. Adds lexical/BM25 fallback search.
+8. Adds agent skills and tool-calling surfaces.
+9. Adds beginner CLI commands and progress/resume infrastructure.
+10. Updates docs and protocol files.
