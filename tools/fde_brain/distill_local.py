@@ -18,6 +18,7 @@ from tools.fde_brain.validate_obsidian import collect_vault_targets, validate_no
 
 
 DEFAULT_DISTILL_MODEL = "gemma4:e4b"
+DEFAULT_DISTILL_NUM_CTX = 32768
 MIN_NOTE_CONFIDENCE = 0.55
 MAX_SECTION_CHARS = 12000
 
@@ -76,6 +77,10 @@ class LocalDistillResult:
 
 _FENCE_RE = re.compile(r"^```(?:json)?\s*\n?|\n?```\s*$", re.MULTILINE)
 _FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
+_STRUCTURAL_SECTION_RE = re.compile(
+    r"^(cover|copyright|table of contents|contents|index|about the author|colophon|epilogue)$",
+    re.IGNORECASE,
+)
 
 
 def _yaml_scalar(value: str) -> str:
@@ -116,6 +121,14 @@ def _parse_frontmatter(content: str) -> dict[str, str]:
 
 def _body_without_frontmatter(content: str) -> str:
     return _FRONTMATTER_RE.sub("", content, count=1).strip()
+
+
+def _is_structural_section(meta: dict[str, str], body: str) -> bool:
+    title = str(meta.get("section-title") or "").strip().strip("\"'")
+    if not title:
+        first_heading = re.search(r"^#\s+(.+)$", body, flags=re.MULTILINE)
+        title = first_heading.group(1).strip() if first_heading else ""
+    return bool(_STRUCTURAL_SECTION_RE.match(title))
 
 
 def _rel(path: Path, root: Path) -> str:
@@ -214,11 +227,23 @@ def _render_note(
     )
 
 
-def _call_ollama(prompt: str, model: str) -> str:
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _append_progress(progress_path: Path | None, event: dict[str, Any]) -> None:
+    if progress_path is None:
+        return
+    progress_path.parent.mkdir(parents=True, exist_ok=True)
+    with progress_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def _call_ollama(prompt: str, model: str, num_ctx: int = DEFAULT_DISTILL_NUM_CTX) -> str:
     response = ollama.chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"temperature": 0, "num_ctx": 16384},
+        options={"temperature": 0, "num_ctx": num_ctx},
     )
     return str(response["message"]["content"]).strip()
 
@@ -237,20 +262,46 @@ def distill_normalized_sections(
     run_id: str,
     model: str = DEFAULT_DISTILL_MODEL,
     existing_targets: set[str] | None = None,
+    num_ctx: int = DEFAULT_DISTILL_NUM_CTX,
+    progress_path: Path | None = None,
+    capture_raw_responses: bool = False,
 ) -> LocalDistillResult:
     known_targets = set(existing_targets or collect_vault_targets(paths.fde_brain))
     raw_responses: list[str] = []
     review_items: list[dict[str, Any]] = []
     raw_candidates: list[tuple[Path, dict[str, str], dict[str, Any]]] = []
+    total = len(section_paths)
 
-    for section_path in section_paths:
+    for index, section_path in enumerate(section_paths, start=1):
+        section_review_count_before = len(review_items)
         try:
             content = section_path.read_text(encoding="utf-8")
         except OSError as exc:
-            review_items.append({"path": section_path.as_posix(), "error": f"read failed: {exc}"})
+            error = f"read failed: {exc}"
+            review_items.append({"path": section_path.as_posix(), "error": error})
+            _append_progress(progress_path, {
+                "run_id": run_id,
+                "section_index": index,
+                "section_total": total,
+                "section_path": _rel(section_path, paths.root),
+                "status": "error",
+                "error": error,
+                "finished_at": _utc_now(),
+            })
             continue
         meta = _parse_frontmatter(content)
         body = _body_without_frontmatter(content)
+        if _is_structural_section(meta, body):
+            _append_progress(progress_path, {
+                "run_id": run_id,
+                "section_index": index,
+                "section_total": total,
+                "section_path": _rel(section_path, paths.root),
+                "status": "skipped",
+                "reason": "structural section",
+                "finished_at": _utc_now(),
+            })
+            continue
         if len(body) > MAX_SECTION_CHARS:
             body = body[:MAX_SECTION_CHARS] + "\n\n[Truncated to token budget for local distillation.]"
         prompt = DISTILL_PROMPT.format(
@@ -258,12 +309,24 @@ def distill_normalized_sections(
             content=body,
         )
         try:
-            response = _call_ollama(prompt, model=model)
-            raw_responses.append(response)
+            response = _call_ollama(prompt, model=model, num_ctx=num_ctx)
+            if capture_raw_responses:
+                raw_responses.append(response)
             candidates = _parse_payload(response)
         except Exception as exc:
-            review_items.append({"path": _rel(section_path, paths.root), "error": f"json/model error: {exc}"})
+            error = f"json/model error: {exc}"
+            review_items.append({"path": _rel(section_path, paths.root), "error": error})
+            _append_progress(progress_path, {
+                "run_id": run_id,
+                "section_index": index,
+                "section_total": total,
+                "section_path": _rel(section_path, paths.root),
+                "status": "error",
+                "error": error,
+                "finished_at": _utc_now(),
+            })
             continue
+        accepted_candidates = 0
         for candidate in candidates:
             confidence = float(candidate.get("confidence") or 0)
             title = str(candidate.get("title") or "").strip()
@@ -275,6 +338,17 @@ def distill_normalized_sections(
                 })
                 continue
             raw_candidates.append((section_path, meta, candidate))
+            accepted_candidates += 1
+        _append_progress(progress_path, {
+            "run_id": run_id,
+            "section_index": index,
+            "section_total": total,
+            "section_path": _rel(section_path, paths.root),
+            "status": "done",
+            "candidate_count": accepted_candidates,
+            "review_count": len(review_items) - section_review_count_before,
+            "finished_at": _utc_now(),
+        })
 
     produced_titles = {str(candidate.get("title") or "").strip() for _, _, candidate in raw_candidates}
     notes: list[LocalPromotedNote] = []

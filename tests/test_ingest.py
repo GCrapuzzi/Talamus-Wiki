@@ -182,6 +182,7 @@ class IngestIntegrationTests(unittest.TestCase):
 
             self.assertEqual(0, exit_code)
             distill_mock.assert_called_once()
+            self.assertEqual(32768, distill_mock.call_args.kwargs["num_ctx"])
             brain_notes = sorted(p.name for p in paths.fde_brain.glob("*.md"))
             self.assertEqual(["Chapter-Key-Idea.md", "Cool-Pattern.md", "Overview.md"], brain_notes)
 

@@ -132,6 +132,102 @@ class DistillLocalTests(unittest.TestCase):
         self.assertEqual(1, len(result.notes))
         self.assertIn("raw_path: AI Space/raw/text/source.txt", result.notes[0].content)
 
+    @patch("tools.fde_brain.distill_local.ollama.chat")
+    def test_distill_uses_configured_num_ctx(self, chat_mock) -> None:
+        chat_mock.return_value = _ollama_response({"notes": []})
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = WorkspacePaths(root)
+            paths.ensure_directories()
+            section = paths.normalized_for("text") / "source" / "sections" / "001-source.md"
+            section.parent.mkdir(parents=True, exist_ok=True)
+            section.write_text(
+                "---\nsource-path: AI Space/raw/text/source.txt\nsource-hash: sha256:x\n"
+                "source-location: text\n---\n\n# Source\n\nText.",
+                encoding="utf-8",
+            )
+
+            result = distill_normalized_sections(
+                [section],
+                paths,
+                run_id="ctx",
+                num_ctx=32768,
+            )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(32768, chat_mock.call_args.kwargs["options"]["num_ctx"])
+
+    @patch("tools.fde_brain.distill_local.ollama.chat")
+    def test_distill_writes_section_progress_jsonl(self, chat_mock) -> None:
+        chat_mock.return_value = _ollama_response({"notes": []})
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = WorkspacePaths(root)
+            paths.ensure_directories()
+            section = paths.normalized_for("text") / "source" / "sections" / "001-source.md"
+            section.parent.mkdir(parents=True, exist_ok=True)
+            section.write_text(
+                "---\nsource-path: AI Space/raw/text/source.txt\nsource-hash: sha256:x\n"
+                "source-location: text\n---\n\n# Source\n\nText.",
+                encoding="utf-8",
+            )
+            progress_path = paths.logs / "progress" / "run-distill.jsonl"
+
+            result = distill_normalized_sections(
+                [section],
+                paths,
+                run_id="progress",
+                progress_path=progress_path,
+            )
+
+            lines = progress_path.read_text(encoding="utf-8").splitlines()
+
+        self.assertTrue(result.ok)
+        self.assertEqual(1, len(lines))
+        event = json.loads(lines[0])
+        self.assertEqual("progress", event["run_id"])
+        self.assertEqual(1, event["section_index"])
+        self.assertEqual(1, event["section_total"])
+        self.assertEqual("done", event["status"])
+        self.assertEqual("AI Space/normalized/text/source/sections/001-source.md", event["section_path"])
+
+    @patch("tools.fde_brain.distill_local.ollama.chat")
+    def test_structural_sections_are_skipped_before_model_call(self, chat_mock) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = WorkspacePaths(root)
+            paths.ensure_directories()
+            section = paths.normalized_for("pdf") / "book" / "sections" / "180-index.md"
+            section.parent.mkdir(parents=True, exist_ok=True)
+            section.write_text(
+                "---\n"
+                "source-path: AI Space/raw/pdf/book.pdf\n"
+                "source-hash: sha256:x\n"
+                "source-location: pages 500-520\n"
+                "section-title: Index\n"
+                "---\n\n"
+                "# Index\n\nRAG, 100\nFinetuning, 120",
+                encoding="utf-8",
+            )
+            progress_path = paths.logs / "progress" / "run-distill.jsonl"
+
+            result = distill_normalized_sections(
+                [section],
+                paths,
+                run_id="skip",
+                progress_path=progress_path,
+            )
+
+            lines = progress_path.read_text(encoding="utf-8").splitlines()
+
+        self.assertTrue(result.ok)
+        self.assertEqual([], result.notes)
+        chat_mock.assert_not_called()
+        self.assertEqual(1, len(lines))
+        event = json.loads(lines[0])
+        self.assertEqual("skipped", event["status"])
+        self.assertEqual("structural section", event["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

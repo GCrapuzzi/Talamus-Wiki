@@ -99,6 +99,10 @@ class WorkspacePaths:
         return self.logs / "promotions"
 
     @property
+    def logs_progress(self) -> Path:
+        return self.logs / "progress"
+
+    @property
     def registry_path(self) -> Path:
         return self.normalized / "registry.json"
 
@@ -119,6 +123,7 @@ class WorkspacePaths:
             self.logs / "decisions",
             self.logs / "errors",
             self.logs / "promotions",
+            self.logs / "progress",
             self.review / "ambiguous",
             self.review / "conflicts",
             self.review / "needs-human",

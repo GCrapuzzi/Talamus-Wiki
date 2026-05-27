@@ -15,7 +15,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tools.fde_brain.classify import classify
-from tools.fde_brain.distill_local import DEFAULT_DISTILL_MODEL, distill_normalized_sections
+from tools.fde_brain.distill_local import (
+    DEFAULT_DISTILL_MODEL,
+    DEFAULT_DISTILL_NUM_CTX,
+    distill_normalized_sections,
+)
 from tools.fde_brain.graphify import mark_graph_stale
 from tools.fde_brain.normalize import NormalizedOutput, normalize_source
 from tools.fde_brain.paths import WorkspacePaths
@@ -94,15 +98,20 @@ def _promote_local(
     paths: WorkspacePaths,
     run_id: str,
     model: str,
+    num_ctx: int,
 ) -> list[Path]:
     section_paths = list(normalized.section_paths)
     if not section_paths:
         return []
+    safe_source = _sanitize_name(normalized.package_dir.name if normalized.package_dir else "source")
+    progress_path = paths.logs_progress / f"{run_id}-{safe_source}-distill-progress.jsonl"
     result = distill_normalized_sections(
         section_paths=section_paths,
         paths=paths,
         run_id=run_id,
         model=model,
+        num_ctx=num_ctx,
+        progress_path=progress_path,
     )
     written: list[Path] = []
     if not result.ok:
@@ -141,6 +150,7 @@ def _process_one(
     run_id: str,
     captured_at: datetime,
     distill_model: str,
+    distill_num_ctx: int,
 ) -> FileOutcome:
     pending_name = src.name
     size_mb = src.stat().st_size / 1024 / 1024
@@ -169,8 +179,8 @@ def _process_one(
     promoted_paths: list[Path] = []
     if normalized.routed_to == "normalized" and normalized.output_path is not None:
         mark_graph_stale(paths.source_graph, f"normalized source changed: {pending_name}")
-        _log("distill", f"local section-level branch -> ollama/{distill_model}")
-        promoted_paths = _promote_local(normalized, paths, run_id, distill_model)
+        _log("distill", f"local section-level branch -> ollama/{distill_model} num_ctx={distill_num_ctx}")
+        promoted_paths = _promote_local(normalized, paths, run_id, distill_model, distill_num_ctx)
         _log("distill", f"promoted {len(promoted_paths)} notes")
         if promoted_paths:
             mark_graph_stale(paths.brain_graph, f"FDE Brain notes changed: {pending_name}")
@@ -247,6 +257,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-commit", action="store_true", help="Skip the final git commit.")
     parser.add_argument("--dry-run", action="store_true", help="Plan only; do not write logs or commit.")
     parser.add_argument("--distill-model", default=DEFAULT_DISTILL_MODEL, help="Ollama model for local section distillation.")
+    parser.add_argument(
+        "--distill-num-ctx",
+        type=int,
+        default=DEFAULT_DISTILL_NUM_CTX,
+        help="Ollama num_ctx for local section distillation.",
+    )
     args = parser.parse_args(argv)
 
     root = Path(args.root).resolve()
@@ -283,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
 
     for src in pending_files:
         try:
-            outcome = _process_one(src, paths, log.run_id, captured_at, args.distill_model)
+            outcome = _process_one(src, paths, log.run_id, captured_at, args.distill_model, args.distill_num_ctx)
         except Exception as exc:
             outcome = FileOutcome(
                 pending_name=src.name,
