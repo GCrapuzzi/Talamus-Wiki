@@ -113,7 +113,7 @@ Next implementation plans should cover:
 - Modify: `.gitignore`
 - Create: `src/brain/__init__.py`
 
-- [ ] **Step 1: Write the Apache-2.0 license file**
+- [x] **Step 1: Write the Apache-2.0 license file**
 
 Create `LICENSE` with the standard Apache License 2.0 text from the Apache Software Foundation.
 
@@ -125,7 +125,7 @@ Select-String -Path LICENSE -Pattern "Apache License", "Version 2.0", "limitatio
 
 Expected: all three phrases are found.
 
-- [ ] **Step 2: Create package metadata**
+- [x] **Step 2: Create package metadata**
 
 Create `pyproject.toml`:
 
@@ -160,7 +160,7 @@ where = ["src"]
 start-dir = "tests"
 ```
 
-- [ ] **Step 3: Extend `.gitignore` safely**
+- [x] **Step 3: Extend `.gitignore` safely**
 
 If `.gitignore` does not exist, create it. Ensure it contains these entries without removing existing project-specific entries:
 
@@ -179,7 +179,7 @@ __pycache__/
 venv/
 ```
 
-- [ ] **Step 4: Create package marker**
+- [x] **Step 4: Create package marker**
 
 Create `src/brain/__init__.py`:
 
@@ -189,7 +189,7 @@ Create `src/brain/__init__.py`:
 __version__ = "0.1.0"
 ```
 
-- [ ] **Step 5: Verify package metadata**
+- [x] **Step 5: Verify package metadata**
 
 Run:
 
@@ -203,7 +203,7 @@ Expected output:
 local-knowledge-brain
 ```
 
-- [ ] **Step 6: Commit packaging foundation**
+- [x] **Step 6: Commit packaging foundation**
 
 Run:
 
@@ -223,7 +223,7 @@ Expected: commit succeeds.
 - Create: `src/brain/config.py`
 - Create: `tests/test_brain_paths_config.py`
 
-- [ ] **Step 1: Write failing tests for generic paths and config**
+- [x] **Step 1: Write failing tests for generic paths and config**
 
 Create `tests/test_brain_paths_config.py`:
 
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -292,7 +292,7 @@ python -m unittest tests.test_brain_paths_config -v
 
 Expected: FAIL because `brain.paths` and `brain.config` do not exist.
 
-- [ ] **Step 3: Implement generic paths**
+- [x] **Step 3: Implement generic paths**
 
 Create `src/brain/paths.py`:
 
@@ -386,7 +386,7 @@ class BrainPaths:
         return created
 ```
 
-- [ ] **Step 4: Implement config model**
+- [x] **Step 4: Implement config model**
 
 Create `src/brain/config.py`:
 
@@ -431,7 +431,7 @@ def load_config(path: Path) -> BrainConfig:
     return BrainConfig(**data)
 ```
 
-- [ ] **Step 5: Run path/config tests**
+- [x] **Step 5: Run path/config tests**
 
 Run:
 
@@ -442,7 +442,7 @@ python -m unittest tests.test_brain_paths_config -v
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit paths and config**
+- [x] **Step 6: Commit paths and config**
 
 Run:
 
@@ -461,7 +461,7 @@ Expected: commit succeeds.
 - Create: `src/brain/cli.py`
 - Create: `tests/test_brain_cli.py`
 
-- [ ] **Step 1: Write failing CLI tests**
+- [x] **Step 1: Write failing CLI tests**
 
 Create `tests/test_brain_cli.py`:
 
@@ -504,7 +504,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -515,7 +515,7 @@ python -m unittest tests.test_brain_cli -v
 
 Expected: FAIL because `brain.cli` does not exist.
 
-- [ ] **Step 3: Implement CLI**
+- [x] **Step 3: Implement CLI**
 
 Create `src/brain/cli.py`:
 
@@ -593,7 +593,7 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] **Step 4: Run CLI tests**
+- [x] **Step 4: Run CLI tests**
 
 Run:
 
@@ -604,7 +604,7 @@ python -m unittest tests.test_brain_cli -v
 
 Expected: PASS.
 
-- [ ] **Step 5: Smoke-test CLI manually**
+- [x] **Step 5: Smoke-test CLI manually**
 
 Run:
 
@@ -618,7 +618,7 @@ python -m brain.cli doctor --root $tmp.FullName
 
 Expected: all commands exit `0`; output includes `brain project status ok`.
 
-- [ ] **Step 6: Commit CLI**
+- [x] **Step 6: Commit CLI**
 
 Run:
 
@@ -637,7 +637,7 @@ Expected: commit succeeds.
 - Create: `src/brain/models.py`
 - Create: `tests/test_brain_models.py`
 
-- [ ] **Step 1: Write failing model tests**
+- [x] **Step 1: Write failing model tests**
 
 Create `tests/test_brain_models.py`:
 
@@ -691,7 +691,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -702,7 +702,7 @@ python -m unittest tests.test_brain_models -v
 
 Expected: FAIL because `brain.models` does not exist.
 
-- [ ] **Step 3: Implement canonical models**
+- [x] **Step 3: Implement canonical models**
 
 Create `src/brain/models.py`:
 
@@ -791,7 +791,7 @@ class CanonicalNote:
         return asdict(self)
 ```
 
-- [ ] **Step 4: Run model tests**
+- [x] **Step 4: Run model tests**
 
 Run:
 
@@ -802,7 +802,7 @@ python -m unittest tests.test_brain_models -v
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit models**
+- [x] **Step 5: Commit models**
 
 Run:
 
@@ -823,7 +823,9 @@ Expected: commit succeeds.
 - Create: `src/brain/storage/obsidian.py`
 - Create: `tests/test_brain_obsidian_renderer.py`
 
-- [ ] **Step 1: Write failing renderer tests**
+**Status:** completed in `05ef9e8`; spec and code-quality reviews passed.
+
+- [x] **Step 1: Write failing renderer tests**
 
 Create `tests/test_brain_obsidian_renderer.py`:
 
@@ -898,7 +900,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -909,7 +911,7 @@ python -m unittest tests.test_brain_obsidian_renderer -v
 
 Expected: FAIL because `brain.linking` and `brain.storage.obsidian` do not exist.
 
-- [ ] **Step 3: Implement link registry**
+- [x] **Step 3: Implement link registry**
 
 Create `src/brain/linking.py`:
 
@@ -958,7 +960,7 @@ def resolve_links(note: CanonicalNote, registry: NoteRegistry) -> dict[str, str]
     return resolved
 ```
 
-- [ ] **Step 4: Implement Obsidian renderer**
+- [x] **Step 4: Implement Obsidian renderer**
 
 Create `src/brain/storage/__init__.py`:
 
@@ -1030,7 +1032,7 @@ def render_obsidian_note(note: CanonicalNote, registry: NoteRegistry) -> str:
     return "\n".join(lines).rstrip() + "\n"
 ```
 
-- [ ] **Step 5: Run renderer tests**
+- [x] **Step 5: Run renderer tests**
 
 Run:
 
@@ -1041,7 +1043,7 @@ python -m unittest tests.test_brain_obsidian_renderer -v
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit renderer and link resolver**
+- [x] **Step 6: Commit renderer and link resolver**
 
 Run:
 
@@ -1060,7 +1062,7 @@ Expected: commit succeeds.
 - Create: `src/brain/graph.py`
 - Create: `tests/test_brain_graph.py`
 
-- [ ] **Step 1: Write failing graph tests**
+- [x] **Step 1: Write failing graph tests**
 
 Create `tests/test_brain_graph.py`:
 
@@ -1146,7 +1148,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -1157,7 +1159,7 @@ python -m unittest tests.test_brain_graph -v
 
 Expected: FAIL because `brain.graph` does not exist.
 
-- [ ] **Step 3: Implement deterministic graph**
+- [x] **Step 3: Implement deterministic graph**
 
 Create `src/brain/graph.py`:
 
@@ -1253,7 +1255,7 @@ def load_graph(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 ```
 
-- [ ] **Step 4: Run graph tests**
+- [x] **Step 4: Run graph tests**
 
 Run:
 
@@ -1264,7 +1266,7 @@ python -m unittest tests.test_brain_graph -v
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit graph builder**
+- [x] **Step 5: Commit graph builder**
 
 Run:
 
@@ -1283,7 +1285,7 @@ Expected: commit succeeds.
 - Create: `src/brain/search.py`
 - Create: `tests/test_brain_search.py`
 
-- [ ] **Step 1: Write failing BM25 tests**
+- [x] **Step 1: Write failing BM25 tests**
 
 Create `tests/test_brain_search.py`:
 
@@ -1325,7 +1327,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -1336,7 +1338,7 @@ python -m unittest tests.test_brain_search -v
 
 Expected: FAIL because `brain.search` does not exist.
 
-- [ ] **Step 3: Implement BM25 fallback**
+- [x] **Step 3: Implement BM25 fallback**
 
 Create `src/brain/search.py`:
 
@@ -1417,7 +1419,7 @@ class BM25Index:
         return cls.from_dict(json.loads(path.read_text(encoding="utf-8")))
 ```
 
-- [ ] **Step 4: Run BM25 tests**
+- [x] **Step 4: Run BM25 tests**
 
 Run:
 
@@ -1428,7 +1430,7 @@ python -m unittest tests.test_brain_search -v
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit BM25 fallback**
+- [x] **Step 5: Commit BM25 fallback**
 
 Run:
 
@@ -1448,7 +1450,7 @@ Expected: commit succeeds.
 - Modify: `src/brain/cli.py`
 - Create: `tests/test_brain_ask.py`
 
-- [ ] **Step 1: Write failing ask tests**
+- [x] **Step 1: Write failing ask tests**
 
 Create `tests/test_brain_ask.py`:
 
@@ -1541,7 +1543,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -1552,7 +1554,7 @@ python -m unittest tests.test_brain_ask -v
 
 Expected: FAIL because `brain.ask` does not exist.
 
-- [ ] **Step 3: Implement ask context builder**
+- [x] **Step 3: Implement ask context builder**
 
 Create `src/brain/ask.py`:
 
@@ -1608,7 +1610,7 @@ def build_context_bundle(
     return ContextBundle(question=question, items=items)
 ```
 
-- [ ] **Step 4: Run ask tests**
+- [x] **Step 4: Run ask tests**
 
 Run:
 
@@ -1619,7 +1621,7 @@ python -m unittest tests.test_brain_ask -v
 
 Expected: PASS.
 
-- [ ] **Step 5: Add working CLI commands for graph/search/ask context**
+- [x] **Step 5: Add working CLI commands for graph/search/ask context**
 
 Modify `src/brain/cli.py`:
 
@@ -1722,7 +1724,7 @@ Add these branches inside `main()` before the final `raise`:
         return _cmd_ask_context(root, args.question)
 ```
 
-- [ ] **Step 6: Run CLI and ask tests**
+- [x] **Step 6: Run CLI and ask tests**
 
 Run:
 
@@ -1733,7 +1735,7 @@ python -m unittest tests.test_brain_cli tests.test_brain_ask -v
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit ask foundation**
+- [x] **Step 7: Commit ask foundation**
 
 Run:
 
@@ -1752,7 +1754,7 @@ Expected: commit succeeds.
 - Create: `skills/brain-knowledge/SKILL.md`
 - Create: `docs/agent-tool-calling.md`
 
-- [ ] **Step 1: Create the agent skill**
+- [x] **Step 1: Create the agent skill**
 
 Create `skills/brain-knowledge/SKILL.md`:
 
@@ -1791,7 +1793,7 @@ answer from the real files with citations.
 - Use aliases, tags, and retrieval text to improve future routing.
 ```
 
-- [ ] **Step 2: Create tool-calling guide**
+- [x] **Step 2: Create tool-calling guide**
 
 Create `docs/agent-tool-calling.md`:
 
@@ -1852,7 +1854,7 @@ Purpose: inspect low-confidence conversion, missing concepts, and items needing
 human judgment.
 ```
 
-- [ ] **Step 3: Verify docs mention graph as index**
+- [x] **Step 3: Verify docs mention graph as index**
 
 Run:
 
@@ -1862,7 +1864,7 @@ rg -n "graph is the primary index|not source truth|brain graph query|brain searc
 
 Expected: output includes all core phrases.
 
-- [ ] **Step 4: Commit agent docs**
+- [x] **Step 4: Commit agent docs**
 
 Run:
 
@@ -1880,7 +1882,7 @@ Expected: commit succeeds.
 **Files:**
 - Modify: none unless verification reveals a defect.
 
-- [ ] **Step 1: Run the new brain package tests**
+- [x] **Step 1: Run the new brain package tests**
 
 Run:
 
@@ -1891,7 +1893,7 @@ python -m unittest tests.test_brain_paths_config tests.test_brain_cli tests.test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run the full existing suite**
+- [x] **Step 2: Run the full existing suite**
 
 Run:
 
@@ -1902,7 +1904,7 @@ python -m unittest discover -s tests -v
 
 Expected: PASS. Existing `tools/fde_brain` tests must keep passing.
 
-- [ ] **Step 3: Verify beginner smoke flow**
+- [x] **Step 3: Verify beginner smoke flow**
 
 Run:
 
@@ -1923,7 +1925,7 @@ Expected:
 - `$tmp/brain.json` exists
 - `$tmp/knowledge/notes` exists
 
-- [ ] **Step 4: Verify no unintended files were staged**
+- [x] **Step 4: Verify no unintended files were staged**
 
 Run:
 
@@ -1933,7 +1935,7 @@ git status --short
 
 Expected: only files intentionally changed by the current task are dirty. Do not stage `.claude/`, `.obsidian/`, partial Graphify output, or unrelated legacy workspace files.
 
-- [ ] **Step 5: Commit verification fixes only if needed**
+- [x] **Step 5: Commit verification fixes only if needed**
 
 If verification required code changes, commit them:
 
