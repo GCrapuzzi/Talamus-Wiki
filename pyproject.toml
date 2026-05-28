@@ -3,14 +3,14 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "local-knowledge-brain"
+name = "kortex"
 version = "0.1.0"
 description = "Local-first knowledge compiler with graph-first retrieval for AI agents."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [
-  { name = "Local Knowledge Brain Contributors" }
+  { name = "Kortex Contributors" }
 ]
 dependencies = []
 
@@ -19,7 +19,7 @@ docling = ["docling>=2.0"]
 dev = []
 
 [project.scripts]
-brain = "brain.cli:main"
+kortex = "kortex.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

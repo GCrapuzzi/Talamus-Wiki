@@ -1,17 +1,18 @@
 # Claude Code Workspace Instructions
 
-This workspace is the Dual Graph LLM Wiki for Forward Deployed AI Engineering.
+This repository is Kortex: an open-source, local-first knowledge compiler with
+graph-first retrieval.
 
-Before running scheduled ingestion, answering knowledge-base questions, or modifying `FDE Brain/`, read:
-
-```text
-AI Space/system/AGENT_PROTOCOL.md
-```
-
-Operational commands are documented in:
+Use the same development protocol as Codex:
 
 ```text
-AI Space/system/RUNBOOK.md
+AGENTS.md
 ```
 
-Claude Code is the preferred scheduled runner. Codex is the manual development and maintenance agent.
+Operational expectations:
+
+- Work against `src/kortex/` and `tests/test_kortex_*.py`.
+- Use `kortex` as the CLI name.
+- Treat the graph as an index, not source truth.
+- Do not reintroduce legacy personal-workspace folders.
+- Do not commit `.claude/` or generated caches.
