@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
+from brain.ask import build_context_bundle
 from brain.config import BrainConfig, load_config, save_config
+from brain.graph import load_graph, query_graph
 from brain.paths import BrainPaths
+from brain.search import BM25Index
 
 
 def _cmd_init(root: Path) -> int:
@@ -53,12 +57,76 @@ def _cmd_doctor(root: Path) -> int:
     return 0
 
 
+def _load_required_graph(paths: BrainPaths) -> dict | None:
+    graph_path = paths.graph / "graph.json"
+    if not graph_path.is_file():
+        print(f"missing graph: {graph_path}", file=sys.stderr)
+        return None
+    return load_graph(graph_path)
+
+
+def _load_optional_search(paths: BrainPaths) -> BM25Index:
+    index_path = paths.index / "bm25.json"
+    if not index_path.is_file():
+        return BM25Index()
+    return BM25Index.load(index_path)
+
+
+def _cmd_graph_query(root: Path, question: str) -> int:
+    paths = BrainPaths(root)
+    graph = _load_required_graph(paths)
+    if graph is None:
+        return 1
+    print(json.dumps(query_graph(graph, question), indent=2))
+    return 0
+
+
+def _cmd_search(root: Path, query: str) -> int:
+    paths = BrainPaths(root)
+    index_path = paths.index / "bm25.json"
+    if not index_path.is_file():
+        print(f"missing search index: {index_path}", file=sys.stderr)
+        return 1
+    print(json.dumps(BM25Index.load(index_path).search(query), indent=2))
+    return 0
+
+
+def _cmd_ask_context(root: Path, question: str) -> int:
+    paths = BrainPaths(root)
+    graph = _load_required_graph(paths)
+    if graph is None:
+        return 1
+    bundle = build_context_bundle(paths, graph, _load_optional_search(paths), question)
+    if not bundle.items:
+        print("no context found", file=sys.stderr)
+        return 1
+    print(bundle.render())
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="brain", description="Local-first knowledge compiler.")
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("init", "status", "doctor"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--root", default=".", help="Project root. Defaults to current directory.")
+
+    ask = sub.add_parser("ask")
+    ask_sub = ask.add_subparsers(dest="ask_command", required=True)
+    ask_context = ask_sub.add_parser("context")
+    ask_context.add_argument("question")
+    ask_context.add_argument("--root", default=".")
+
+    graph = sub.add_parser("graph")
+    graph_sub = graph.add_subparsers(dest="graph_command", required=True)
+    graph_query = graph_sub.add_parser("query")
+    graph_query.add_argument("question")
+    graph_query.add_argument("--root", default=".")
+
+    search = sub.add_parser("search")
+    search.add_argument("query")
+    search.add_argument("--root", default=".")
+
     return parser
 
 
@@ -71,6 +139,12 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_status(root)
     if args.command == "doctor":
         return _cmd_doctor(root)
+    if args.command == "graph" and args.graph_command == "query":
+        return _cmd_graph_query(root, args.question)
+    if args.command == "search":
+        return _cmd_search(root, args.query)
+    if args.command == "ask" and args.ask_command == "context":
+        return _cmd_ask_context(root, args.question)
     raise ValueError(f"unknown command {args.command}")
 
 
