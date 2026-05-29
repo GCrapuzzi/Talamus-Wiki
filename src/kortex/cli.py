@@ -11,6 +11,17 @@ from kortex.ingest import ingest_file
 from kortex.paths import KortexPaths
 
 
+def _ensure_utf8_output() -> None:
+    """Forza l'output UTF-8 dove possibile (la console Windows altrimenti storpia gli accenti)."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except (ValueError, OSError):
+                pass
+
+
 def _cmd_init(root: Path) -> int:
     paths = KortexPaths(root)
     paths.ensure_directories()
@@ -83,6 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None, llm=None) -> int:
+    _ensure_utf8_output()
     args = build_parser().parse_args(argv)
     root = Path(args.root).resolve()
     if args.command == "init":

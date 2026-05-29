@@ -56,6 +56,12 @@ class KortexCliTests(unittest.TestCase):
             self.assertEqual(1, code)
             self.assertIn("config error", stderr.getvalue())
 
+    def test_ensure_utf8_output_tolerates_non_reconfigurable_stream(self) -> None:
+        from kortex.cli import _ensure_utf8_output
+
+        with redirect_stdout(io.StringIO()):
+            _ensure_utf8_output()  # non deve sollevare eccezioni
+
     def test_ingest_then_ask_with_injected_provider(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with redirect_stdout(io.StringIO()):
