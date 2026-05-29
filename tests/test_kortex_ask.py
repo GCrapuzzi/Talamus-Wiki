@@ -1,23 +1,35 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from kortex.ask import build_context_bundle
-from kortex.cli import main
-from kortex.graph import build_graph, save_graph
+from kortex.ask import answer_question, build_context_bundle
+from kortex.graph import build_graph
+from kortex.ingest import ingest_file
 from kortex.models import CanonicalNote, SourceRef
 from kortex.paths import KortexPaths
 from kortex.search import BM25Index
+from tests.support import FakeLLMProvider
 
 
 def source_ref() -> SourceRef:
     return SourceRef(
-        raw_path="knowledge/raw/pdf/book.pdf",
-        normalized_path="knowledge/normalized/pdf/book/sections/001.md",
+        raw_path="raw/book.pdf",
+        normalized_path="normalized/book#1",
         locator="pages 1-2",
         source_hash="sha256:abc",
         supported_claims=["RAG retrieves context."],
     )
+
+
+def _extract_response() -> str:
+    return json.dumps([
+        {"title": "Retrieval-Augmented Generation", "aliases": ["RAG"],
+         "tags": ["retrieval"], "retrieval_text": "external documents retrieval augmented generation",
+         "summary": "RAG connette il modello a fonti esterne.",
+         "body_sections": {"core_idea": "RAG recupera contesto."},
+         "supported_claims": ["RAG recupera contesto."], "confidence": 0.9}
+    ])
 
 
 class KortexAskTests(unittest.TestCase):
@@ -31,37 +43,7 @@ class KortexAskTests(unittest.TestCase):
                 aliases=["RAG"],
                 folder="Retrieval",
                 tags=["retrieval"],
-                summary="RAG connects models to external knowledge.",
-                retrieval_text="external documents retrieval augmented generation",
-                body_sections={"core_idea": "RAG retrieves context."},
-                proposed_links=[],
-                relations=[],
-                sources=[source_ref()],
-                confidence=0.9,
-            )
-            note_path = paths.notes / "Retrieval-Augmented-Generation.md"
-            note_path.write_text("# Retrieval-Augmented Generation\n\nRAG retrieves context.", encoding="utf-8")
-            graph = build_graph([note])
-            search = BM25Index()
-            search.add("wrong", "external documents")
-
-            bundle = build_context_bundle(paths, graph, search, "How do I use external documents?", limit=1)
-
-            self.assertEqual("graph", bundle.items[0]["route"])
-            self.assertIn("Retrieval-Augmented-Generation.md", bundle.items[0]["path"])
-            self.assertIn("RAG retrieves context", bundle.items[0]["content"])
-
-    def test_ask_context_cli_reads_real_note_file(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            paths = KortexPaths(Path(tmp))
-            paths.ensure_directories()
-            note = CanonicalNote(
-                note_id="rag",
-                title="Retrieval-Augmented Generation",
-                aliases=["RAG"],
-                folder="Retrieval",
-                tags=["retrieval"],
-                summary="RAG connects models to external knowledge.",
+                summary="RAG connette il modello a fonti esterne.",
                 retrieval_text="external documents retrieval augmented generation",
                 body_sections={"core_idea": "RAG retrieves context."},
                 proposed_links=[],
@@ -70,16 +52,43 @@ class KortexAskTests(unittest.TestCase):
                 confidence=0.9,
             )
             (paths.notes / "Retrieval-Augmented-Generation.md").write_text(
-                "# Retrieval-Augmented Generation\n\nRAG retrieves context.",
-                encoding="utf-8",
+                "# Retrieval-Augmented Generation\n\nRAG retrieves context.", encoding="utf-8"
             )
-            save_graph(paths.graph / "graph.json", build_graph([note]))
+            graph = build_graph([note])
             search = BM25Index()
-            search.save(paths.index / "bm25.json")
+            search.add("wrong", "external documents")
 
-            code = main(["ask", "context", "How do I use external documents?", "--root", tmp])
+            bundle = build_context_bundle(paths, graph, search, "How do I use external documents?", limit=1)
 
-            self.assertEqual(0, code)
+            self.assertEqual("graph", bundle.items[0]["route"])
+            self.assertIn("Retrieval-Augmented-Generation.md", bundle.items[0]["path"])
+
+    def test_answer_question_uses_context_and_llm(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = KortexPaths(root)
+            paths.ensure_directories()
+            source = root / "rag.md"
+            source.write_text("# RAG\nRAG collega il modello a fonti esterne.", encoding="utf-8")
+            ingest_file(paths, source, FakeLLMProvider([_extract_response()]))
+            answering = FakeLLMProvider(["RAG collega il modello a fonti esterne [1]."])
+
+            answer = answer_question(paths, "Come collego il modello a fonti esterne?", answering)
+
+            self.assertIn("RAG", answer)
+            self.assertIn("Retrieval-Augmented Generation", answering.prompts[0])
+
+    def test_answer_question_without_context_is_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = KortexPaths(Path(tmp))
+            paths.ensure_directories()
+            from kortex.store import rebuild_indexes
+
+            rebuild_indexes(paths)
+
+            answer = answer_question(paths, "qualcosa", FakeLLMProvider(["non dovrebbe servire"]))
+
+            self.assertIn("nessun contesto", answer.lower())
 
 
 if __name__ == "__main__":
