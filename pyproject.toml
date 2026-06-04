@@ -16,10 +16,12 @@ dependencies = []
 
 [project.optional-dependencies]
 docling = ["docling>=2.0"]
+mcp = ["mcp>=1.0"]
 dev = []
 
 [project.scripts]
 kortex = "kortex.cli:main"
+kortex-mcp = "kortex.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
