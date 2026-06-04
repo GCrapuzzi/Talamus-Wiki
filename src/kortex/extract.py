@@ -6,12 +6,35 @@ from kortex.adapters.llm import LLMProvider
 from kortex.models import CanonicalNote, Relation, SourceRef
 from kortex.normalize import NormalizedPackage, NormalizedSection
 
-_PROMPT = """Sei un estrattore di conoscenza. Leggi il testo e produci un ARRAY JSON di note.
-Ogni nota e un concetto riutilizzabile con i campi:
-title, aliases (lista), tags (lista), summary, retrieval_text,
-body_sections (oggetto sezione->testo), relations (lista di {{source,relation,target,confidence}}),
-supported_claims (lista di frasi sostenute dal testo), confidence (0..1).
-Rispondi SOLO con l'array JSON, senza commenti.
+_PROMPT = """Sei un bibliotecario esperto: trasformi il testo in SCHEDE di conoscenza chiare e
+autosufficienti. Restituisci SOLO un ARRAY JSON, senza commenti. Ogni scheda = UN
+concetto riutilizzabile, con questi campi:
+- "title": il nome del concetto.
+- "aliases": nomi alternativi e sigle (lista).
+- "tags": 3-6 etichette tematiche (lista).
+- "summary": 1-2 frasi che dicono in sintesi cos'è e perché conta (NON ripeterlo nel corpo).
+- "retrieval_text": parole chiave e termini di ricerca, in una sola stringa.
+- "body_sections": oggetto che usa SOLO queste chiavi, quando pertinenti, in quest'ordine:
+    "definizione"  : cos'è, in frasi complete e collegate.
+    "funzionamento": come funziona / come si usa, spiegando il PERCHÉ.
+    "quando"       : quando conviene e quando no, motivando.
+    "esempio"      : un esempio o caso concreto, se presente nella fonte.
+    "relazioni"    : come si lega o si contrappone ad altri concetti
+                     ("a differenza di...", "usa...", "è un tipo di...").
+- "relations": lista di {{"source","relation","target","confidence"}} verso ALTRI
+  concetti citati (es. uses, is-a, contrasts-with, part-of). Compilala con cura:
+  serve a costruire la mappa della conoscenza.
+- "supported_claims": frasi sostenute dal testo (lista).
+- "confidence": numero 0..1.
+
+REGOLE DI SCRITTURA (importanti):
+- Scrivi in italiano corretto e con gli accenti giusti (è, é, perché, può, così, già).
+- Scrivi PROSA connessa e ragionata, NON frammenti o elenchi telegrafici. Collega le
+  proposizioni ("quindi", "perché", "a differenza di", "in pratica").
+- Ogni sezione deve poter essere capita da sola, da chi non ha letto la fonte.
+- Chiaro e completo MA conciso: poche frasi per sezione, nessun riempitivo.
+- Spiega il ragionamento PRESENTE nella fonte; NON inventare fatti non supportati.
+- Non copiare blocchi grezzi: rielabora con parole tue.
 
 TESTO:
 {text}
