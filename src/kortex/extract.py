@@ -25,9 +25,11 @@ concetto riutilizzabile, con questi campi:
   concetti citati (es. uses, is-a, contrasts-with, part-of). Compilala con cura:
   serve a costruire la mappa della conoscenza.
 - "proposed_links": lista di {{"anchor","target","reason"}}. "anchor" = una frase che
-  compare LETTERALMENTE nel corpo della scheda; "target" = il titolo di un'altra
-  scheda a cui rimandare. Proponi link solo verso concetti che meritano una scheda
-  propria; il sistema scarta da solo i link verso schede inesistenti.
+  compare LETTERALMENTE nel corpo, alla PRIMA menzione del concetto, in QUALSIASI
+  sezione (Definizione, Funzionamento, ecc.) e non solo in "relazioni": così il
+  lettore puo cliccare il concetto proprio dove lo incontra. "target" = il titolo di
+  un'altra scheda. Una sola ancora per concetto. Proponi link solo verso concetti che
+  meritano una scheda propria; il sistema scarta da solo i link verso schede inesistenti.
 - "supported_claims": frasi sostenute dal testo (lista).
 - "confidence": numero 0..1.
 

@@ -18,10 +18,15 @@ def _heading(name: str) -> str:
     return " ".join(word.capitalize() for word in words)
 
 
-def _apply_links(text: str, links: dict[str, str]) -> str:
+def _apply_links(text: str, links: dict[str, str], used: set[str]) -> str:
     linked = text
     for anchor, wikilink in sorted(links.items(), key=lambda item: len(item[0]), reverse=True):
-        linked = re.sub(rf"\b{re.escape(anchor)}\b", wikilink, linked, count=1)
+        if anchor in used:
+            continue
+        replaced = re.sub(rf"\b{re.escape(anchor)}\b", wikilink, linked, count=1)
+        if replaced != linked:
+            used.add(anchor)
+            linked = replaced
     return linked
 
 
@@ -50,8 +55,9 @@ def render_obsidian_note(note: CanonicalNote, registry: NoteRegistry) -> str:
             ]
         )
     lines.extend(["---", "", f"# {note.title}", "", "## Summary", "", note.summary, ""])
+    used: set[str] = set()
     for section_name, section_text in note.body_sections.items():
-        lines.extend([f"## {_heading(section_name)}", "", _apply_links(section_text, links), ""])
+        lines.extend([f"## {_heading(section_name)}", "", _apply_links(section_text, links, used), ""])
     if links:
         lines.extend(["## Related", ""])
         for wikilink in sorted(set(links.values())):

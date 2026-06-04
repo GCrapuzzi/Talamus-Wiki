@@ -64,5 +64,33 @@ class ObsidianRendererTests(unittest.TestCase):
         self.assertIn("[[Retrieval-Augmented Generation|RAG]]", markdown)
 
 
+    def test_body_link_applied_once_across_sections(self) -> None:
+        note = CanonicalNote(
+            note_id="rag",
+            title="RAG",
+            aliases=[],
+            folder="",
+            tags=[],
+            summary="RAG.",
+            retrieval_text="rag",
+            body_sections={
+                "definizione": "Usa un Vector Store.",
+                "relazioni": "Si appoggia al Vector Store.",
+            },
+            proposed_links=[ProposedLink(anchor="Vector Store", target="Vector Store", reason="infra")],
+            relations=[],
+            sources=[source_ref()],
+            confidence=0.9,
+        )
+        registry = NoteRegistry.from_notes(
+            [note, CanonicalNote.minimal("Vector Store", sources=[source_ref()])]
+        )
+
+        markdown = render_obsidian_note(note, registry)
+
+        body = markdown.split("## Related")[0]
+        self.assertEqual(1, body.count("[[Vector Store|Vector Store]]"))
+
+
 if __name__ == "__main__":
     unittest.main()
