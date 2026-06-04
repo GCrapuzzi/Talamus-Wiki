@@ -323,6 +323,12 @@ motore resta perfettamente usabile senza. Compiti previsti:
   nota e avviare un mini-brainstorming guidato per la modifica, oppure farsi trovare
   direttamente la nota.
 - **Visualizzare la mappa/ontologia** (concetti, legami, domini).
+- **Lettura stile Wikipedia (anteprima all'hover)**: mentre leggi una scheda, ogni
+  wikilink inline mostra all'hover un'**anteprima del corpo** della nota collegata,
+  così se incontri un concetto che non conosci lo capisci senza perdere il filo (come
+  già fa Obsidian). Richiede wikilink inline nel corpo (non solo nella sezione
+  "Related"): per questo le schede linkano i concetti alla prima menzione in ogni
+  sezione.
 - **Curare la coda di revisione** in modo comodo.
 - **Scrivere e modificare le schede** (editor integrato, alternativa a Obsidian).
 - **Cruscotto e stato** (lavori in corso, statistiche, salute della memoria).
