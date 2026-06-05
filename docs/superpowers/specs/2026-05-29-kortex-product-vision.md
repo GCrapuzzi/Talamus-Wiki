@@ -413,6 +413,10 @@ riorganizzazioni di schema nel tempo; curatela più ricca.
 **Dopo i 6 mesi:** UI locale; API HTTP; sorgenti audio/video/web; memoria di team /
 multi-utente; installer standalone; integrazione per sviluppatori terzi ("C").
 
+> Idee più lontane e spiegate nel dettaglio (es. **endpoint MCP remoto autenticato**
+> per usare il brain dagli LLM nel browser): vedi
+> [evoluzioni future](kortex-future-evolutions.md).
+
 ## 23. Criteri di successo e non-obiettivi
 
 **Successo (versione a 6 mesi):**
