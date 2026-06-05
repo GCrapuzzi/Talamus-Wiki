@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kortex.ingest import ingest_file
+from kortex.ingest import ingest_file, remember_session
 from kortex.paths import KortexPaths
 from kortex.store import load_notes
 from tests.support import FakeLLMProvider
@@ -52,6 +52,39 @@ class IngestTests(unittest.TestCase):
 
             rag_md = (paths.notes / "RAG.md").read_text(encoding="utf-8")
             self.assertIn("[[Vector Store", rag_md)
+
+
+    def test_remember_session_compiles_when_worth(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = KortexPaths(Path(tmp))
+            paths.ensure_directories()
+            transcript = (
+                '{"role":"user","content":"come faccio X"}\n'
+                '{"role":"assistant","content":"Si fa cosi perche serve Y"}'
+            )
+            diff = "diff --git a/x.py b/x.py\n+codice"
+            llm = FakeLLMProvider([json.dumps([
+                {"title": "Come fare X", "retrieval_text": "x", "summary": "Si fa cosi.",
+                 "supported_claims": ["x"], "confidence": 0.9}
+            ])])
+
+            result = remember_session(paths, transcript, diff, llm)
+
+            self.assertFalse(result["skipped"])
+            self.assertEqual(1, result["notes_written"])
+            self.assertEqual(1, len(load_notes(paths)))
+            self.assertTrue(any(paths.raw.glob("session-*.md")))
+
+    def test_remember_session_skips_trivial(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = KortexPaths(Path(tmp))
+            paths.ensure_directories()
+
+            result = remember_session(paths, "ok grazie", "", FakeLLMProvider([]))
+
+            self.assertTrue(result["skipped"])
+            self.assertEqual(0, result["notes_written"])
+            self.assertEqual([], load_notes(paths))
 
 
 if __name__ == "__main__":
