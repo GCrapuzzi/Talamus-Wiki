@@ -51,3 +51,14 @@ def remember_session(paths: KortexPaths, transcript: str, diff: str, llm: LLMPro
     package = normalize_session(raw_path.as_posix(), transcript, diff)
     written = _compile_package(paths, package, llm)
     return {"skipped": False, "notes_written": written}
+
+
+def ingest_text(paths: KortexPaths, text: str, llm: LLMProvider, name: str = "insight") -> dict:
+    """Ingerisce un frammento di testo (es. un'intuizione che l'agente vuole ricordare) come scheda."""
+    paths.ensure_directories()
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
+    raw_path = paths.raw / f"{name}-{digest}.md"
+    raw_path.write_text(text, encoding="utf-8")
+    package = normalize_text(raw_path.as_posix(), text)
+    written = _compile_package(paths, package, llm)
+    return {"notes_written": written}

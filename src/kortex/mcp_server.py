@@ -11,10 +11,14 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
+from kortex.adapters.llm import ClaudeCliProvider
+from kortex.ingest import ingest_text
 from kortex.paths import KortexPaths
 from kortex.recall import read_note_text, recall_context, search_notes
 
 server = FastMCP("kortex")
+
+_llm = ClaudeCliProvider()
 
 _root: Path = Path(".").resolve()
 
@@ -43,6 +47,13 @@ def read_note(title: str) -> str:
 def recall(question: str) -> str:
     """Recupera dal brain Kortex il contesto pertinente a una domanda (schede reali). Ragiona tu sul contesto per rispondere."""
     return recall_context(_paths(), question)
+
+
+@server.tool()
+def remember(text: str) -> str:
+    """Salva nel brain Kortex un'intuizione o decisione importante emersa nella sessione, trasformandola in una scheda."""
+    result = ingest_text(_paths(), text, _llm)
+    return f"Ricordato: {result['notes_written']} schede salvate nel brain."
 
 
 def _build_parser() -> argparse.ArgumentParser:

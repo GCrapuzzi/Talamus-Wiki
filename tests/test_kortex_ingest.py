@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kortex.ingest import ingest_file, remember_session
+from kortex.ingest import ingest_file, ingest_text, remember_session
 from kortex.paths import KortexPaths
 from kortex.store import load_notes
 from tests.support import FakeLLMProvider
@@ -74,6 +74,20 @@ class IngestTests(unittest.TestCase):
             self.assertEqual(1, result["notes_written"])
             self.assertEqual(1, len(load_notes(paths)))
             self.assertTrue(any(paths.raw.glob("session-*.md")))
+
+    def test_ingest_text_compiles_a_note(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = KortexPaths(Path(tmp))
+            paths.ensure_directories()
+            llm = FakeLLMProvider([json.dumps([
+                {"title": "Insight", "retrieval_text": "x", "summary": "s",
+                 "supported_claims": ["x"], "confidence": 0.9}
+            ])])
+
+            result = ingest_text(paths, "Abbiamo deciso X perche Y.", llm)
+
+            self.assertEqual(1, result["notes_written"])
+            self.assertEqual(1, len(load_notes(paths)))
 
     def test_remember_session_skips_trivial(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
