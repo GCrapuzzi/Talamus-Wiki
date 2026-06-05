@@ -14,7 +14,7 @@ from mcp.server.fastmcp import FastMCP
 from kortex.adapters.llm import ClaudeCliProvider
 from kortex.ingest import ingest_text
 from kortex.paths import KortexPaths
-from kortex.recall import read_note_text, recall_context, search_notes
+from kortex.recall import concept_neighbors, read_note_text, recall_context, search_notes
 
 server = FastMCP("kortex")
 
@@ -47,6 +47,18 @@ def read_note(title: str) -> str:
 def recall(question: str) -> str:
     """Recupera dal brain Kortex il contesto pertinente a una domanda (schede reali). Ragiona tu sul contesto per rispondere."""
     return recall_context(_paths(), question)
+
+
+@server.tool()
+def neighbors(concept: str) -> str:
+    """Mostra i concetti collegati a un concetto nel brain (la mappa/ontologia), con il tipo di relazione."""
+    items = concept_neighbors(_paths(), concept)
+    if not items:
+        return "Nessun concetto collegato."
+    return "\n".join(
+        f"{'->' if item['direction'] == 'out' else '<-'} [{item['relation']}] {item['title']}"
+        for item in items
+    )
 
 
 @server.tool()

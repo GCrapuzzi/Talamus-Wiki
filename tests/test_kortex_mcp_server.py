@@ -23,7 +23,7 @@ class McpServerTests(unittest.TestCase):
 
         tools = asyncio.run(mcp_server.server.list_tools())
         names = {tool.name for tool in tools}
-        self.assertEqual({"search", "read_note", "recall", "remember"}, names)
+        self.assertEqual({"search", "read_note", "recall", "remember", "neighbors"}, names)
 
     def test_http_flag_is_parsed(self) -> None:
         from kortex import mcp_server

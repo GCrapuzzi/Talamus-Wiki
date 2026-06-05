@@ -9,7 +9,7 @@ from kortex.ask import answer_question
 from kortex.config import KortexConfig, load_config, save_config
 from kortex.ingest import ingest_file, remember_session
 from kortex.paths import KortexPaths
-from kortex.recall import read_note_text, recall_context, search_notes
+from kortex.recall import concept_neighbors, read_note_text, recall_context, search_notes
 from kortex.store import reindex
 
 
@@ -121,6 +121,17 @@ def _cmd_recall(root: Path, question: str) -> int:
     return 0
 
 
+def _cmd_neighbors(root: Path, concept: str) -> int:
+    items = concept_neighbors(KortexPaths(root), concept)
+    if not items:
+        print("nessun concetto collegato")
+        return 0
+    for item in items:
+        arrow = "->" if item["direction"] == "out" else "<-"
+        print(f"{arrow} [{item['relation']}] {item['title']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kortex", description="Local-first knowledge compiler.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -142,6 +153,9 @@ def build_parser() -> argparse.ArgumentParser:
     recall = sub.add_parser("recall")
     recall.add_argument("question")
     recall.add_argument("--root", default=".")
+    neighbors = sub.add_parser("neighbors")
+    neighbors.add_argument("concept")
+    neighbors.add_argument("--root", default=".")
     remember = sub.add_parser("remember")
     remember.add_argument("--transcript", required=True)
     remember.add_argument("--diff", default=None)
@@ -167,6 +181,8 @@ def main(argv: list[str] | None = None, llm=None) -> int:
         return _cmd_read(root, args.title)
     if args.command == "recall":
         return _cmd_recall(root, args.question)
+    if args.command == "neighbors":
+        return _cmd_neighbors(root, args.concept)
     provider = llm if llm is not None else ClaudeCliProvider()
     if args.command == "ingest":
         return _cmd_ingest(root, args.file, provider)

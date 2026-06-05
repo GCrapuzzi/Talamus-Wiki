@@ -116,6 +116,27 @@ class KortexCliTests(unittest.TestCase):
                 self.assertEqual(0, main(["remember", "--transcript", str(transcript), "--root", tmp], llm=llm))
             self.assertIn("ricordate", out.getvalue())
 
+    def test_neighbors_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["init", "--root", tmp]))
+            source = Path(tmp) / "d.md"
+            source.write_text("# D\nAlpha e Beta.", encoding="utf-8")
+            llm = FakeLLMProvider([json.dumps([
+                {"title": "Alpha", "retrieval_text": "alpha", "summary": "a",
+                 "body_sections": {"definizione": "Alpha usa Beta."},
+                 "proposed_links": [{"anchor": "Beta", "target": "Beta", "reason": "x"}],
+                 "supported_claims": ["x"], "confidence": 0.9},
+                {"title": "Beta", "retrieval_text": "beta", "summary": "b",
+                 "supported_claims": ["y"], "confidence": 0.9},
+            ])])
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["ingest", str(source), "--root", tmp], llm=llm))
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(0, main(["neighbors", "Alpha", "--root", tmp]))
+            self.assertIn("Beta", out.getvalue())
+
     def test_read_missing_note_returns_one(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with redirect_stdout(io.StringIO()):

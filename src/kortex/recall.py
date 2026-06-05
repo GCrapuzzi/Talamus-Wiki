@@ -3,6 +3,7 @@ from __future__ import annotations
 from kortex.ask import build_context_bundle
 from kortex.graph import load_graph, query_graph
 from kortex.naming import note_filename, note_slug
+from kortex.ontology import load_ontology, neighbors
 from kortex.paths import KortexPaths
 from kortex.search import BM25Index
 from kortex.store import load_notes
@@ -47,6 +48,11 @@ def read_note_text(paths: KortexPaths, title: str) -> str | None:
             if candidate.is_file():
                 return candidate.read_text(encoding="utf-8")
     return None
+
+
+def concept_neighbors(paths: KortexPaths, concept: str) -> list[dict]:
+    """Vicini tipizzati di un concetto nella mappa (ontologia): per navigare le connessioni."""
+    return neighbors(load_ontology(paths), concept)
 
 
 def recall_context(paths: KortexPaths, question: str, limit: int = 5) -> str:
