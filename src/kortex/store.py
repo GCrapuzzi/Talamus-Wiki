@@ -8,6 +8,7 @@ from kortex.linking import NoteRegistry
 from kortex.models import CanonicalNote, ProposedLink, Relation, SourceRef
 from kortex.naming import note_filename, note_slug
 from kortex.noteparse import parse_note_markdown
+from kortex.ontology import build_ontology, save_ontology
 from kortex.paths import KortexPaths
 from kortex.search import BM25Index
 from kortex.storage.obsidian import render_obsidian_note
@@ -62,6 +63,7 @@ def rebuild_indexes(paths: KortexPaths) -> None:
     notes = load_notes(paths)
     paths.cache.mkdir(parents=True, exist_ok=True)
     save_graph(paths.graph_file, build_graph(notes))
+    save_ontology(paths.ontology_file, build_ontology(notes))
     index = BM25Index()
     for note in notes:
         haystack = " ".join(

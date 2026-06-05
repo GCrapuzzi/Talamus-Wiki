@@ -5,6 +5,7 @@ from pathlib import Path
 
 from kortex.linking import NoteRegistry
 from kortex.models import CanonicalNote
+from kortex.paths import KortexPaths
 
 RELATION_TYPES = ("uses", "is-a", "part-of", "contrasts-with", "depends-on", "related")
 
@@ -72,3 +73,9 @@ def neighbors(ontology: dict, concept_title: str) -> list[dict]:
 def save_ontology(path: Path, ontology: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(ontology, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+
+def load_ontology(paths: KortexPaths) -> dict:
+    if not paths.ontology_file.is_file():
+        return {"concepts": {}, "edges": []}
+    return json.loads(paths.ontology_file.read_text(encoding="utf-8"))

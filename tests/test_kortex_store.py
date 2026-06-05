@@ -47,6 +47,19 @@ class StoreTests(unittest.TestCase):
             self.assertTrue(paths.index_file.is_file())
 
 
+    def test_rebuild_indexes_persists_ontology(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = KortexPaths(Path(tmp))
+            paths.ensure_directories()
+            write_note(paths, _note("Vector Store"))
+
+            rebuild_indexes(paths)
+
+            from kortex.ontology import load_ontology
+
+            self.assertTrue(paths.ontology_file.is_file())
+            self.assertIn("Vector Store", load_ontology(paths)["concepts"])
+
     def test_reindex_reflects_hand_edits_and_keeps_provenance(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             paths = KortexPaths(Path(tmp))

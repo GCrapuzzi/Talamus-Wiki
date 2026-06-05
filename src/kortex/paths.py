@@ -45,6 +45,10 @@ class KortexPaths:
         return self.cache / "bm25.json"
 
     @property
+    def ontology_file(self) -> Path:
+        return self.cache / "ontology.json"
+
+    @property
     def logs(self) -> Path:
         return self.kortex_dir / "logs"
 
