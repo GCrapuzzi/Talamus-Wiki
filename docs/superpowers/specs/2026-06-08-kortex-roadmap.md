@@ -30,6 +30,18 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 # FASE A — Fondamenta & prodotto usabile
 *Rendere pulito, installabile, documentato e adottabile ciò che già funziona, prima delle feature grosse.*
 
+## A0 — Rebrand Kortex → Talamus *(la primissima cosa: prima di README/onboarding/docs e di ogni pubblicazione)*
+> Motivo: "Kortex" è già il nome di un altro prodotto in un ambito simile. Nuovo nome **Talamus** (il talamo: lo snodo cerebrale che *instrada* le informazioni alla corteccia — calzante per un router di memoria). CLI = `talamus`.
+- **A0.1** **Nome repo** — `talamus_wiki` **oppure** `talamus_llm_wiki` (decisione di branding/SEO).
+- **A0.2** **Package & import** — `src/kortex/` → `src/talamus/`, tutti gli import, classi (`KortexPaths`→`TalamusPaths`, ecc.).
+- **A0.3** **CLI & entrypoint** — comando `kortex`→`talamus`; `pyproject` (name + script `talamus`/`talamus-mcp` + extra); nome del server MCP.
+- **A0.4** **Config & dati** — `kortex.json`→`talamus.json`, cache `.kortex/`→`.talamus/`, env `KORTEX_*`→`TALAMUS_*`, script hook.
+- **A0.5** **Stringhe & branding** — messaggi CLI, prompt, docstring, intestazioni dei documenti (inclusa questa roadmap).
+- **A0.6** **Repo & workspace** — rinomina repo; aggiorna `CLAUDE.md`/`AGENTS.md` (riferimenti a `kortex`/`src/kortex/`); opzionale rinomina cartella locale `C:\dev\Kortex`→`Talamus`.
+- **A0.7** **Disponibilità nome** — verifica PyPI `talamus`, GitHub e dominio; se occupato, valuta un suffisso.
+- **A0.8** **Test** — rinomina `tests/test_kortex_*`→`test_talamus_*`, suite verde.
+- **A0.9** **Migrazione** — pre-release: nessuna retro-compatibilità necessaria; opzionale migrazione one-shot dei brain locali `.kortex/`→`.talamus/`.
+
 ## A1 — Salute del codice
 *Premessa onesta: il codice è già piccolo e modulare (~1.600 righe, file max `cli.py` 197): professionalizzazione, non salvataggio.*
 - **A1.1** Tooling qualità — `ruff` (lint+format) + type-checker, un comando unico lint+type+test.
