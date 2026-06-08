@@ -40,11 +40,54 @@ def load_notes(paths: KortexPaths) -> list[CanonicalNote]:
     return notes
 
 
+def _dedup_relations(relations: list[Relation]) -> list[Relation]:
+    seen: set[tuple[str, str, str]] = set()
+    out: list[Relation] = []
+    for relation in relations:
+        key = (relation.source, relation.relation, relation.target)
+        if key not in seen:
+            seen.add(key)
+            out.append(relation)
+    return out
+
+
+def _dedup_links(links: list[ProposedLink]) -> list[ProposedLink]:
+    seen: set[tuple[str, str]] = set()
+    out: list[ProposedLink] = []
+    for link in links:
+        key = (link.anchor, link.target)
+        if key not in seen:
+            seen.add(key)
+            out.append(link)
+    return out
+
+
+def merge_notes(existing: CanonicalNote, new: CanonicalNote) -> CanonicalNote:
+    """Fonde due versioni dello stesso concetto: accumula le fonti, unisce i campi
+    strutturati, tiene la prosa della versione con confidenza piu' alta."""
+    seen_src = {(s.source_hash, s.normalized_path) for s in existing.sources}
+    sources = list(existing.sources) + [
+        s for s in new.sources if (s.source_hash, s.normalized_path) not in seen_src
+    ]
+    base = new if new.confidence > existing.confidence else existing
+    return dataclasses.replace(
+        base,
+        aliases=list(dict.fromkeys(existing.aliases + new.aliases)),
+        tags=list(dict.fromkeys(existing.tags + new.tags)),
+        relations=_dedup_relations(existing.relations + new.relations),
+        proposed_links=_dedup_links(existing.proposed_links + new.proposed_links),
+        sources=sources,
+        confidence=max(existing.confidence, new.confidence),
+    )
+
+
 def write_note_json(paths: KortexPaths, note: CanonicalNote) -> None:
     paths.notes_cache.mkdir(parents=True, exist_ok=True)
-    (paths.notes_cache / f"{note_slug(note.note_id)}.json").write_text(
-        json.dumps(note.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    path = paths.notes_cache / f"{note_slug(note.note_id)}.json"
+    if path.is_file():
+        existing = _note_from_dict(json.loads(path.read_text(encoding="utf-8")))
+        note = merge_notes(existing, note)
+    path.write_text(json.dumps(note.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def render_note_markdown(paths: KortexPaths, note: CanonicalNote, registry: NoteRegistry) -> None:

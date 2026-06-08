@@ -4,7 +4,7 @@ from pathlib import Path
 
 from kortex.models import CanonicalNote, SourceRef
 from kortex.paths import KortexPaths
-from kortex.store import load_notes, rebuild_indexes, reindex, write_note
+from kortex.store import load_notes, rebuild_indexes, reindex, write_note, write_note_json
 
 
 def _note(title: str) -> CanonicalNote:
@@ -46,6 +46,35 @@ class StoreTests(unittest.TestCase):
             self.assertTrue(paths.graph_file.is_file())
             self.assertTrue(paths.index_file.is_file())
 
+
+    def test_write_note_json_merges_same_concept_across_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = KortexPaths(Path(tmp))
+            paths.ensure_directories()
+            n1 = CanonicalNote(
+                note_id="vector-store", title="Vector Store", aliases=["VS"], folder="",
+                tags=["infra"], summary="primo", retrieval_text="r1", body_sections={"d": "x"},
+                proposed_links=[], relations=[],
+                sources=[SourceRef("raw/a.md", "norm/a#1", "la", "sha256:a", ["c1"])], confidence=0.8,
+            )
+            n2 = CanonicalNote(
+                note_id="vector-store", title="Vector Store", aliases=["vettori"], folder="",
+                tags=["ricerca"], summary="secondo", retrieval_text="r2", body_sections={"d": "y"},
+                proposed_links=[], relations=[],
+                sources=[SourceRef("raw/b.md", "norm/b#1", "lb", "sha256:b", ["c2"])], confidence=0.9,
+            )
+
+            write_note_json(paths, n1)
+            write_note_json(paths, n2)
+
+            notes = load_notes(paths)
+            self.assertEqual(1, len(notes))
+            merged = notes[0]
+            self.assertEqual(2, len(merged.sources))  # provenienza accumulata
+            self.assertIn("infra", merged.tags)
+            self.assertIn("ricerca", merged.tags)
+            self.assertEqual("secondo", merged.summary)  # prosa della confidenza piu' alta
+            self.assertEqual(0.9, merged.confidence)
 
     def test_rebuild_indexes_persists_ontology(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
