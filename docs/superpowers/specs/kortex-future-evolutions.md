@@ -39,3 +39,25 @@ diverso). Due modi:
 **In una frase.** Client desktop e agenti locali = gratis e local-first (già fatto);
 browser = possibile **solo** esponendo un endpoint remoto autenticato, con i relativi
 rischi. Quando il valore lo giustificherà, si fa — con auth e sola-lettura.
+
+---
+
+## 2. Instradamento graph-aware del recupero (ranking ibrido + valutazione)
+
+**Problema.** Oggi il recupero instrada per **parole chiave** (sovrapposizione di
+termini) + BM25 di riserva, con un'espansione conservativa via ontologia. Affidabile,
+ma non sfrutta davvero le relazioni per trovare note che le parole mancano.
+
+**Cosa abbiamo imparato (stress test, giugno 2026).** I tentativi naive falliscono:
+- espansione "riempi gli slot avanzati" (v1): innocua, ma in un brain denso non scatta
+  mai perché le parole riempiono già il limite di candidati;
+- boost additivo dai vicini (v2): **peggiora** — i nodi-hub (molti vicini) annegano i
+  match keyword deboli ma corretti, e spingono fuori risultati giusti.
+
+**Come farlo bene.** Serve un **ranking ibrido vero**, guidato da un **set di
+valutazione** (es. recall@k su query con risposte note): combinare segnale keyword +
+grafo con **normalizzazione per il grado** del nodo (gli hub non devono dominare), e
+*misurare* invece di indovinare. Va affrontato insieme al **Livello 2** dell'ontologia.
+
+**Stato:** mantenuta la v1 sicura (mai peggiore del keyword); il vero graph-routing è
+rimandato a quando ci sarà un set di valutazione.
