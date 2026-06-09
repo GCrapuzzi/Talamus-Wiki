@@ -71,6 +71,21 @@ class DomainsTests(unittest.TestCase):
 
             self.assertIn("[1]", answer)
 
+    def test_answer_question_expands_query_as_last_resort(self) -> None:
+        from talamus.ask import answer_question
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            paths.ensure_directories()
+            write_note(paths, _note("Reranking"))
+            rebuild_indexes(paths)
+            # no overview built -> routing skipped; the literal question misses; expansion recovers.
+            llm = FakeLLMProvider(["reranking", "Risposta [1]."])
+
+            answer = answer_question(paths, "come ordino meglio i risultati?", llm)
+
+            self.assertIn("[1]", answer)
+
 
 if __name__ == "__main__":
     unittest.main()

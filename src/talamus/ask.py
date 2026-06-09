@@ -104,6 +104,17 @@ def _overview_bundle(
     return ContextBundle(question=question, items=items)
 
 
+_EXPAND_PROMPT = """Riscrivi la domanda in 3-6 parole chiave o termini tecnici per la ricerca,
+separati da spazio. Restituisci SOLO i termini.
+
+DOMANDA: {question}
+"""
+
+
+def _expand_query(question: str, llm: LLMProvider) -> str:
+    return llm.complete(_EXPAND_PROMPT.format(question=question)).strip() or question
+
+
 _ANSWER_PROMPT = """Rispondi alla domanda usando SOLO il contesto qui sotto.
 Cita le schede tra parentesi quadre con il loro numero, es. [1].
 Se il contesto non basta, dillo esplicitamente.
@@ -125,6 +136,8 @@ def answer_question(paths: TalamusPaths, question: str, llm: LLMProvider) -> str
         )
         search = BM25Index.load(paths.index_file) if paths.index_file.is_file() else BM25Index()
         bundle = build_context_bundle(paths, graph, search, question)
+        if not bundle.items:
+            bundle = build_context_bundle(paths, graph, search, _expand_query(question, llm))
     if not bundle.items:
         return "Nessun contesto trovato nel brain per questa domanda."
     context = "\n\n".join(

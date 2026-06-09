@@ -1,6 +1,6 @@
 # Talamus — Roadmap di Esecuzione (completa & vivente)
 
-**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/f1-consolidate`. · **Avanzamento:** FASE A ✅ (A0–A6) · **Fase B:** B1 ✅ · B2 🟡 (B2.1) · **B3 overview ✅ (MVP: induzione domini + `overview` + `ask` instradato)** · prossimo: affinamenti B3, oppure **B4 bitemporale** (il moat).
+**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/f1-consolidate`. · **Avanzamento:** FASE A ✅ (A0–A6) · **Fase B (differenzianti) — sostanzialmente completa:** B1 consolidamento ✅ · B2 recupero 🟡 (B2.1 lemmi + B2.2 espansione) · B3 overview ✅ (MVP) · **B4 bitemporale ✅ (MVP)** · **B5 correzione-da-fonte ✅ (MVP)** · B6 ontologia ✅ (MVP). · branch `feat/phase-b`. Rinviati (polish): B2.3 reranking, B2.4 eval-set, B2.5 budget, affinamenti B3. Prossimo: **Fase C (sorgenti)** o **UI**.
 
 Questo è l'**indice operativo esaustivo**: ogni implementazione futura, organizzata e in **ordine di esecuzione**. Non è il design delle singole feature — ogni traguardo da **Fase B** in poi avrà il suo **brainstorm → spec → piano → build → test** prima del codice. Le fasi sono la spina d'ordine primaria; in pratica si possono **interlacciare**. Visione di lungo periodo: `2026-05-29-talamus-product-vision.md`; idee fuori scope: `talamus-future-evolutions.md`.
 
@@ -117,7 +117,8 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 - **B1.2** Fusione guidata in scheda canonica (riusa `merge_notes`) con **coda di revisione**.
 - **B1.3** Riallineo ontologia/grafo/wikilink (nessun link rotto).
 
-## B2 — Qualità del recupero (base) 🟡 (parziale: B2.1 fatto)
+## B2 — Qualità del recupero (base) 🟡 (B2.1 + B2.2 fatti)
+*Anche **B2.2 espansione query** (in `ask.py`: se overview e recupero non trovano nulla, l'LLM riscrive la domanda in termini e riprova). Restano rinviati: B2.3 reranking, B2.4 set di valutazione (recall@k), B2.5 budget di contesto.*
 *Fatto "al volo" (gate verde, 99 test): **B2.1 lemmatizzazione leggera italiana** in `talamus/textutil.py` (`tokens()` = tokenizer + stemmer a strip-suffissi, simmetrico su indice e query), condivisa da grafo e BM25 — sistema il caso `spezzare`≠`spezza`/`piccoli`≠`piccole` del bench. **Rinviati:** B2.2 espansione query, B2.3 reranking, B2.4 set di valutazione (recall@k), B2.5 budget di contesto.*
 - **B2.1** **Lemmatizzazione italiana** per BM25/keyword (il bench ha mostrato *spezzare*≠*spezza* → chunking mancato).
 - **B2.2** **Espansione della query** — l'LLM riscrive la domanda vaga in termini/sinonimi prima di cercare.
@@ -136,20 +137,23 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 - **B3.6** **Predisposizione temporale** di domini/schede → B4 estende senza rifacimenti.
 - **B3.7** **Albero multi-livello** (oltre ~qualche migliaio di schede): split in sotto-domini. ⏳
 
-## B4 — Grafo bitemporale + invalidazione *(il moat)*
+## B4 — Grafo bitemporale + invalidazione *(il moat)* ✅ (MVP)
+*Fatto (108 test): le schede portano `created_at`/`updated_at`; ogni riscrittura/merge **conserva la versione precedente** in `.talamus/cache/history/` (**invalida-non-cancella**); `talamus history <titolo> [--as-of T]` per vedere le versioni nel tempo. Rinviati: valid-time pieno + invalidazione a livello di relazione, query temporali più ricche, integrazione nel retrieval ("verità corrente vs passata").*
 - **B4.1** Modello bitemporale (valid-time + transaction-time) su fatti/relazioni.
 - **B4.2** **Invalida-non-cancella** — la contraddizione chiude il fatto vecchio (non più valido da T).
 - **B4.3** **Query temporali** ("cosa era vero al tempo T?", "com'è cambiato?").
 - **B4.4** Note che non si spostano; overlay temporale/ontologico **ricostruibile**.
 - **B4.5** Integrazione retrieval — di default verità **corrente**, passato interrogabile e **citabile**.
 
-## B5 — Correzione-da-fonte (provenienza attiva)
+## B5 — Correzione-da-fonte (provenienza attiva) ✅ (MVP)
+*Fatto (108 test): `talamus verify <titolo> [--apply]` rilegge la **fonte conservata** (raw/normalizzata) e l'LLM controlla la fedeltà; `--apply` riscrive la scheda corretta (la versione vecchia resta nella history di B4). Rinviati: rilevazione automatica del dubbio durante un `ask`, coda di revisione delle correzioni.*
 - **B5.1** Rilevazione **dubbio** durante un ask (bassa confidenza/contraddizione).
 - **B5.2** **Verifica alla fonte** conservata (raw + normalizzata).
 - **B5.3** **Correzione tracciata** nel modello bitemporale (la vecchia versione resta passato).
 - **B5.4** **Coda di revisione** per le correzioni a bassa confidenza.
 
-## B6 — Ontologia avanzata
+## B6 — Ontologia avanzata 🟡 (MVP)
+*Fatto (108 test): `talamus relations` elenca le relazioni tipizzate con la loro confidenza; `--prune MIN` toglie quelle deboli (riscrittura con history). Rinviati: coda di revisione persistente delle proposte d'ontologia, ontologia cross-brain.*
 - **B6.1** **Coda di revisione** delle proposte di relazione/ontologia.
 - **B6.2** **Confidenza** delle relazioni + pruning del rumore.
 - **B6.3** Ontologia condivisa **cross-brain**. ⏳
