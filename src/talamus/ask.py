@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from talamus.adapters.llm import LLMProvider
+from talamus.domains import load_overview
 from talamus.graph import load_graph, query_graph
 from talamus.naming import note_filename
 from talamus.ontology import load_ontology, neighbors
@@ -66,6 +67,43 @@ def build_context_bundle(
     return ContextBundle(question=question, items=items)
 
 
+_ROUTE_PROMPT = """Data la MAPPA dei domini (nome: descrizione) e una DOMANDA, restituisci
+SOLO i nomi dei domini pertinenti, separati da virgola. Nessun'altra parola.
+
+MAPPA:
+{map}
+
+DOMANDA: {question}
+"""
+
+
+def _overview_bundle(
+    paths: TalamusPaths, question: str, llm: LLMProvider, limit: int = 8
+) -> ContextBundle:
+    """Route via the domain overview: pick the relevant domain(s), read their notes."""
+    overview = load_overview(paths)
+    if not overview:
+        return ContextBundle(question=question, items=[])
+    domain_map = "\n".join(f"- {d['name']}: {d.get('description', '')}" for d in overview)
+    chosen = llm.complete(_ROUTE_PROMPT.format(map=domain_map, question=question)).lower()
+    titles: list[str] = []
+    for domain in overview:
+        if str(domain.get("name", "")).lower() in chosen:
+            titles.extend(domain.get("members", []))
+    items: list[dict] = []
+    for title in titles[:limit]:
+        path = _note_path(paths, title)
+        if path.is_file():
+            items.append(
+                {
+                    "route": "overview",
+                    "path": path.as_posix(),
+                    "content": path.read_text(encoding="utf-8"),
+                }
+            )
+    return ContextBundle(question=question, items=items)
+
+
 _ANSWER_PROMPT = """Rispondi alla domanda usando SOLO il contesto qui sotto.
 Cita le schede tra parentesi quadre con il loro numero, es. [1].
 Se il contesto non basta, dillo esplicitamente.
@@ -78,11 +116,15 @@ CONTESTO:
 
 
 def answer_question(paths: TalamusPaths, question: str, llm: LLMProvider) -> str:
-    graph = (
-        load_graph(paths.graph_file) if paths.graph_file.is_file() else {"nodes": {}, "edges": []}
-    )
-    search = BM25Index.load(paths.index_file) if paths.index_file.is_file() else BM25Index()
-    bundle = build_context_bundle(paths, graph, search, question)
+    bundle = _overview_bundle(paths, question, llm)
+    if not bundle.items:
+        graph = (
+            load_graph(paths.graph_file)
+            if paths.graph_file.is_file()
+            else {"nodes": {}, "edges": []}
+        )
+        search = BM25Index.load(paths.index_file) if paths.index_file.is_file() else BM25Index()
+        bundle = build_context_bundle(paths, graph, search, question)
     if not bundle.items:
         return "Nessun contesto trovato nel brain per questa domanda."
     context = "\n\n".join(

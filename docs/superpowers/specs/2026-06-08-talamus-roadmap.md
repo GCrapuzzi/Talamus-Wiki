@@ -1,6 +1,6 @@
 # Talamus — Roadmap di Esecuzione (completa & vivente)
 
-**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/f1-consolidate`. · **Avanzamento:** FASE A ✅ (A0–A6) · **Fase B:** B1 consolidamento ✅ · B2 qualità recupero 🟡 (B2.1) · **B3 overview 🟡 (step 1: induzione domini + `overview` fatto)** · prossimo: **B3 step 2** (ask instradato dall'overview).
+**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/f1-consolidate`. · **Avanzamento:** FASE A ✅ (A0–A6) · **Fase B:** B1 ✅ · B2 🟡 (B2.1) · **B3 overview ✅ (MVP: induzione domini + `overview` + `ask` instradato)** · prossimo: affinamenti B3, oppure **B4 bitemporale** (il moat).
 
 Questo è l'**indice operativo esaustivo**: ogni implementazione futura, organizzata e in **ordine di esecuzione**. Non è il design delle singole feature — ogni traguardo da **Fase B** in poi avrà il suo **brainstorm → spec → piano → build → test** prima del codice. Le fasi sono la spina d'ordine primaria; in pratica si possono **interlacciare**. Visione di lungo periodo: `2026-05-29-talamus-product-vision.md`; idee fuori scope: `talamus-future-evolutions.md`.
 
@@ -125,9 +125,9 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 - **B2.4** **Set di valutazione** + harness `recall@k`/precision — misurare, non indovinare (sblocca il graph-routing serio).
 - **B2.5** **Budget di contesto** (quota wiki/chat/index/sistema).
 
-## B3 — Overview gerarchico (tipizzato + temporal-aware) *(il centro)* 🟡 (step 1 fatto)
+## B3 — Overview gerarchico (tipizzato + temporal-aware) *(il centro)* ✅ (MVP)
 *Quadro di tutta la memoria con costo per domanda ~logaritmico, non lineare.*
-*Step 1 fatto (gate verde, 101 test): **induzione domini IBRIDA** — `talamus/domains.py` fa cluster strutturali dal grafo tipizzato (union-find sui `neighbors` dell'ontologia), poi l'LLM li **nomina/assegna** in domini che coprono tutte le note; persistiti in `.talamus/cache/overview.json`; comando **`talamus overview [--rebuild]`** per vederli. Decisione di design: induzione **ibrida** (grafo + LLM), scelta da Giovanni. **Step 2 (prossimo):** `ask` instradato dall'overview (scegli dominio → leggi le note del dominio → risposta citata; fallback al recupero attuale). Poi: drill-down per nota, multi-livello, temporal-aware.*
+*Step 1 fatto (gate verde, 101 test): **induzione domini IBRIDA** — `talamus/domains.py` fa cluster strutturali dal grafo tipizzato (union-find sui `neighbors` dell'ontologia), poi l'LLM li **nomina/assegna** in domini che coprono tutte le note; persistiti in `.talamus/cache/overview.json`; comando **`talamus overview [--rebuild]`** per vederli. Decisione di design: induzione **ibrida** (grafo + LLM), scelta da Giovanni. **Step 2 fatto (102 test):** `ask` instradato dall'overview in `ask.py` (`_overview_bundle`: l'LLM sceglie i domini pertinenti → legge le note di quei domini → risposta citata), con **fallback** al recupero grafo/BM25 quando non c'è overview. **MVP completo.** Affinamenti futuri: drill-down per-nota dentro il dominio, albero multi-livello, temporal-aware, e overview-routing anche per `recall` (MCP).*
 - **B3.1** **Induzione domini** dal grafo + ontologia tipizzata; l'LLM nomina/descrive i domini a indicizzazione. **MVP: un livello.**
 - **B3.2** Artefatti **`overview`** (mappa domini, ~costante) + **`index`** (catalogo), aggiornati a reindex.
 - **B3.3** Motore unico **`answer(domanda, storico=[])`**: overview→scegli dominio→drill-down→scegli ingresso→leggi→naviga ontologia/wikilink→risposta citata.

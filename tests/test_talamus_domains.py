@@ -50,6 +50,27 @@ class DomainsTests(unittest.TestCase):
             self.assertEqual(1, len(domains))
             self.assertEqual({"Alpha", "Beta"}, set(domains[0]["members"]))
 
+    def test_answer_question_routes_via_overview(self) -> None:
+        from talamus.ask import answer_question
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            paths.ensure_directories()
+            write_note(paths, _note("RAG"))
+            rebuild_indexes(paths)
+            build_overview(
+                paths,
+                FakeLLMProvider(
+                    [json.dumps([{"name": "Retrieval", "description": "d", "members": ["RAG"]}])]
+                ),
+            )
+
+            answer = answer_question(
+                paths, "come funziona?", FakeLLMProvider(["Retrieval", "Risposta [1]."])
+            )
+
+            self.assertIn("[1]", answer)
+
 
 if __name__ == "__main__":
     unittest.main()
