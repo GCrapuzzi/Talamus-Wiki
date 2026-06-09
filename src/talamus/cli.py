@@ -112,6 +112,25 @@ def _cmd_quickstart() -> int:
     return 0
 
 
+_ALL_COMMANDS = (
+    "init status doctor reindex ingest ask search read recall neighbors "
+    "remember quickstart brains where export import completion"
+)
+
+
+def _cmd_completion(shell: str) -> int:
+    if shell == "zsh":
+        print(f"#compdef talamus\n_arguments '1:command:({_ALL_COMMANDS})'")
+    else:
+        print(
+            "_talamus() {\n"
+            f'  COMPREPLY=($(compgen -W "{_ALL_COMMANDS}" -- "${{COMP_WORDS[COMP_CWORD]}}"))\n'
+            "}\n"
+            "complete -F _talamus talamus"
+        )
+    return 0
+
+
 def _cmd_brains() -> int:
     home = _global_home()
     brains = (
@@ -332,6 +351,8 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("file")
     importer = sub.add_parser("import", parents=[common], help="import a brain from a zip")
     importer.add_argument("file")
+    completion = sub.add_parser("completion", help="print a shell completion script")
+    completion.add_argument("shell", nargs="?", default="bash", choices=["bash", "zsh"])
 
     ingest = sub.add_parser("ingest", parents=[common], help="add a document to the brain")
     ingest.add_argument("file")
@@ -362,6 +383,8 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         return _cmd_quickstart()
     if command == "brains":
         return _cmd_brains()
+    if command == "completion":
+        return _cmd_completion(args.shell)
 
     root = _resolve_root(args.root, args.brain, args.use_global)
     json_out = bool(getattr(args, "json", False))

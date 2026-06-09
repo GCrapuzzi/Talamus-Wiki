@@ -286,6 +286,12 @@ class TalamusCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(Path(tmp).resolve(), _resolve_root(tmp, "x", True))
 
+    def test_completion_prints_script(self) -> None:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(0, main(["completion", "bash"]))
+        self.assertIn("complete -F", out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
