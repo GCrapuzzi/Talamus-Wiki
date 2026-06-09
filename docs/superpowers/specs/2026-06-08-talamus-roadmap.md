@@ -1,6 +1,6 @@
 # Talamus — Roadmap di Esecuzione (completa & vivente)
 
-**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/a2-cli`. · **Avanzamento:** T1 ✅ · A0 rebrand ✅ · A1 codice ✅ · **A2 CLI ✅** (**88 test verdi**, gate ruff+mypy + CI multi-OS) · prossimo: **A3** (motori LLM).
+**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/a3-engines`. · **Avanzamento:** T1 ✅ · A0 rebrand ✅ · A1 codice ✅ · A2 CLI ✅ · **A3 motori LLM ✅ (core)** (**91 test verdi**) · prossimo: **A4** (onboarding/distribuzione).
 
 Questo è l'**indice operativo esaustivo**: ogni implementazione futura, organizzata e in **ordine di esecuzione**. Non è il design delle singole feature — ogni traguardo da **Fase B** in poi avrà il suo **brainstorm → spec → piano → build → test** prima del codice. Le fasi sono la spina d'ordine primaria; in pratica si possono **interlacciare**. Visione di lungo periodo: `2026-05-29-talamus-product-vision.md`; idee fuori scope: `talamus-future-evolutions.md`.
 
@@ -65,7 +65,8 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 - **A2.11** UX di `reindex`/rebuild (incrementale, messaggi chiari, dry-run).
 - **A2.12** `export`/`import` di un brain (portabilità).
 
-## A3 — Motori LLM (adapter)
+## A3 — Motori LLM (adapter) ✅ (core)
+*Fatto (gate verde, 91 test): factory `build_provider(provider, model)`; provider **Ollama** (locale) e **Anthropic API** (chiave, poster iniettabile); campo `llm_model` in config (retro-compatibile); selezione da config in CLI e MCP; auto-detect (claude/ollama) in `init`; timeout sui processi. I **3 modi** della visione (CLI-abbonamento, locale, API) funzionano per sola config. Follow-up (facili, stesso schema): provider **Gemini**/**Codex**/**OpenAI**, streaming, retry, tracciamento uso/costo, parametri modello (temperatura/context).*
 - **A3.1** Provider **Ollama** (locale).
 - **A3.2** Provider **API key** (Anthropic/OpenAI).
 - **A3.3** Provider **Gemini** (CLI / API).
