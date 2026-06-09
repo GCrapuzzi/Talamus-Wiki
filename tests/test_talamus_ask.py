@@ -87,6 +87,9 @@ class TalamusAskTests(unittest.TestCase):
 
             self.assertIn("RAG", answer)
             self.assertIn("Retrieval-Augmented Generation", answering.prompts[0])
+            # the answer carries a sources legend mapping [n] -> the cited note file
+            self.assertIn("Fonti:", answer)
+            self.assertIn(".md", answer)
 
     def test_answer_question_handles_empty_engine_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

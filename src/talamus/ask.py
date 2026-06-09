@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from talamus.adapters.llm import LLMProvider
 from talamus.budget import context_budget, fit_to_budget
@@ -148,4 +149,9 @@ def answer_question(paths: TalamusPaths, question: str, llm: LLMProvider) -> str
         f"[{idx}] {item['path']}\n{item['content']}" for idx, item in enumerate(items, start=1)
     )
     answer = llm.complete(_ANSWER_PROMPT.format(question=question, context=context)).strip()
-    return answer or "Il motore non ha prodotto una risposta. Riprova o controlla l'engine."
+    if not answer:
+        return "Il motore non ha prodotto una risposta. Riprova o controlla l'engine."
+    sources = "\n".join(
+        f"[{idx}] {Path(item['path']).name}" for idx, item in enumerate(items, start=1)
+    )
+    return f"{answer}\n\n**Fonti:**\n{sources}"
