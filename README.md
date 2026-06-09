@@ -21,11 +21,11 @@ or a cloud service (your knowledge leaves your machine). Talamus is built on thr
 properties that, **together**, nothing else gives you:
 
 - **TIME** — a bitemporal graph: contradictions *invalidate* old facts instead of
-  deleting them, so you never lose what was true **and** you know what's true now. *(on the roadmap)*
+  deleting them, so you never lose what was true **and** you know what's true now. *(shipping — MVP: versioned history & `--as-of`)*
 - **MEANING** — a typed, self-emerging **ontology** (uses / is-a / part-of /
   contrasts-with / depends-on) the LLM reasons over, not just "related pages". *(shipping — Level 1 today)*
 - **VERIFIABILITY** — every note keeps its **sources**, and the original is
-  preserved so you can verify and correct against it. *(shipping; source-correction loop on the roadmap)*
+  preserved so you can **verify and correct against it** (`talamus verify`). *(shipping)*
 
 Plus a wedge the others don't optimize for: **memory for agents** that need
 current, cited, reasoned truth.
@@ -37,7 +37,7 @@ current, cited, reasoned truth.
 | Local-first                       | varies    | ✅                  | ❌ cloud   | ✅                |
 | Human-editable notes (Obsidian)   | ❌        | ✅                  | ❌         | ✅                |
 | Typed ontology for reasoning      | ❌        | ❌ statistical graph | partial    | ✅                |
-| Keeps history / "truth at time T" | ❌        | ❌ overwrites        | partial    | ✅ *(roadmap)*    |
+| Keeps history / "truth at time T" | ❌        | ❌ overwrites        | partial    | ✅ *(MVP)*        |
 | Provenance + correct-from-source  | ❌        | tracking only       | partial    | ✅                |
 | Agent memory (read + write, MCP)  | ❌        | partial             | ✅         | ✅                |
 
@@ -50,8 +50,9 @@ talamus demo                    # try a small example brain instantly (no LLM)
 talamus search "embedding"
 
 talamus init                    # your own brain (auto-detects your LLM engine)
-talamus ingest notes.md         # document -> linked concept-notes with sources
+talamus ingest report.pdf       # PDF / DOCX / HTML / Markdown / URL -> linked concept-notes
 talamus ask "how does X work?"  # cited answer
+talamus ui                      # optional native desktop app (pip install talamus[ui])
 ```
 
 Run `talamus` with no arguments for a status panel, or follow the
@@ -79,14 +80,19 @@ them.
 ## Browse it like a wiki
 
 Open `notes/` as an Obsidian vault: notes cross-link with `[[wikilinks]]`, so you
-navigate the knowledge by hovering and clicking.
+navigate the knowledge by hovering and clicking. Prefer a dedicated app?
+**`talamus ui`** — a native Flet desktop/web app (`pip install talamus[ui]`) — gives you
+chat, search, clickable wikilinks, and domain browsing over the same SDK (no API).
 
 ## How it works
 
-Sources are normalized and preserved; an LLM extracts atomic **concept notes**
-(with sources, typed relations, and wikilinks); Talamus builds rebuildable indexes
-(graph + BM25 + ontology). Retrieval is graph-first with a BM25 fallback, and
-answers cite the notes they used.
+Sources (Markdown, text, **PDF, DOCX, HTML, URLs**) are normalized and preserved; an
+LLM extracts atomic **concept notes** (with sources, typed relations, and wikilinks);
+Talamus builds rebuildable indexes (graph + BM25 + ontology) and a hierarchical
+**domain overview**. Retrieval routes through the overview, then **reranks** a union of
+graph + BM25 candidates, and fits the context to a **token budget** so answer cost stays
+flat as the brain grows. Answers cite the notes they used, and `talamus eval` measures
+retrieval quality (recall@k / MRR) so changes are judged by numbers, not vibes.
 
 Storage is **hybrid**: `notes/*.md` is the human-editable view (Obsidian-compatible),
 `.talamus/cache/` holds the machine truth (provenance) and the derived indexes;
@@ -101,10 +107,14 @@ extras (MCP, engines) are optional. See **[architecture](docs/architecture.md)**
 
 ## Status & roadmap
 
-The text → notes → cited-answers loop, the typed ontology (Level 1), the CLI, the
-engine adapters, and the MCP server work **today**. The bitemporal graph, the
-hierarchical overview, source-correction, and multi-format ingestion are on the
-**[roadmap](docs/superpowers/specs/2026-06-08-talamus-roadmap.md)**.
+Working **today**: the text → notes → cited-answers loop, the typed ontology (Level 1),
+the **domain overview** + overview-routed retrieval, **reranking** + the `eval` harness
++ context budgets, **concept consolidation**, **source-correction** (`verify`), a
+**bitemporal MVP** (`history --as-of`), **multi-format ingestion** (PDF/DOCX/HTML/URL),
+a native **desktop UI** (`talamus ui`), the CLI, the engine adapters, and the MCP server.
+On the **[roadmap](docs/superpowers/specs/2026-06-08-talamus-roadmap.md)**: full
+valid-time bitemporal, hover-preview & graph view in the UI, OCR & more formats, and
+packaged installers.
 
 ## Development
 

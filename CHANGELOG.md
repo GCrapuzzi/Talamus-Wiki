@@ -25,6 +25,22 @@ Pre-release. The project was renamed **Kortex → Talamus**.
   source files written to disk**, cache schema versioning, and a benchmark harness.
 - **Docs**: a 10k-star README, internal architecture doc, a security policy, and
   this docs site.
+- **Retrieval & meaning**: a hierarchical **domain overview** (`talamus overview`,
+  hybrid graph-clusters + LLM naming) with overview-routed `ask`; deterministic
+  **reranking** (`rank.py`: graph + BM25 union with an exact-name boost — no more
+  funnel); a **context token budget** (`budget.py`) for flat answer cost; an
+  **evaluation harness** (`talamus eval`, recall@k / precision@k / MRR); a light
+  Italian stemmer and last-resort query expansion; **concept consolidation**
+  (`talamus consolidate`).
+- **Time & verifiability**: a **bitemporal MVP** — `talamus history [--as-of]`,
+  invalidate-not-delete versioning; **source-correction** (`talamus verify [--apply]`)
+  against the preserved original; typed-relation listing/pruning (`talamus relations`).
+- **Ingestion**: multi-format `talamus ingest` for files, folders (recursive,
+  incremental), and URLs — Markdown/text, **PDF** (`pdf` extra), **DOCX** and **HTML**
+  (stdlib), with content-hash skip of unchanged sources.
+- **Interfaces**: a native **Flet desktop/web UI** (`talamus ui`, `ui` extra) — chat,
+  search, note view with clickable wikilinks, and domain browsing, calling the SDK
+  directly (no API).
 
 ### Changed
 

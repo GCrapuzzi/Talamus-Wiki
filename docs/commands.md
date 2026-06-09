@@ -17,14 +17,25 @@ options. Most commands accept the [global flags](#global-flags) below.
 
 | Command | What it does |
 | --- | --- |
-| `talamus ingest <file>` | Turn a document into source-grounded concept notes. |
+| `talamus ingest <file\|dir\|url>` | Turn a document, folder, or URL into source-grounded concept notes (PDF/DOCX/HTML/Markdown/text). |
 | `talamus ask "<question>"` | Cited answer composed from your brain. |
+| `talamus overview [--rebuild]` | Show the hierarchical domain map induced from the graph. |
 | `talamus search "<query>"` | List relevant notes (token-cheap). |
 | `talamus read "<title>"` | Print one note. |
 | `talamus recall "<question>"` | Retrieve the relevant context (for agents to reason over). |
 | `talamus neighbors "<concept>"` | Show a concept's typed connections. |
+| `talamus history "<title>" [--as-of T]` | Show a note's past versions (or the one current at time T). |
 | `talamus reindex` | Fold hand-edits to the Markdown notes back into the indexes. |
 | `talamus remember --transcript <f> [--diff <f>]` | Capture an agent session into notes. |
+
+## Curate & verify
+
+| Command | What it does |
+| --- | --- |
+| `talamus consolidate [--apply]` | Find (and optionally merge) duplicate concepts, across languages. |
+| `talamus verify "<title>" [--apply]` | Check a note against its preserved source; optionally apply the correction. |
+| `talamus relations [--prune MIN]` | List typed relations, or prune those below a confidence. |
+| `talamus eval --cases <f.json> [-k N]` | Measure retrieval quality (recall@k / precision@k / MRR) on your own cases. |
 
 ## Brains & scoping
 
@@ -43,6 +54,7 @@ options. Most commands accept the [global flags](#global-flags) below.
 | `talamus hook` | Print the Claude Code `SessionEnd` capture-hook config. |
 | `talamus hook-run` | Run the capture hook (reads the hook JSON on stdin). |
 | `talamus completion [bash\|zsh]` | Print a shell completion script. |
+| `talamus ui` | Launch the native desktop/web app (needs the `ui` extra). |
 
 ## Global flags
 
