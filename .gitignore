@@ -21,6 +21,9 @@ env/
 # Talamus brains created inside the repo (derived caches are never source truth)
 .talamus/
 
+# Built docs site (mkdocs build output)
+site/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

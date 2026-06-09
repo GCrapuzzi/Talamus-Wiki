@@ -27,6 +27,7 @@ Created by `talamus init` in the brain directory. Fields:
 | --- | --- |
 | `TALAMUS_<FIELD>` | Override any config field, e.g. `TALAMUS_LLM_PROVIDER=ollama`, `TALAMUS_LLM_MODEL=llama3`. |
 | `TALAMUS_HOME` | Where global brains live (default `~/talamus`). |
+| `TALAMUS_CONTEXT_BUDGET` | Max tokens of note context sent to the engine per answer (default `6000`); keeps answer cost flat as the brain grows. |
 | `ANTHROPIC_API_KEY` | API key for the `anthropic-api` engine. |
 | `TALAMUS_LOG` | Set (any value) to enable DEBUG logging — same as `--verbose`. |
 
