@@ -10,6 +10,7 @@ import zipfile
 from dataclasses import replace
 from pathlib import Path
 
+from talamus import __version__
 from talamus.adapters.llm import LLMProvider, build_provider
 from talamus.ask import answer_question
 from talamus.config import TalamusConfig, load_config, load_or_default, save_config
@@ -561,6 +562,7 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--json", action="store_true", help="Machine-readable JSON output.")
 
     parser = argparse.ArgumentParser(prog="talamus", description="Local-first knowledge compiler.")
+    parser.add_argument("--version", action="version", version=f"talamus {__version__}")
     sub = parser.add_subparsers(dest="command")
 
     init = sub.add_parser("init", parents=[common], help="initialize a brain here")

@@ -316,5 +316,14 @@ class TalamusCliTests(unittest.TestCase):
             self.assertIn("SessionEnd", out.getvalue())
 
 
+class CliVersionTests(unittest.TestCase):
+    def test_version_flag_prints_and_exits_zero(self) -> None:
+        out = io.StringIO()
+        with self.assertRaises(SystemExit) as cm, redirect_stdout(out):
+            main(["--version"])
+        self.assertEqual(cm.exception.code, 0)
+        self.assertIn("talamus", out.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
