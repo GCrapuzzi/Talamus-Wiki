@@ -40,7 +40,12 @@ Pre-release. The project was renamed **Kortex → Talamus**.
   (stdlib), with content-hash skip of unchanged sources.
 - **Interfaces**: a native **Flet desktop/web UI** (`talamus ui`, `ui` extra) — chat,
   search, note view with clickable wikilinks, and domain browsing, calling the SDK
-  directly (no API).
+  directly (no API); the MCP server gains an **`overview`** tool (cached domain map,
+  no LLM cost).
+- **Polish**: `talamus --version`; `--limit` on `search`/`recall`; **PEP 561**
+  `py.typed` so SDK consumers get type hints; folder ingest now **reports failed files**
+  instead of dropping them silently; clear messages when the engine returns empty output;
+  the UI surfaces engine errors instead of hanging, and renders wikilinks with spaces.
 
 ### Changed
 
