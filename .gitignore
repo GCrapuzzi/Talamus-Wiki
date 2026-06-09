@@ -1,9 +1,5 @@
 .worktrees/
-
-# Python packaging
-build/
-dist/
-*.egg-info/
+.claude/
 
 # Python
 __pycache__/
@@ -12,32 +8,24 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# Packaging
+build/
+dist/
+*.egg-info/
+
 # Virtual environments
 .venv/
 venv/
 env/
 
-# Python caches
-__pycache__/
-*.py[cod]
+# Talamus brains created inside the repo (derived caches are never source truth)
+.talamus/
 
-# Local virtual environments
-.venv/
-venv/
-
-# Local temp files
+# OS / editor cruft
+.DS_Store
+Thumbs.db
 *.tmp
 *.temp
 ~$*
-.DS_Store
-Thumbs.db
-
-# Editor folders outside Obsidian
 .vscode/
 .idea/
-
-# Graphify transient internals
-**/.graphify_chunk_*.json
-**/.graphify_cached.json
-**/.graphify_uncached.txt
-**/.graphify_semantic_new.json
