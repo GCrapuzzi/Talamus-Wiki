@@ -1,6 +1,6 @@
 # Talamus — Roadmap di Esecuzione (completa & vivente)
 
-**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/a6-docs`. · **Avanzamento:** **FASE A completata** — A0 ✅ · A1 ✅ · A2 ✅ · A3 ✅(core) · A4 ✅(core) · A5 ✅ · A6 ✅(core). · prossimo: **Fase B** → **F1 consolidamento concetti**.
+**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/f1-consolidate`. · **Avanzamento:** FASE A ✅ (A0–A6) · **Fase B:** B1 consolidamento ✅ · B2 qualità recupero 🟡 (B2.1) · **B3 overview 🟡 (step 1: induzione domini + `overview` fatto)** · prossimo: **B3 step 2** (ask instradato dall'overview).
 
 Questo è l'**indice operativo esaustivo**: ogni implementazione futura, organizzata e in **ordine di esecuzione**. Non è il design delle singole feature — ogni traguardo da **Fase B** in poi avrà il suo **brainstorm → spec → piano → build → test** prima del codice. Le fasi sono la spina d'ordine primaria; in pratica si possono **interlacciare**. Visione di lungo periodo: `2026-05-29-talamus-product-vision.md`; idee fuori scope: `talamus-future-evolutions.md`.
 
@@ -111,20 +111,23 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 # FASE B — Conoscenza & recupero (i differenziatori)
 *Il cuore. Ogni traguardo: brainstorm→spec→piano→build→test, branch propri.*
 
-## B1 — Consolidamento concetti
+## B1 — Consolidamento concetti ✅ (core)
+*Fatto (gate verde, 97 test): `talamus/consolidate.py` + comando `talamus consolidate [--apply]`. Rilevazione via **LLM su titoli+riassunti** (becca i cross-lingua, es. Hybrid search≡Ricerca ibrida); `consolidate` elenca i gruppi (revisione), `--apply` fonde via `merge_notes` (titolo non-canonico → alias, relazioni ritarghettate, file del doppione rimossi, ri-render + reindex). Rinviati: pre-filtro deterministico per ridurre le chiamate LLM su brain enormi; coda di revisione persistente. (branch `feat/f1-consolidate`.)*
 - **B1.1** Rilevazione quasi-doppioni (nomi/lingue diverse: *Hybrid search*≡*Ricerca ibrida*, *Reranker/Reranking*, *RAG* duplicata) via alias/relazioni/sovrapposizione + check LLM leggero.
 - **B1.2** Fusione guidata in scheda canonica (riusa `merge_notes`) con **coda di revisione**.
 - **B1.3** Riallineo ontologia/grafo/wikilink (nessun link rotto).
 
-## B2 — Qualità del recupero (base)
+## B2 — Qualità del recupero (base) 🟡 (parziale: B2.1 fatto)
+*Fatto "al volo" (gate verde, 99 test): **B2.1 lemmatizzazione leggera italiana** in `talamus/textutil.py` (`tokens()` = tokenizer + stemmer a strip-suffissi, simmetrico su indice e query), condivisa da grafo e BM25 — sistema il caso `spezzare`≠`spezza`/`piccoli`≠`piccole` del bench. **Rinviati:** B2.2 espansione query, B2.3 reranking, B2.4 set di valutazione (recall@k), B2.5 budget di contesto.*
 - **B2.1** **Lemmatizzazione italiana** per BM25/keyword (il bench ha mostrato *spezzare*≠*spezza* → chunking mancato).
 - **B2.2** **Espansione della query** — l'LLM riscrive la domanda vaga in termini/sinonimi prima di cercare.
 - **B2.3** Stadio di **reranking** dei candidati.
 - **B2.4** **Set di valutazione** + harness `recall@k`/precision — misurare, non indovinare (sblocca il graph-routing serio).
 - **B2.5** **Budget di contesto** (quota wiki/chat/index/sistema).
 
-## B3 — Overview gerarchico (tipizzato + temporal-aware) *(il centro)*
+## B3 — Overview gerarchico (tipizzato + temporal-aware) *(il centro)* 🟡 (step 1 fatto)
 *Quadro di tutta la memoria con costo per domanda ~logaritmico, non lineare.*
+*Step 1 fatto (gate verde, 101 test): **induzione domini IBRIDA** — `talamus/domains.py` fa cluster strutturali dal grafo tipizzato (union-find sui `neighbors` dell'ontologia), poi l'LLM li **nomina/assegna** in domini che coprono tutte le note; persistiti in `.talamus/cache/overview.json`; comando **`talamus overview [--rebuild]`** per vederli. Decisione di design: induzione **ibrida** (grafo + LLM), scelta da Giovanni. **Step 2 (prossimo):** `ask` instradato dall'overview (scegli dominio → leggi le note del dominio → risposta citata; fallback al recupero attuale). Poi: drill-down per nota, multi-livello, temporal-aware.*
 - **B3.1** **Induzione domini** dal grafo + ontologia tipizzata; l'LLM nomina/descrive i domini a indicizzazione. **MVP: un livello.**
 - **B3.2** Artefatti **`overview`** (mappa domini, ~costante) + **`index`** (catalogo), aggiornati a reindex.
 - **B3.3** Motore unico **`answer(domanda, storico=[])`**: overview→scegli dominio→drill-down→scegli ingresso→leggi→naviga ontologia/wikilink→risposta citata.

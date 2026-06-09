@@ -13,7 +13,9 @@ from pathlib import Path
 from talamus.adapters.llm import LLMProvider, build_provider
 from talamus.ask import answer_question
 from talamus.config import TalamusConfig, load_config, load_or_default, save_config
+from talamus.consolidate import apply_consolidation, find_duplicates
 from talamus.demo import create_demo_brain
+from talamus.domains import build_overview, load_overview
 from talamus.errors import TalamusError
 from talamus.ingest import ingest_file, remember_session
 from talamus.log import configure
@@ -120,8 +122,8 @@ def _cmd_quickstart() -> int:
 
 
 _ALL_COMMANDS = (
-    "init demo status doctor reindex ingest ask search read recall neighbors remember "
-    "quickstart brains where export import completion mcp hook hook-run"
+    "init demo status doctor reindex ingest consolidate ask overview search read recall "
+    "neighbors remember quickstart brains where export import completion mcp hook hook-run"
 )
 
 
@@ -322,6 +324,48 @@ def _cmd_ingest(root: Path, file: str, llm: LLMProvider, json_out: bool) -> int:
     return 0
 
 
+def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: bool) -> int:
+    paths = TalamusPaths(root)
+    if do_apply:
+        merged = apply_consolidation(paths, llm)
+        if json_out:
+            _print_json({"merged": merged})
+        else:
+            print(f"consolidate: merged {merged} note(s)")
+        return 0
+    groups = find_duplicates(paths, llm)
+    if json_out:
+        _print_json(groups)
+        return 0
+    if not groups:
+        print("no duplicate concepts found")
+        return 0
+    for group in groups:
+        others = [m for m in group["members"] if m != group["canonical"]]
+        print(f"- keep '{group['canonical']}'  <=  {', '.join(others)}")
+    print("\nrun `talamus consolidate --apply` to merge")
+    return 0
+
+
+def _cmd_overview(root: Path, llm: LLMProvider, json_out: bool, rebuild: bool) -> int:
+    paths = TalamusPaths(root)
+    if rebuild or not paths.overview_file.exists():
+        domains = build_overview(paths, llm)
+    else:
+        domains = load_overview(paths)
+    if json_out:
+        _print_json(domains)
+        return 0
+    if not domains:
+        print("no notes yet (ingest something first)")
+        return 0
+    for domain in domains:
+        print(f"## {domain['name']}  ({len(domain['members'])} note)")
+        if domain.get("description"):
+            print(f"   {domain['description']}")
+    return 0
+
+
 def _cmd_ask(root: Path, question: str, llm: LLMProvider, json_out: bool) -> int:
     answer = answer_question(TalamusPaths(root), question, llm)
     if json_out:
@@ -431,6 +475,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest = sub.add_parser("ingest", parents=[common], help="add a document to the brain")
     ingest.add_argument("file")
+    consolidate = sub.add_parser("consolidate", parents=[common], help="merge duplicate concepts")
+    consolidate.add_argument("--apply", action="store_true", help="actually merge (default: list)")
+    overview = sub.add_parser("overview", parents=[common], help="show the domain overview")
+    overview.add_argument("--rebuild", action="store_true", help="re-induce the domains")
     ask = sub.add_parser("ask", parents=[common], help="ask the brain (cited answer)")
     ask.add_argument("question")
     search = sub.add_parser("search", parents=[common], help="find relevant notes")
@@ -497,6 +545,10 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         provider = llm if llm is not None else _provider_for(root)
         if command == "ingest":
             return _cmd_ingest(root, args.file, provider, json_out)
+        if command == "consolidate":
+            return _cmd_consolidate(root, args.apply, provider, json_out)
+        if command == "overview":
+            return _cmd_overview(root, provider, json_out, args.rebuild)
         if command == "ask":
             return _cmd_ask(root, args.question, provider, json_out)
         if command == "remember":

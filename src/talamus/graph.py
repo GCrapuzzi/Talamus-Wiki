@@ -6,6 +6,7 @@ from collections import Counter
 from pathlib import Path
 
 from talamus.models import CanonicalNote
+from talamus.textutil import tokens
 
 
 def _node_id(kind: str, value: str) -> str:
@@ -58,7 +59,7 @@ def build_graph(notes: list[CanonicalNote]) -> dict:
 
 
 def _terms(text: str) -> Counter[str]:
-    return Counter(re.findall(r"[a-z0-9][a-z0-9-]{2,}", text.lower()))
+    return Counter(tokens(text))
 
 
 def query_graph(graph: dict, question: str, limit: int = 5) -> list[dict]:

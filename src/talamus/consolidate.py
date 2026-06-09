@@ -1,0 +1,144 @@
+"""Concept consolidation: merge near-duplicate concept notes.
+
+The same concept often gets two notes under different names or languages
+(e.g. "Hybrid search" and "Ricerca ibrida"). An LLM groups true synonyms from the
+title+summary list; merging folds the duplicates into one canonical note.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import json
+
+from talamus.adapters.llm import LLMProvider
+from talamus.linking import NoteRegistry
+from talamus.models import CanonicalNote, Relation
+from talamus.naming import note_filename, note_slug
+from talamus.paths import TalamusPaths
+from talamus.store import (
+    load_notes,
+    merge_notes,
+    rebuild_indexes,
+    render_note_markdown,
+)
+
+_PROMPT = """Sei un bibliotecario. Qui sotto una lista di SCHEDE (id, titolo: riassunto).
+Trova i gruppi di schede che descrivono lo STESSO identico concetto, anche se con nomi
+diversi o in lingue diverse (es. "Hybrid search" e "Ricerca ibrida" sono lo stesso
+concetto). NON raggruppare concetti solo correlati o simili: solo veri sinonimi o
+traduzioni dello stesso concetto.
+
+Restituisci SOLO un array JSON di gruppi; ogni gruppo:
+{"canonical": "<titolo da tenere>", "members": ["<titolo>", "<titolo>", ...]}
+Includi solo gruppi con 2 o piu' membri. Se non ci sono doppioni, restituisci [].
+
+SCHEDE:
+__NOTES__
+"""
+
+
+def _dedup_relations(relations: list[Relation]) -> list[Relation]:
+    seen: set[tuple[str, str, str]] = set()
+    out: list[Relation] = []
+    for relation in relations:
+        key = (relation.source, relation.relation, relation.target)
+        if key not in seen:
+            seen.add(key)
+            out.append(relation)
+    return out
+
+
+def _detect_groups(notes: list[CanonicalNote], llm: LLMProvider) -> list[dict]:
+    if len(notes) < 2:
+        return []
+    listing = "\n".join(f"- [{n.note_id}] {n.title}: {n.summary}" for n in notes)
+    raw = llm.complete(_PROMPT.replace("__NOTES__", listing))
+    start, end = raw.find("["), raw.rfind("]")
+    if start == -1 or end == -1 or end < start:
+        return []
+    try:
+        parsed = json.loads(raw[start : end + 1])
+    except json.JSONDecodeError:
+        return []
+    titles = {n.title for n in notes}
+    groups: list[dict] = []
+    for group in parsed:
+        if not isinstance(group, dict):
+            continue
+        members = list(dict.fromkeys(m for m in group.get("members", []) if m in titles))
+        if len(members) < 2:
+            continue
+        canonical = group.get("canonical")
+        if canonical not in members:
+            canonical = members[0]
+        groups.append({"canonical": canonical, "members": members})
+    return groups
+
+
+def find_duplicates(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
+    """Return the proposed merge groups (does not change anything)."""
+    return _detect_groups(load_notes(paths), llm)
+
+
+def apply_consolidation(paths: TalamusPaths, llm: LLMProvider) -> int:
+    """Merge the detected duplicate groups. Returns how many notes were merged away."""
+    notes = load_notes(paths)
+    groups = _detect_groups(notes, llm)
+    if not groups:
+        return 0
+
+    by_title: dict[str, CanonicalNote] = {n.title: n for n in notes}
+    removed: dict[str, CanonicalNote] = {}
+    to_canonical: dict[str, str] = {}
+    merged_count = 0
+
+    for group in groups:
+        canonical_title = group["canonical"]
+        canonical = by_title.get(canonical_title)
+        if canonical is None:
+            continue
+        for member_title in group["members"]:
+            member = by_title.get(member_title)
+            if member_title == canonical_title or member is None or member_title in removed:
+                continue
+            with_alias = dataclasses.replace(member, aliases=[*member.aliases, member.title])
+            merged = merge_notes(canonical, with_alias)
+            aliases = [
+                a for a in dict.fromkeys([*merged.aliases, member.title]) if a != canonical_title
+            ]
+            canonical = dataclasses.replace(
+                merged, note_id=canonical.note_id, title=canonical_title, aliases=aliases
+            )
+            removed[member_title] = member
+            to_canonical[member_title] = canonical_title
+            merged_count += 1
+        by_title[canonical_title] = canonical
+
+    if merged_count == 0:
+        return 0
+
+    for member in removed.values():
+        (paths.notes_cache / f"{note_slug(member.note_id)}.json").unlink(missing_ok=True)
+        (paths.notes / note_filename(member.title)).unlink(missing_ok=True)
+
+    survivors: list[CanonicalNote] = []
+    for title, note in by_title.items():
+        if title in removed:
+            continue
+        relations = _dedup_relations(
+            [
+                dataclasses.replace(r, target=to_canonical.get(r.target, r.target))
+                for r in note.relations
+            ]
+        )
+        survivors.append(dataclasses.replace(note, relations=relations))
+
+    for note in survivors:
+        (paths.notes_cache / f"{note_slug(note.note_id)}.json").write_text(
+            json.dumps(note.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+    registry = NoteRegistry.from_notes(survivors)
+    for note in survivors:
+        render_note_markdown(paths, note, registry)
+    rebuild_indexes(paths)
+    return merged_count

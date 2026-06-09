@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import math
-import re
 from collections import Counter
 from pathlib import Path
 
+from talamus.textutil import tokens
+
 
 def _terms(text: str) -> list[str]:
-    return re.findall(r"[a-z0-9][a-z0-9-]{2,}", text.lower())
+    return tokens(text)
 
 
 class BM25Index:
