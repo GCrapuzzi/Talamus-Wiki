@@ -239,6 +239,53 @@ class TalamusCliTests(unittest.TestCase):
             self.assertIn("llm:", text)
             self.assertIn("cache:", text)
 
+    def test_where_reports_brain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["init", "--root", tmp]))
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(0, main(["where", "--root", tmp]))
+            self.assertIn("brain", out.getvalue())
+
+    def test_export_import_roundtrip(self) -> None:
+        from talamus.store import load_notes
+
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["init", "--root", a]))
+            source = Path(a) / "doc.md"
+            source.write_text("# Doc\nAlpha.", encoding="utf-8")
+            llm = FakeLLMProvider(
+                [
+                    json.dumps(
+                        [
+                            {
+                                "title": "Alpha",
+                                "retrieval_text": "a",
+                                "summary": "a",
+                                "supported_claims": ["x"],
+                                "confidence": 0.9,
+                            }
+                        ]
+                    )
+                ]
+            )
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["ingest", str(source), "--root", a], llm=llm))
+            zip_path = str(Path(b) / "brain.zip")
+            dest = str(Path(b) / "restored")
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["export", zip_path, "--root", a]))
+                self.assertEqual(0, main(["import", zip_path, "--root", dest]))
+            self.assertEqual(1, len(load_notes(TalamusPaths(Path(dest)))))
+
+    def test_resolve_root_precedence(self) -> None:
+        from talamus.cli import _resolve_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(Path(tmp).resolve(), _resolve_root(tmp, "x", True))
+
 
 if __name__ == "__main__":
     unittest.main()

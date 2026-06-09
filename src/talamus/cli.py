@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
+import zipfile
 from dataclasses import replace
 from pathlib import Path
 
@@ -37,6 +39,30 @@ def _detect_engine() -> str:
         if command and shutil.which(command):
             return provider
     return "claude-cli"
+
+
+def _global_home() -> Path:
+    """Container for global (named) brains; override with TALAMUS_HOME."""
+    return Path(os.environ.get("TALAMUS_HOME") or Path.home() / "talamus")
+
+
+def _find_project_root(start: Path) -> Path | None:
+    for directory in [start, *start.parents]:
+        if (directory / "talamus.json").exists():
+            return directory
+    return None
+
+
+def _resolve_root(root: str | None, brain: str | None, use_global: bool) -> Path:
+    """Which brain to use: --root > --brain > --global > project (upward) > global default."""
+    if root is not None:
+        return Path(root).resolve()
+    if brain is not None:
+        return (_global_home() / brain).resolve()
+    if use_global:
+        return (_global_home() / "default").resolve()
+    project = _find_project_root(Path.cwd().resolve())
+    return project if project is not None else (_global_home() / "default").resolve()
 
 
 def _ensure_utf8_output() -> None:
@@ -83,6 +109,49 @@ def _cmd_quickstart() -> int:
         '  talamus neighbors "X"           see what a concept connects to\n'
         "\nBrowse notes/ as an Obsidian vault. Connect agents via MCP (see README)."
     )
+    return 0
+
+
+def _cmd_brains() -> int:
+    home = _global_home()
+    brains = (
+        [d.name for d in sorted(home.iterdir()) if (d / "talamus.json").exists()]
+        if home.exists()
+        else []
+    )
+    if not brains:
+        print(f"no global brains yet (they will live under {home})")
+        return 0
+    for name in brains:
+        print(f"- {name}")
+    return 0
+
+
+def _cmd_where(root: Path) -> int:
+    has_brain = (root / "talamus.json").exists()
+    print(f"{root}  ({'brain' if has_brain else 'no brain here'})")
+    return 0
+
+
+def _cmd_export(root: Path, out_file: str) -> int:
+    paths = TalamusPaths(root)
+    if not paths.config_path.exists():
+        print(f"no brain at {root}", file=sys.stderr)
+        return 1
+    members = [paths.config_path, *paths.notes.rglob("*"), *paths.talamus_dir.rglob("*")]
+    with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as archive:
+        for member in members:
+            if member.is_file():
+                archive.write(member, member.relative_to(root).as_posix())
+    print(f"exported brain to {out_file}")
+    return 0
+
+
+def _cmd_import(out_file: str, root: Path) -> int:
+    root.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(out_file) as archive:
+        archive.extractall(root)
+    print(f"imported brain into {root}")
     return 0
 
 
@@ -239,7 +308,13 @@ def _cmd_neighbors(root: Path, concept: str, json_out: bool) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--root", default=".", help="Project root (default: current directory).")
+    common.add_argument(
+        "--root", default=None, help="Explicit brain directory (overrides scoping)."
+    )
+    common.add_argument("--brain", default=None, help="Named global brain under TALAMUS_HOME.")
+    common.add_argument(
+        "--global", dest="use_global", action="store_true", help="Use the default global brain."
+    )
     common.add_argument("--verbose", action="store_true", help="Verbose diagnostics to stderr.")
     common.add_argument("--json", action="store_true", help="Machine-readable JSON output.")
 
@@ -251,6 +326,12 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("status", "doctor", "reindex"):
         sub.add_parser(name, parents=[common], help=f"{name} the brain")
     sub.add_parser("quickstart", help="print the essential commands")
+    sub.add_parser("brains", help="list global brains")
+    sub.add_parser("where", parents=[common], help="print the resolved brain path")
+    export = sub.add_parser("export", parents=[common], help="export the brain to a zip")
+    export.add_argument("file")
+    importer = sub.add_parser("import", parents=[common], help="import a brain from a zip")
+    importer.add_argument("file")
 
     ingest = sub.add_parser("ingest", parents=[common], help="add a document to the brain")
     ingest.add_argument("file")
@@ -276,13 +357,21 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
     configure(getattr(args, "verbose", False))
     command = args.command
     if command is None:
-        return _cmd_panel(Path(".").resolve())
+        return _cmd_panel(_resolve_root(None, None, False))
     if command == "quickstart":
         return _cmd_quickstart()
+    if command == "brains":
+        return _cmd_brains()
 
-    root = Path(args.root).resolve()
+    root = _resolve_root(args.root, args.brain, args.use_global)
     json_out = bool(getattr(args, "json", False))
     try:
+        if command == "where":
+            return _cmd_where(root)
+        if command == "export":
+            return _cmd_export(root, args.file)
+        if command == "import":
+            return _cmd_import(args.file, root)
         if command == "init":
             return _cmd_init(root, args.engine)
         if command == "status":
