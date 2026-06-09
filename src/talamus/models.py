@@ -41,6 +41,8 @@ class CanonicalNote:
     relations: list[Relation]
     sources: list[SourceRef]
     confidence: float
+    created_at: str = ""
+    updated_at: str = ""
 
     @classmethod
     def minimal(

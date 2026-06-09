@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from datetime import UTC, datetime
 
 from talamus.graph import build_graph, save_graph
 from talamus.linking import NoteRegistry
@@ -39,6 +40,18 @@ def cache_is_current(paths: TalamusPaths) -> bool:
     return cache_version(paths) == CACHE_VERSION
 
 
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _append_history(paths: TalamusPaths, note: CanonicalNote) -> None:
+    """Preserve a prior version of a note before it is overwritten (invalidate, not delete)."""
+    paths.history.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(note.to_dict(), ensure_ascii=False)
+    with (paths.history / f"{note_slug(note.note_id)}.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
 def _note_from_dict(data: dict) -> CanonicalNote:
     return CanonicalNote(
         note_id=data["note_id"],
@@ -53,6 +66,8 @@ def _note_from_dict(data: dict) -> CanonicalNote:
         relations=[Relation(**r) for r in data.get("relations", [])],
         sources=[SourceRef(**s) for s in data.get("sources", [])],
         confidence=float(data.get("confidence", 0.8)),
+        created_at=data.get("created_at", ""),
+        updated_at=data.get("updated_at", ""),
     )
 
 
@@ -109,9 +124,14 @@ def merge_notes(existing: CanonicalNote, new: CanonicalNote) -> CanonicalNote:
 def write_note_json(paths: TalamusPaths, note: CanonicalNote) -> None:
     paths.notes_cache.mkdir(parents=True, exist_ok=True)
     path = paths.notes_cache / f"{note_slug(note.note_id)}.json"
+    now = _now()
     if path.is_file():
         existing = _note_from_dict(json.loads(path.read_text(encoding="utf-8")))
+        _append_history(paths, existing)
         note = merge_notes(existing, note)
+        note = dataclasses.replace(note, created_at=existing.created_at or now, updated_at=now)
+    else:
+        note = dataclasses.replace(note, created_at=now, updated_at=now)
     path.write_text(json.dumps(note.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 
 

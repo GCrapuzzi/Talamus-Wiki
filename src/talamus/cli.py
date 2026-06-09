@@ -22,6 +22,7 @@ from talamus.log import configure
 from talamus.paths import TalamusPaths
 from talamus.recall import concept_neighbors, read_note_text, recall_context, search_notes
 from talamus.store import cache_is_current, reindex
+from talamus.timeline import note_as_of, note_history
 
 _ENGINE_COMMANDS: dict[str, str | None] = {
     "claude-cli": "claude",
@@ -122,7 +123,7 @@ def _cmd_quickstart() -> int:
 
 
 _ALL_COMMANDS = (
-    "init demo status doctor reindex ingest consolidate ask overview search read recall "
+    "init demo status doctor reindex ingest consolidate ask overview search read history recall "
     "neighbors remember quickstart brains where export import completion mcp hook hook-run"
 )
 
@@ -416,6 +417,29 @@ def _cmd_read(root: Path, title: str, json_out: bool) -> int:
     return 0
 
 
+def _cmd_history(root: Path, title: str, as_of: str | None, json_out: bool) -> int:
+    paths = TalamusPaths(root)
+    if as_of:
+        version = note_as_of(paths, title, as_of)
+        if json_out:
+            _print_json(version or {})
+        elif version:
+            print(f"[{version.get('updated_at', '?')}] {version.get('summary', '')}")
+        else:
+            print(f"no version of '{title}' as of {as_of}", file=sys.stderr)
+        return 0 if version else 1
+    versions = note_history(paths, title)
+    if json_out:
+        _print_json(versions)
+        return 0
+    if not versions:
+        print(f"scheda non trovata: {title}", file=sys.stderr)
+        return 1
+    for version in versions:
+        print(f"[{version.get('updated_at', '?')}] {version.get('summary', '')}")
+    return 0
+
+
 def _cmd_recall(root: Path, question: str, json_out: bool) -> int:
     context = recall_context(TalamusPaths(root), question)
     if json_out:
@@ -485,6 +509,9 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("query")
     read = sub.add_parser("read", parents=[common], help="print a note by title")
     read.add_argument("title")
+    history = sub.add_parser("history", parents=[common], help="show a note's past versions")
+    history.add_argument("title")
+    history.add_argument("--as-of", default=None, help="version current at this ISO time")
     recall = sub.add_parser("recall", parents=[common], help="retrieve context for a question")
     recall.add_argument("question")
     neighbors = sub.add_parser("neighbors", parents=[common], help="show a concept's connections")
@@ -538,6 +565,8 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_search(root, args.query, json_out)
         if command == "read":
             return _cmd_read(root, args.title, json_out)
+        if command == "history":
+            return _cmd_history(root, args.title, args.as_of, json_out)
         if command == "recall":
             return _cmd_recall(root, args.question, json_out)
         if command == "neighbors":
