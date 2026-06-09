@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from talamus.adapters.llm import LLMProvider
+from talamus.budget import context_budget, fit_to_budget
 from talamus.domains import load_overview
 from talamus.graph import load_graph, query_graph
 from talamus.naming import note_filename
@@ -43,7 +44,9 @@ def build_context_bundle(
     search_index: BM25Index,
     question: str,
     limit: int = 5,
+    budget_tokens: int | None = None,
 ) -> ContextBundle:
+    budget = context_budget(budget_tokens)
     ontology = load_ontology(paths)
     seed_titles = [str(node["label"]) for node in query_graph(graph, question, limit=limit)]
     items: list[dict] = []
@@ -55,7 +58,7 @@ def build_context_bundle(
             {"route": "graph", "path": path.as_posix(), "content": path.read_text(encoding="utf-8")}
         )
     if items:
-        return ContextBundle(question=question, items=items)
+        return ContextBundle(question=question, items=fit_to_budget(items, budget))
 
     for result in search_index.search(question, limit=limit):
         path = paths.notes / f"{result['id']}.md"
@@ -64,7 +67,7 @@ def build_context_bundle(
         items.append(
             {"route": "bm25", "path": path.as_posix(), "content": path.read_text(encoding="utf-8")}
         )
-    return ContextBundle(question=question, items=items)
+    return ContextBundle(question=question, items=fit_to_budget(items, budget))
 
 
 _ROUTE_PROMPT = """Data la MAPPA dei domini (nome: descrizione) e una DOMANDA, restituisci
@@ -140,8 +143,8 @@ def answer_question(paths: TalamusPaths, question: str, llm: LLMProvider) -> str
             bundle = build_context_bundle(paths, graph, search, _expand_query(question, llm))
     if not bundle.items:
         return "Nessun contesto trovato nel brain per questa domanda."
+    items = fit_to_budget(bundle.items, context_budget())
     context = "\n\n".join(
-        f"[{idx}] {item['path']}\n{item['content']}"
-        for idx, item in enumerate(bundle.items, start=1)
+        f"[{idx}] {item['path']}\n{item['content']}" for idx, item in enumerate(items, start=1)
     )
     return llm.complete(_ANSWER_PROMPT.format(question=question, context=context))
