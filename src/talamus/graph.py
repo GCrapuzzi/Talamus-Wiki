@@ -62,7 +62,8 @@ def _terms(text: str) -> Counter[str]:
     return Counter(tokens(text))
 
 
-def query_graph(graph: dict, question: str, limit: int = 5) -> list[dict]:
+def query_graph_scored(graph: dict, question: str, limit: int = 5) -> list[tuple[dict, int]]:
+    """Note nodes ranked by term-overlap, with their scores (for reranking)."""
     q_terms = _terms(question)
     scored: list[tuple[int, dict]] = []
     for node in graph["nodes"].values():
@@ -80,7 +81,12 @@ def query_graph(graph: dict, question: str, limit: int = 5) -> list[dict]:
         score = sum(_terms(haystack).get(term, 0) * count for term, count in q_terms.items())
         if score > 0:
             scored.append((score, node))
-    return [node for _score, node in sorted(scored, key=lambda item: item[0], reverse=True)[:limit]]
+    ranked = sorted(scored, key=lambda item: item[0], reverse=True)[:limit]
+    return [(node, score) for score, node in ranked]
+
+
+def query_graph(graph: dict, question: str, limit: int = 5) -> list[dict]:
+    return [node for node, _score in query_graph_scored(graph, question, limit=limit)]
 
 
 def save_graph(path: Path, graph: dict) -> None:
