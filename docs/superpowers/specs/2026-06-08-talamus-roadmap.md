@@ -1,6 +1,6 @@
 # Talamus — Roadmap di Esecuzione (completa & vivente)
 
-**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/a1-code-health`. · **Avanzamento:** T1 ✅ (storia consolidata in `main`) · A0 rebrand→Talamus ✅ · A1 salute del codice ✅ (**79 test verdi**, gate ruff+mypy + CI multi-OS) · prossimo: **A2**.
+**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/a2-cli`. · **Avanzamento:** T1 ✅ · A0 rebrand ✅ · A1 codice ✅ · **A2 CLI ✅** (**88 test verdi**, gate ruff+mypy + CI multi-OS) · prossimo: **A3** (motori LLM).
 
 Questo è l'**indice operativo esaustivo**: ogni implementazione futura, organizzata e in **ordine di esecuzione**. Non è il design delle singole feature — ogni traguardo da **Fase B** in poi avrà il suo **brainstorm → spec → piano → build → test** prima del codice. Le fasi sono la spina d'ordine primaria; in pratica si possono **interlacciare**. Visione di lungo periodo: `2026-05-29-talamus-product-vision.md`; idee fuori scope: `talamus-future-evolutions.md`.
 
@@ -50,7 +50,8 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 - **A1.11** Baseline di **sicurezza** — permessi dei file locali, revisione della superficie MCP (cosa si espone), niente segreti nei log.
 - **A1.12** Sistema di **config** chiaro — schema `talamus.json`, variabili d'ambiente, precedenza, validazione.
 
-## A2 — CLI facilissima (prima della UI)
+## A2 — CLI facilissima ✅
+*Fatto (gate verde, 88 test): pannello a vuoto, `quickstart`, `--json` sui comandi di lettura, init con auto-rilevamento del motore (`--engine`), doctor con stato motore/cache/note, scoping globale+progetto (`--brain`/`--global`, `TALAMUS_HOME`), `brains`/`where`, `export`/`import`, completion shell. Rinviati (minori): `--quiet`; progress dettagliato su ingest (col bulk import C6); "switch" persistente + delete brain (con E1 multi-brain); dry-run su reindex.*
 - **A2.1** `talamus` senza argomenti → pannello: stato brain + cosa fare ora + prossimo comando.
 - **A2.2** `talamus init` guidato — rileva motori, propone, scrive config, crea cartelle, offre demo.
 - **A2.3** `talamus doctor` potenziato — motore, salute brain/cache, integrazioni; per ogni problema **il comando** che lo risolve.
