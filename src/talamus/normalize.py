@@ -19,6 +19,10 @@ class NormalizedPackage:
     source_hash: str
     sections: list[NormalizedSection]
 
+    def render(self) -> str:
+        """Render the normalized sections back to Markdown (the stored normalized view)."""
+        return "\n\n".join(f"# {s.title}\n{s.text}".strip() for s in self.sections) + "\n"
+
 
 def normalize_text(raw_path: str, text: str) -> NormalizedPackage:
     source_hash = "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()

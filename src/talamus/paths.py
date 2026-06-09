@@ -49,6 +49,10 @@ class TalamusPaths:
         return self.cache / "ontology.json"
 
     @property
+    def cache_manifest(self) -> Path:
+        return self.cache / "manifest.json"
+
+    @property
     def logs(self) -> Path:
         return self.talamus_dir / "logs"
 

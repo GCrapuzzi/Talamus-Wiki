@@ -16,7 +16,11 @@ from talamus.store import load_notes, rebuild_indexes, render_note_markdown, wri
 def _compile_package(paths: TalamusPaths, package: NormalizedPackage, llm: LLMProvider) -> int:
     """Estrae le note dal pacchetto, le scrive e risolve i wikilink a lotto,
     ricostruisce gli indici."""
-    notes = extract_notes(package, llm)
+    paths.normalized.mkdir(parents=True, exist_ok=True)
+    normalized_file = paths.normalized / Path(package.raw_path).name
+    normalized_file.write_text(package.render(), encoding="utf-8")
+    normalized_rel = normalized_file.relative_to(paths.project_root).as_posix()
+    notes = extract_notes(package, llm, normalized_path=normalized_rel)
     # Fase 1: persisti tutti gli oggetti canonici, così l'intero lotto è noto.
     for note in notes:
         write_note_json(paths, note)

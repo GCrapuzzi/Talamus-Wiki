@@ -39,7 +39,10 @@ class IngestTests(unittest.TestCase):
             self.assertEqual(1, result["notes_written"])
             self.assertEqual(1, len(load_notes(paths)))
             self.assertTrue(any(paths.raw.glob("*.md")))
+            self.assertTrue(any(paths.normalized.glob("*.md")))
             self.assertTrue(paths.graph_file.is_file())
+            note = load_notes(paths)[0]
+            self.assertTrue(note.sources[0].normalized_path.startswith(".talamus/normalized/"))
 
     def test_ingest_resolves_same_batch_wikilinks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

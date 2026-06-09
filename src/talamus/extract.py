@@ -56,18 +56,24 @@ def _extract_json_array(raw: str) -> list[dict]:
 
 
 def _section_source(
-    section: NormalizedSection, package: NormalizedPackage, claims: list[str]
+    section: NormalizedSection,
+    package: NormalizedPackage,
+    claims: list[str],
+    normalized_path: str,
 ) -> SourceRef:
     return SourceRef(
         raw_path=package.raw_path,
-        normalized_path=f"{package.raw_path}#section-{section.section_id}",
+        normalized_path=f"{normalized_path}#section-{section.section_id}",
         locator=f"section {section.section_id}: {section.title}",
         source_hash=package.source_hash,
         supported_claims=claims,
     )
 
 
-def extract_notes(package: NormalizedPackage, llm: LLMProvider) -> list[CanonicalNote]:
+def extract_notes(
+    package: NormalizedPackage, llm: LLMProvider, normalized_path: str | None = None
+) -> list[CanonicalNote]:
+    norm = normalized_path or package.raw_path
     text = "\n\n".join(f"# {s.title}\n{s.text}" for s in package.sections)
     raw = llm.complete(_PROMPT.format(text=text))
     candidates = _extract_json_array(raw)
@@ -112,7 +118,7 @@ def extract_notes(package: NormalizedPackage, llm: LLMProvider) -> list[Canonica
             body_sections=body_sections,
             proposed_links=proposed,
             relations=relations,
-            sources=[_section_source(primary_section, package, claims)],
+            sources=[_section_source(primary_section, package, claims, norm)],
             confidence=float(candidate.get("confidence", 0.8)),
         )
         notes.append(note)

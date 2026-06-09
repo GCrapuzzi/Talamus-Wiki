@@ -13,6 +13,31 @@ from talamus.paths import TalamusPaths
 from talamus.search import BM25Index
 from talamus.storage.obsidian import render_obsidian_note
 
+CACHE_VERSION = 1
+
+
+def _write_cache_manifest(paths: TalamusPaths) -> None:
+    paths.cache.mkdir(parents=True, exist_ok=True)
+    paths.cache_manifest.write_text(
+        json.dumps({"cache_version": CACHE_VERSION}, indent=2), encoding="utf-8"
+    )
+
+
+def cache_version(paths: TalamusPaths) -> int | None:
+    """The cache schema version on disk, or None if missing/unreadable."""
+    if not paths.cache_manifest.is_file():
+        return None
+    try:
+        data = json.loads(paths.cache_manifest.read_text(encoding="utf-8"))
+        return int(data["cache_version"])
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return None
+
+
+def cache_is_current(paths: TalamusPaths) -> bool:
+    """True if the on-disk cache matches the current schema version."""
+    return cache_version(paths) == CACHE_VERSION
+
 
 def _note_from_dict(data: dict) -> CanonicalNote:
     return CanonicalNote(
@@ -120,6 +145,7 @@ def rebuild_indexes(paths: TalamusPaths) -> None:
         )
         index.add(note_slug(note.title), haystack)
     index.save(paths.index_file)
+    _write_cache_manifest(paths)
 
 
 def reindex(paths: TalamusPaths) -> dict:
