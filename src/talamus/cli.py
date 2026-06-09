@@ -124,8 +124,18 @@ def _cmd_quickstart() -> int:
     return 0
 
 
+def _cmd_ui(root: Path) -> int:
+    try:
+        from talamus.ui.app import run_app
+    except ImportError:
+        print("UI needs the 'ui' extra: pip install talamus[ui]", file=sys.stderr)
+        return 1
+    run_app(TalamusPaths(root))
+    return 0
+
+
 _ALL_COMMANDS = (
-    "init demo status doctor reindex ingest consolidate verify ask overview search read history "
+    "init demo ui status doctor reindex ingest consolidate verify ask overview search read history "
     "recall neighbors relations remember quickstart brains where export import completion mcp hook "
     "hook-run"
 )
@@ -533,6 +543,7 @@ def build_parser() -> argparse.ArgumentParser:
     init = sub.add_parser("init", parents=[common], help="initialize a brain here")
     init.add_argument("--engine", default=None, help="LLM engine (else auto-detected).")
     sub.add_parser("demo", parents=[common], help="create a small example brain")
+    sub.add_parser("ui", parents=[common], help="launch the desktop UI (needs the 'ui' extra)")
     for name in ("status", "doctor", "reindex"):
         sub.add_parser(name, parents=[common], help=f"{name} the brain")
     sub.add_parser("quickstart", help="print the essential commands")
@@ -608,6 +619,8 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_init(root, args.engine)
         if command == "demo":
             return _cmd_demo(root)
+        if command == "ui":
+            return _cmd_ui(root)
         if command == "mcp":
             return _cmd_mcp_install(root)
         if command == "hook":
