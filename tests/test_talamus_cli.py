@@ -301,6 +301,20 @@ class TalamusCliTests(unittest.TestCase):
                 self.assertEqual(0, main(["search", "embedding", "--root", tmp]))
             self.assertIn("Embedding", out.getvalue())
 
+    def test_mcp_install_writes_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["mcp", "install", "--root", tmp]))
+            data = json.loads((Path(tmp) / ".mcp.json").read_text(encoding="utf-8"))
+            self.assertIn("talamus", data["mcpServers"])
+
+    def test_hook_prints_snippet(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(0, main(["hook", "--root", tmp]))
+            self.assertIn("SessionEnd", out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

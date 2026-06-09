@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 import zipfile
 from dataclasses import replace
@@ -119,8 +120,8 @@ def _cmd_quickstart() -> int:
 
 
 _ALL_COMMANDS = (
-    "init status doctor reindex ingest ask search read recall neighbors "
-    "remember quickstart brains where export import completion"
+    "init demo status doctor reindex ingest ask search read recall neighbors remember "
+    "quickstart brains where export import completion mcp hook hook-run"
 )
 
 
@@ -207,6 +208,56 @@ def _cmd_demo(root: Path) -> int:
     print(f"demo brain ready at {root} ({count} notes)")
     print('try:  talamus search "embedding"  ·  talamus read "Embedding"')
     print('      talamus neighbors "Embedding"')
+    return 0
+
+
+def _cmd_mcp_install(root: Path) -> int:
+    config_file = root / ".mcp.json"
+    data: dict = {}
+    if config_file.exists():
+        try:
+            data = json.loads(config_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            data = {}
+    data.setdefault("mcpServers", {})["talamus"] = {
+        "command": "talamus-mcp",
+        "args": ["--root", str(root)],
+    }
+    config_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    print(f"wrote talamus MCP server to {config_file}")
+    return 0
+
+
+def _cmd_hook(root: Path) -> int:
+    snippet = {
+        "hooks": {
+            "SessionEnd": [
+                {"hooks": [{"type": "command", "command": f"talamus hook-run --root {root}"}]}
+            ]
+        }
+    }
+    print("Add to your Claude Code settings (.claude/settings.json):")
+    print(json.dumps(snippet, indent=2))
+    return 0
+
+
+def _cmd_hook_run(root: Path) -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        payload = {}
+    transcript_path = payload.get("transcript_path", "")
+    if not transcript_path or not Path(transcript_path).is_file():
+        return 0
+    transcript = Path(transcript_path).read_text(encoding="utf-8")
+    cwd = payload.get("cwd") or str(Path.cwd())
+    try:
+        diff = subprocess.run(
+            ["git", "diff", "HEAD"], cwd=cwd, capture_output=True, text=True, timeout=30
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        diff = ""
+    remember_session(TalamusPaths(root), transcript, diff, _provider_for(root))
     return 0
 
 
@@ -373,6 +424,10 @@ def build_parser() -> argparse.ArgumentParser:
     importer.add_argument("file")
     completion = sub.add_parser("completion", help="print a shell completion script")
     completion.add_argument("shell", nargs="?", default="bash", choices=["bash", "zsh"])
+    mcp = sub.add_parser("mcp", parents=[common], help="set up the MCP server config (.mcp.json)")
+    mcp.add_argument("action", nargs="?", default="install", choices=["install"])
+    sub.add_parser("hook", parents=[common], help="print the Claude Code capture-hook config")
+    sub.add_parser("hook-run", parents=[common], help="run the capture hook (reads stdin)")
 
     ingest = sub.add_parser("ingest", parents=[common], help="add a document to the brain")
     ingest.add_argument("file")
@@ -419,6 +474,12 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_init(root, args.engine)
         if command == "demo":
             return _cmd_demo(root)
+        if command == "mcp":
+            return _cmd_mcp_install(root)
+        if command == "hook":
+            return _cmd_hook(root)
+        if command == "hook-run":
+            return _cmd_hook_run(root)
         if command == "status":
             return _cmd_status(root)
         if command == "doctor":
