@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from talamus.adapters.llm import ClaudeCliProvider, LLMProvider
@@ -13,7 +15,28 @@ from talamus.ingest import ingest_file, remember_session
 from talamus.log import configure
 from talamus.paths import TalamusPaths
 from talamus.recall import concept_neighbors, read_note_text, recall_context, search_notes
-from talamus.store import reindex
+from talamus.store import cache_is_current, reindex
+
+_ENGINE_COMMANDS: dict[str, str | None] = {
+    "claude-cli": "claude",
+    "ollama": "ollama",
+    "codex": "codex",
+    "gemini": "gemini",
+    "api": None,
+}
+
+
+def _engine_command(provider: str) -> str | None:
+    return _ENGINE_COMMANDS.get(provider, provider)
+
+
+def _detect_engine() -> str:
+    """Pick an LLM engine that is actually installed; fall back to claude-cli."""
+    for provider in ("claude-cli", "ollama", "codex", "gemini"):
+        command = _ENGINE_COMMANDS[provider]
+        if command and shutil.which(command):
+            return provider
+    return "claude-cli"
 
 
 def _ensure_utf8_output() -> None:
@@ -63,12 +86,20 @@ def _cmd_quickstart() -> int:
     return 0
 
 
-def _cmd_init(root: Path) -> int:
+def _cmd_init(root: Path, engine: str | None = None) -> int:
     paths = TalamusPaths(root)
     paths.ensure_directories()
-    if not paths.config_path.exists():
-        save_config(paths.config_path, TalamusConfig.default())
+    created = not paths.config_path.exists()
+    if created:
+        provider = engine or _detect_engine()
+        save_config(paths.config_path, replace(TalamusConfig.default(), llm_provider=provider))
     print(f"initialized talamus project at {root}")
+    if created:
+        config = load_config(paths.config_path)
+        command = _engine_command(config.llm_provider)
+        found = command is None or shutil.which(command) is not None
+        print(f"engine: {config.llm_provider} ({'found' if found else 'not on PATH'})")
+    print("next: talamus ingest <file>")
     return 0
 
 
@@ -102,9 +133,16 @@ def _cmd_doctor(root: Path) -> int:
     print(f"storage: {config.storage_provider}")
     print(f"pdf converter: {config.pdf_converter}")
     print(f"ocr: {config.ocr_provider}/{config.ocr_model}")
-    print(f"llm: {config.llm_provider}")
+    command = _engine_command(config.llm_provider)
+    engine_status = (
+        "ok" if (command is None or shutil.which(command)) else f"NOT on PATH ({command})"
+    )
+    print(f"llm: {config.llm_provider} [{engine_status}]")
     print(f"graph: {config.graph_provider}")
     print(f"search: {config.search_provider}")
+    n_notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
+    print(f"notes: {n_notes}")
+    print("cache: ok" if cache_is_current(paths) else "cache: stale — run `talamus reindex`")
     return 0
 
 
@@ -208,7 +246,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="talamus", description="Local-first knowledge compiler.")
     sub = parser.add_subparsers(dest="command")
 
-    for name in ("init", "status", "doctor", "reindex"):
+    init = sub.add_parser("init", parents=[common], help="initialize a brain here")
+    init.add_argument("--engine", default=None, help="LLM engine (else auto-detected).")
+    for name in ("status", "doctor", "reindex"):
         sub.add_parser(name, parents=[common], help=f"{name} the brain")
     sub.add_parser("quickstart", help="print the essential commands")
 
@@ -244,7 +284,7 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
     json_out = bool(getattr(args, "json", False))
     try:
         if command == "init":
-            return _cmd_init(root)
+            return _cmd_init(root, args.engine)
         if command == "status":
             return _cmd_status(root)
         if command == "doctor":

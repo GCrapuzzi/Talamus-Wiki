@@ -7,6 +7,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from talamus.cli import main
+from talamus.config import load_config
+from talamus.paths import TalamusPaths
 from tests.support import FakeLLMProvider
 
 
@@ -218,6 +220,24 @@ class TalamusCliTests(unittest.TestCase):
             with redirect_stdout(out):
                 self.assertEqual(0, main(["search", "x", "--root", tmp, "--json"]))
             self.assertIsInstance(json.loads(out.getvalue()), list)
+
+    def test_init_with_engine_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["init", "--root", tmp, "--engine", "ollama"]))
+            cfg = load_config(TalamusPaths(Path(tmp)).config_path)
+            self.assertEqual("ollama", cfg.llm_provider)
+
+    def test_doctor_reports_engine_and_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, main(["init", "--root", tmp]))
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(0, main(["doctor", "--root", tmp]))
+            text = out.getvalue()
+            self.assertIn("llm:", text)
+            self.assertIn("cache:", text)
 
 
 if __name__ == "__main__":
