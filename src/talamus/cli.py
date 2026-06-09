@@ -18,6 +18,7 @@ from talamus.correct import apply_correction, verify_note
 from talamus.demo import create_demo_brain
 from talamus.domains import build_overview, load_overview
 from talamus.errors import TalamusError
+from talamus.eval import evaluate, load_cases, search_retriever
 from talamus.ingest import ingest_path, remember_session
 from talamus.log import configure
 from talamus.paths import TalamusPaths
@@ -136,8 +137,8 @@ def _cmd_ui(root: Path) -> int:
 
 _ALL_COMMANDS = (
     "init demo ui status doctor reindex ingest consolidate verify ask overview search read history "
-    "recall neighbors relations remember quickstart brains where export import completion mcp hook "
-    "hook-run"
+    "recall neighbors relations remember eval quickstart brains where export import completion mcp "
+    "hook hook-run"
 )
 
 
@@ -422,6 +423,23 @@ def _cmd_ask(root: Path, question: str, llm: LLMProvider, json_out: bool) -> int
     return 0
 
 
+def _cmd_eval(root: Path, cases_file: str, k: int, json_out: bool) -> int:
+    path = Path(cases_file)
+    if not path.is_file():
+        print(f"cases file not found: {cases_file}", file=sys.stderr)
+        return 1
+    cases = load_cases(path)
+    if not cases:
+        print("no valid cases (need entries with question + relevant[])", file=sys.stderr)
+        return 1
+    report = evaluate(cases, search_retriever(TalamusPaths(root)), k=k)
+    if json_out:
+        _print_json(report.to_dict())
+    else:
+        print(report.format_table())
+    return 0
+
+
 def _cmd_remember(
     root: Path, transcript_file: str, diff_file: str | None, llm: LLMProvider, json_out: bool
 ) -> int:
@@ -585,6 +603,9 @@ def build_parser() -> argparse.ArgumentParser:
     history.add_argument("--as-of", default=None, help="version current at this ISO time")
     recall = sub.add_parser("recall", parents=[common], help="retrieve context for a question")
     recall.add_argument("question")
+    ev = sub.add_parser("eval", parents=[common], help="measure retrieval quality on a cases file")
+    ev.add_argument("--cases", required=True, help='JSON: [{"question","relevant":[titles]}]')
+    ev.add_argument("-k", type=int, default=5, help="cutoff for recall@k (default 5)")
     neighbors = sub.add_parser("neighbors", parents=[common], help="show a concept's connections")
     neighbors.add_argument("concept")
     relations = sub.add_parser("relations", parents=[common], help="list/prune typed relations")
@@ -646,6 +667,8 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_history(root, args.title, args.as_of, json_out)
         if command == "recall":
             return _cmd_recall(root, args.question, json_out)
+        if command == "eval":
+            return _cmd_eval(root, args.cases, args.k, json_out)
         if command == "neighbors":
             return _cmd_neighbors(root, args.concept, json_out)
         if command == "relations":
