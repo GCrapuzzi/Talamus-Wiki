@@ -1,6 +1,6 @@
 # Talamus — Roadmap di Esecuzione (completa & vivente)
 
-**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/f1-consolidate`. · **Avanzamento:** FASE A ✅ (A0–A6) · **Fase B (differenzianti) — sostanzialmente completa:** B1 consolidamento ✅ · B2 recupero 🟡 (B2.1 lemmi + B2.2 espansione) · B3 overview ✅ (MVP) · **B4 bitemporale ✅ (MVP)** · **B5 correzione-da-fonte ✅ (MVP)** · B6 ontologia ✅ (MVP). · branch `feat/phase-b`. Rinviati (polish): B2.3 reranking, B2.4 eval-set, B2.5 budget, affinamenti B3. Prossimo: **Fase C (sorgenti)** o **UI**.
+**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/f1-consolidate`. · **Avanzamento:** FASE A ✅ (A0–A6) · **Fase B (differenzianti) — sostanzialmente completa:** B1 consolidamento ✅ · B2 recupero 🟡 (B2.1 lemmi + B2.2 espansione) · B3 overview ✅ (MVP) · **B4 bitemporale ✅ (MVP)** · **B5 correzione-da-fonte ✅ (MVP)** · B6 ontologia ✅ (MVP). · branch `feat/phase-b`. Rinviati (polish): B2.3 reranking, B2.4 eval-set, B2.5 budget, affinamenti B3. · **Fase C ingestion 🟡 (MVP: file/cartelle/URL, PDF/HTML/testo, incrementale)** su `feat/phase-c`. Prossimo: altri formati C (OCR/DOCX/media…) oppure **UI (Fase D)**.
 
 Questo è l'**indice operativo esaustivo**: ogni implementazione futura, organizzata e in **ordine di esecuzione**. Non è il design delle singole feature — ogni traguardo da **Fase B** in poi avrà il suo **brainstorm → spec → piano → build → test** prima del codice. Le fasi sono la spina d'ordine primaria; in pratica si possono **interlacciare**. Visione di lungo periodo: `2026-05-29-talamus-product-vision.md`; idee fuori scope: `talamus-future-evolutions.md`.
 
@@ -160,7 +160,8 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 
 ---
 
-# FASE C — Sorgenti (ingestion di ogni formato)
+# FASE C — Sorgenti (ingestion di ogni formato) 🟡 (MVP fatto)
+*MVP fatto (gate verde, 111 test): `talamus/sources.py` (`extract_text`: **PDF** via extra `pdf`/pypdf, **HTML** ripulito stdlib, testo/Markdown) + `read_url`; `talamus ingest <file|cartella|URL>` con import ricorsivo di cartelle e cache incrementale per hash (salta i file invariati). Rinviati: OCR, DOCX/PPTX/XLSX/EPUB, estensione browser, RSS/auto-watch, chat/email, media (vision/audio/video), repo di codice, coda resiliente, locator pagina/sezione.*
 *Recuperare ampiezza d'input. Ordine per valore/diffusione. Ogni formato: estrazione + provenienza con locator (pagina/sezione/timestamp).*
 > Nota d'ordine: **C1.1 (PDF testo)** è table-stakes; valutare se anticiparlo in Fase A per l'adozione. Il resto segue i differenziatori.
 
