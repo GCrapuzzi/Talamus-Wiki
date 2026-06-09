@@ -23,7 +23,8 @@ talamus read "Embedding"
 
 ```bash
 talamus init                    # detects your LLM engine, creates a brain here
-talamus ingest notes.md         # document -> linked concept-notes (with sources)
+talamus ingest report.pdf       # PDF / DOCX / HTML / Markdown / URL -> linked concept-notes
+talamus overview                # induce the domain map (handy as the brain grows)
 talamus ask "how does X work?"  # cited answer from your brain
 ```
 
@@ -43,8 +44,8 @@ Talamus runs on what you already have — set it in `talamus.json` (or `TALAMUS_
 talamus mcp install             # writes .mcp.json for Claude Code / Cursor / Desktop
 ```
 
-Agents can then `search` / `read_note` / `recall` / `remember` against your brain. To
-capture your work sessions automatically:
+Agents can then `search` / `read_note` / `recall` / `overview` / `neighbors` / `remember`
+against your brain. To capture your work sessions automatically:
 
 ```bash
 talamus hook                    # prints the Claude Code SessionEnd hook to add
@@ -54,6 +55,13 @@ talamus hook                    # prints the Claude Code SessionEnd hook to add
 
 Open the `notes/` folder as an Obsidian vault: notes cross-link with `[[wikilinks]]`,
 so you can navigate the knowledge by hovering and clicking.
+
+Prefer a dedicated app? Install the UI extra and launch the native desktop/web app:
+
+```bash
+pip install "talamus[ui]"
+talamus ui                      # chat, search, clickable wikilinks, domain browsing
+```
 
 ## Global vs project brains
 
