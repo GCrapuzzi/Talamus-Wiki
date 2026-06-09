@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 
 from talamus.adapters.llm import LLMProvider, build_provider
 from talamus.config import load_or_default
+from talamus.domains import load_overview
 from talamus.ingest import ingest_text
 from talamus.paths import TalamusPaths
 from talamus.recall import concept_neighbors, read_note_text, recall_context, search_notes
@@ -52,6 +53,22 @@ def recall(question: str) -> str:
     """Recupera dal brain Talamus il contesto pertinente a una domanda (schede reali).
     Ragiona tu sul contesto per rispondere."""
     return recall_context(_paths(), question)
+
+
+@server.tool()
+def overview() -> str:
+    """Mostra la mappa dei domini del brain Talamus (nome, descrizione, numero di schede):
+    una panoramica per orientarsi prima di cercare. Sola lettura, nessun costo LLM."""
+    domains = load_overview(_paths())
+    if not domains:
+        return "Nessuna mappa dei domini. Esegui `talamus overview` per generarla."
+    lines: list[str] = []
+    for domain in domains:
+        members = domain.get("members", [])
+        lines.append(f"## {domain.get('name', '?')}  ({len(members)} schede)")
+        if domain.get("description"):
+            lines.append(f"   {domain['description']}")
+    return "\n".join(lines)
 
 
 @server.tool()

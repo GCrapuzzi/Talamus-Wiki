@@ -18,12 +18,14 @@ class McpServerTests(unittest.TestCase):
 
         self.assertIsInstance(mcp_server.server, FastMCP)
 
-    def test_registers_the_three_read_tools(self) -> None:
+    def test_registers_the_read_tools(self) -> None:
         from talamus import mcp_server
 
         tools = asyncio.run(mcp_server.server.list_tools())
         names = {tool.name for tool in tools}
-        self.assertEqual({"search", "read_note", "recall", "remember", "neighbors"}, names)
+        self.assertEqual(
+            {"search", "read_note", "recall", "overview", "remember", "neighbors"}, names
+        )
 
     def test_http_flag_is_parsed(self) -> None:
         from talamus import mcp_server

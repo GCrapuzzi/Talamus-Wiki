@@ -73,9 +73,9 @@ talamus mcp install             # writes .mcp.json for Claude Code / Cursor / De
 talamus hook                    # prints a SessionEnd hook to auto-capture your work
 ```
 
-Agents `search` / `read_note` / `recall` to read the brain, and `remember` to grow
-it. The graph is an **index, not the answer** — agents read the real notes and cite
-them.
+Agents `search` / `read_note` / `recall` / `overview` / `neighbors` to read the brain,
+and `remember` to grow it. The graph is an **index, not the answer** — agents read the
+real notes and cite them.
 
 ## Browse it like a wiki
 
