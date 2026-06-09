@@ -1,6 +1,6 @@
 # Talamus — Roadmap di Esecuzione (completa & vivente)
 
-**Data:** 2026-06-08 · **Stato:** documento **vivo** — è *la* guida dello sviluppo da qui in avanti, si aggiorna man mano. · **Branch corrente:** `feat/traguardo-1-text-loop` (T1, ~72 test verdi).
+**Data:** 2026-06-08 · **Stato:** documento **vivo**. · **Trunk:** `main`; **branch attivo:** `feat/a1-code-health`. · **Avanzamento:** T1 ✅ (storia consolidata in `main`) · A0 rebrand→Talamus ✅ · A1 salute del codice ✅ (**79 test verdi**, gate ruff+mypy + CI multi-OS) · prossimo: **A2**.
 
 Questo è l'**indice operativo esaustivo**: ogni implementazione futura, organizzata e in **ordine di esecuzione**. Non è il design delle singole feature — ogni traguardo da **Fase B** in poi avrà il suo **brainstorm → spec → piano → build → test** prima del codice. Le fasi sono la spina d'ordine primaria; in pratica si possono **interlacciare**. Visione di lungo periodo: `2026-05-29-talamus-product-vision.md`; idee fuori scope: `talamus-future-evolutions.md`.
 
@@ -22,28 +22,21 @@ Per orientarsi, ciò che **esiste già** e su cui costruiamo: ingest testo/Markd
 
 ---
 
-## T0 — Merge di T1 *(azione di Giovanni)* 🔜
-- **0.1** Rivedere il branch, suite completa, merge in `main`, CHANGELOG. Da qui ogni traguardo nasce/muore sul suo branch.
+## T0 — Consolidamento trunk ✅
+- **0.1** Non c'era un `main` da mergiare: il branch di lavoro conteneva già tutta la storia (vision + refactor + T1). Rinominato in **`main`** (trunk unico), eliminati i branch ridondanti. Da qui ogni traguardo nasce/muore sul suo branch; il merge nel trunk resta di Giovanni.
 
 ---
 
 # FASE A — Fondamenta & prodotto usabile
 *Rendere pulito, installabile, documentato e adottabile ciò che già funziona, prima delle feature grosse.*
 
-## A0 — Rebrand Talamus → Talamus *(primo traguardo dopo il merge di T1; prima di README/onboarding/docs e di ogni pubblicazione)*
-> Motivo: "Talamus" è già il nome di un altro prodotto in un ambito simile. Nuovo nome **Talamus** (il talamo: lo snodo cerebrale che *instrada* le informazioni alla corteccia — calzante per un router di memoria). CLI = `talamus`.
-- **A0.1** **Nome repo** — **`talamus_wiki`** (deciso 2026-06-08: brand pulito e indipendente).
-- **A0.2** **Package & import** — `src/talamus/` → `src/talamus/`, tutti gli import, classi (`TalamusPaths`→`TalamusPaths`, ecc.).
-- **A0.3** **CLI & entrypoint** — comando `talamus`→`talamus`; `pyproject` (name + script `talamus`/`talamus-mcp` + extra); nome del server MCP.
-- **A0.4** **Config & dati** — `talamus.json`→`talamus.json`, cache `.talamus/`→`.talamus/`, env `TALAMUS_*`→`TALAMUS_*`, script hook.
-- **A0.5** **Stringhe & branding** — messaggi CLI, prompt, docstring, intestazioni dei documenti (inclusa questa roadmap).
-- **A0.6** **Repo & workspace** — rinomina repo; aggiorna `CLAUDE.md`/`AGENTS.md` (riferimenti a `talamus`/`src/talamus/`); opzionale rinomina cartella locale `C:\dev\Talamus`→`Talamus`.
-- **A0.7** **Disponibilità nome** — verifica PyPI `talamus`, GitHub e dominio; se occupato, valuta un suffisso.
-- **A0.8** **Test** — rinomina `tests/test_talamus_*`→`test_talamus_*`, suite verde.
-- **A0.9** **Migrazione** — pre-release: nessuna retro-compatibilità necessaria; opzionale migrazione one-shot dei brain locali `.talamus/`→`.talamus/`.
+## A0 — Rebrand Kortex → Talamus ✅
+> Fatto (2026-06-08): "Kortex" si sovrapponeva a un altro prodotto. Nuovo nome **Talamus** (il talamo: lo snodo cerebrale che *instrada* le informazioni alla corteccia). Eseguito su branch `chore/rebrand-talamus`, poi in `main`.
+- Package `src/kortex/`→`src/talamus/` + tutti gli identificatori (`KortexPaths`→`TalamusPaths`…); CLI `kortex`→`talamus`; `pyproject` (name + script `talamus`/`talamus-mcp`); config `kortex.json`→`talamus.json`; cache `.kortex/`→`.talamus/`; env `KORTEX_*`→`TALAMUS_*`; nome server MCP; hook; skill; doc rinominati. Repo: **`talamus_wiki`**. **72 test verdi**, CLI `talamus` verificata.
+- **Resta manuale (quando comodo):** rinomina della cartella locale `C:\dev\Kortex`→`Talamus`; creazione repo GitHub `talamus_wiki` + remote (insieme ad A4).
 
-## A1 — Salute del codice
-*Premessa onesta: il codice è già piccolo e modulare (~1.600 righe, file max `cli.py` 197): professionalizzazione, non salvataggio.*
+## A1 — Salute del codice ✅
+*Fatte tutte le voci A1.1–A1.12 (gate verde, 79 test): ruff+mypy+`dev.py`, CI multi-OS, gerarchia errori, logging `--verbose`, config con env-override/validazione, file-fonte normalizzati su disco, versioning cache, `docs/architecture.md`, `SECURITY.md`, harness benchmark. Voci di dettaglio sotto, come registro.*
 - **A1.1** Tooling qualità — `ruff` (lint+format) + type-checker, un comando unico lint+type+test.
 - **A1.2** CI multi-OS — GitHub Actions Win/mac/Linux su 3.13, gate sulle PR. *Oggi testato solo su Windows.*
 - **A1.3** Type hints completi + docstring su ogni API pubblica (cosa/come/dipendenze).
