@@ -18,6 +18,7 @@ dependencies = []
 docling = ["docling>=2.0"]
 mcp = ["mcp>=1.0"]
 dev = ["ruff>=0.6", "mypy>=1.11"]
+bench = ["tiktoken>=0.7"]
 
 [project.scripts]
 talamus = "talamus.cli:main"
