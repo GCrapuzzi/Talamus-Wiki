@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+import os
+from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 
 from talamus.errors import ConfigError
@@ -43,6 +44,26 @@ def load_config(path: Path) -> TalamusConfig:
     except json.JSONDecodeError as exc:
         raise ConfigError(f"Invalid JSON in config {path}: {exc}") from exc
     try:
-        return TalamusConfig(**data)
+        config = TalamusConfig(**data)
     except TypeError as exc:
         raise ConfigError(f"Invalid config fields in {path}: {exc}") from exc
+    empty = [name for name, value in asdict(config).items() if not str(value).strip()]
+    if empty:
+        raise ConfigError(f"Empty config fields in {path}: {', '.join(empty)}")
+    return config
+
+
+def _apply_env_overrides(config: TalamusConfig) -> TalamusConfig:
+    """Override fields from TALAMUS_<FIELD> env vars, e.g. TALAMUS_LLM_PROVIDER=ollama."""
+    overrides = {
+        field.name: os.environ[f"TALAMUS_{field.name.upper()}"]
+        for field in fields(config)
+        if os.environ.get(f"TALAMUS_{field.name.upper()}")
+    }
+    return replace(config, **overrides) if overrides else config
+
+
+def load_or_default(path: Path) -> TalamusConfig:
+    """Load config from disk if present (else defaults), then apply env overrides."""
+    config = load_config(path) if path.is_file() else TalamusConfig.default()
+    return _apply_env_overrides(config)
