@@ -1,0 +1,14 @@
+[
+  {
+    "question": "how does reranking improve retrieval?",
+    "relevant": ["Reranking"]
+  },
+  {
+    "question": "what connects a model to external sources at answer time?",
+    "relevant": ["Retrieval-Augmented Generation"]
+  },
+  {
+    "question": "where are embeddings stored so they can be searched?",
+    "relevant": ["Vector Store", "Embedding"]
+  }
+]

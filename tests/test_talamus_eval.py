@@ -129,5 +129,38 @@ class LoadCasesTests(unittest.TestCase):
             self.assertEqual(cases[0].question, "good")
 
 
+class CliEvalTests(unittest.TestCase):
+    def _brain(self, tmp: str) -> TalamusPaths:
+        paths = TalamusPaths(Path(tmp))
+        paths.ensure_directories()
+        write_note(
+            paths,
+            _note("Reranking", "Riordina i candidati.", "reranking riordino candidati recupero"),
+        )
+        rebuild_indexes(paths)
+        return paths
+
+    def test_eval_command_runs_and_reports(self) -> None:
+        from talamus.cli import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._brain(tmp)
+            cases = Path(tmp) / "cases.json"
+            cases.write_text(
+                json.dumps([{"question": "come riordino i candidati?", "relevant": ["Reranking"]}]),
+                encoding="utf-8",
+            )
+            code = main(["eval", "--cases", str(cases), "--root", tmp, "--json"])
+            self.assertEqual(code, 0)
+
+    def test_eval_missing_cases_file_returns_error(self) -> None:
+        from talamus.cli import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._brain(tmp)
+            code = main(["eval", "--cases", str(Path(tmp) / "nope.json"), "--root", tmp])
+            self.assertEqual(code, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
