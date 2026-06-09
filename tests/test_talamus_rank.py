@@ -62,6 +62,29 @@ class RerankUnitTests(unittest.TestCase):
         )
         self.assertEqual(ranked[0][0], "Remote Procedure Call")
 
+    def test_exact_boost_ignores_substring_false_positive(self) -> None:
+        # "RAG" must NOT be boosted by a query about "dragoni" (substring 'rag').
+        ranked = rerank_candidates(
+            "parlami dei dragoni",
+            graph_hits=[("Other", 1.0)],
+            bm25_hits=[("RAG", 1.0), ("Other", 1.0)],
+            aliases_by_title={"RAG": []},
+            limit=5,
+            weights=RankWeights(exact=5.0),
+        )
+        self.assertEqual(ranked[0][0], "Other")
+
+    def test_exact_boost_on_whole_word(self) -> None:
+        ranked = rerank_candidates(
+            "come funziona il rag",
+            graph_hits=[("Other", 5.0)],
+            bm25_hits=[("RAG", 1.0), ("Other", 1.0)],
+            aliases_by_title={"RAG": []},
+            limit=5,
+            weights=RankWeights(exact=5.0),
+        )
+        self.assertEqual(ranked[0][0], "RAG")
+
     def test_empty_inputs(self) -> None:
         self.assertEqual(rerank_candidates("q", [], [], {}, limit=5), [])
 

@@ -9,6 +9,7 @@ hub-domination failure of additive graph routing: it only fires on a literal nam
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 
@@ -32,9 +33,16 @@ def _normalize(scores: dict[str, float]) -> dict[str, float]:
 
 
 def _exact_hit(query_lower: str, title: str, aliases: list[str]) -> bool:
-    """True when the query literally contains the note's name or one of its aliases."""
-    names = [title, *aliases]
-    return any(name.strip() and name.strip().lower() in query_lower for name in names)
+    """True when the query contains the note's name/alias as a whole word or phrase.
+
+    Word-boundary matching (not bare substring) avoids false positives like the title
+    "RAG" boosting a query about "dragons" (which contains the substring 'rag').
+    """
+    for name in (title, *aliases):
+        token = name.strip().lower()
+        if token and re.search(rf"\b{re.escape(token)}\b", query_lower):
+            return True
+    return False
 
 
 def rerank_candidates(
