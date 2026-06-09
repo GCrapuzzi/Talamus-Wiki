@@ -351,6 +351,19 @@ class CliSearchLimitTests(unittest.TestCase):
             self.assertEqual(1, len(json.loads(out.getvalue())))
 
 
+class CliDoctorTests(unittest.TestCase):
+    def test_doctor_reports_brain_and_overview_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            main(["init", "--root", tmp])
+            out = io.StringIO()
+            with redirect_stdout(out):
+                code = main(["doctor", "--root", tmp])
+            text = out.getvalue()
+            self.assertEqual(0, code)
+            self.assertIn("brain:", text)
+            self.assertIn("overview:", text)
+
+
 class CliVersionTests(unittest.TestCase):
     def test_version_flag_prints_and_exits_zero(self) -> None:
         out = io.StringIO()

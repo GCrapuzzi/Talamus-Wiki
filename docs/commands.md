@@ -10,7 +10,7 @@ options. Most commands accept the [global flags](#global-flags) below.
 | `talamus init [--engine E]` | Create a brain here; auto-detects your LLM engine (override with `--engine`). |
 | `talamus demo` | Create a small example brain to try instantly (no LLM needed). |
 | `talamus status` | Check the brain layout is intact. |
-| `talamus doctor` | Health check: engine on PATH, cache freshness, note count. |
+| `talamus doctor` | Health check: brain path, engine on PATH, cache freshness, note count, overview state. |
 | `talamus quickstart` | Print the essential commands. |
 
 ## Knowledge

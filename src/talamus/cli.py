@@ -306,6 +306,7 @@ def _cmd_doctor(root: Path) -> int:
     except TalamusError as exc:
         print(f"config error: {paths.config_path}: {exc}", file=sys.stderr)
         return 1
+    print(f"brain: {paths.project_root}")
     print(f"storage: {config.storage_provider}")
     print(f"pdf converter: {config.pdf_converter}")
     print(f"ocr: {config.ocr_provider}/{config.ocr_model}")
@@ -318,6 +319,11 @@ def _cmd_doctor(root: Path) -> int:
     print(f"search: {config.search_provider}")
     n_notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
     print(f"notes: {n_notes}")
+    overview = load_overview(paths)
+    if overview:
+        print(f"overview: built ({len(overview)} domini)")
+    else:
+        print("overview: not built — run `talamus overview`")
     print("cache: ok" if cache_is_current(paths) else "cache: stale — run `talamus reindex`")
     return 0
 
