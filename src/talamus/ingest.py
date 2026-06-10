@@ -31,14 +31,16 @@ def _save_hashes(paths: TalamusPaths, hashes: dict) -> None:
     (paths.cache / "ingested.json").write_text(json.dumps(hashes, indent=2), encoding="utf-8")
 
 
-def _compile_package(paths: TalamusPaths, package: NormalizedPackage, llm: LLMProvider) -> int:
+def _compile_package(
+    paths: TalamusPaths, package: NormalizedPackage, llm: LLMProvider, preamble: str = ""
+) -> int:
     """Estrae le note dal pacchetto, le scrive e risolve i wikilink a lotto,
     ricostruisce gli indici."""
     paths.normalized.mkdir(parents=True, exist_ok=True)
     normalized_file = paths.normalized / Path(package.raw_path).name
     normalized_file.write_text(package.render(), encoding="utf-8")
     normalized_rel = normalized_file.relative_to(paths.project_root).as_posix()
-    notes = extract_notes(package, llm, normalized_path=normalized_rel)
+    notes = extract_notes(package, llm, normalized_path=normalized_rel, preamble=preamble)
     # Fase 1: persisti tutti gli oggetti canonici, così l'intero lotto è noto.
     for note in notes:
         write_note_json(paths, note)
@@ -130,13 +132,20 @@ def remember_session(paths: TalamusPaths, transcript: str, diff: str, llm: LLMPr
     return {"skipped": False, "notes_written": written}
 
 
-def ingest_text(paths: TalamusPaths, text: str, llm: LLMProvider, name: str = "insight") -> dict:
+def ingest_text(
+    paths: TalamusPaths,
+    text: str,
+    llm: LLMProvider,
+    name: str = "insight",
+    preamble: str = "",
+) -> dict:
     """Ingerisce un frammento di testo (es. un'intuizione che l'agente vuole
-    ricordare) come scheda."""
+    ricordare) come scheda. ``preamble`` aggiunge istruzioni all'estrattore
+    (usato dallo scan per il digest di codice)."""
     paths.ensure_directories()
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
     raw_path = paths.raw / f"{name}-{digest}.md"
     raw_path.write_text(text, encoding="utf-8")
     package = normalize_text(raw_path.as_posix(), text)
-    written = _compile_package(paths, package, llm)
+    written = _compile_package(paths, package, llm, preamble=preamble)
     return {"notes_written": written}

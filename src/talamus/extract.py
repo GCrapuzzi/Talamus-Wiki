@@ -71,11 +71,16 @@ def _section_source(
 
 
 def extract_notes(
-    package: NormalizedPackage, llm: LLMProvider, normalized_path: str | None = None
+    package: NormalizedPackage,
+    llm: LLMProvider,
+    normalized_path: str | None = None,
+    preamble: str = "",
 ) -> list[CanonicalNote]:
+    """Extract concept notes. ``preamble`` prepends extra instructions to the
+    librarian prompt (e.g. the code-aware variant used by repo scans)."""
     norm = normalized_path or package.raw_path
     text = "\n\n".join(f"# {s.title}\n{s.text}" for s in package.sections)
-    raw = llm.complete(_PROMPT.format(text=text))
+    raw = llm.complete(preamble + _PROMPT.format(text=text))
     candidates = _extract_json_array(raw)
     primary_section = package.sections[0]
     notes: list[CanonicalNote] = []

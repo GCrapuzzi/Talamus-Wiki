@@ -38,6 +38,13 @@ from talamus.registry import (
 )
 from talamus.relations import list_relations, prune_relations
 from talamus.review import ReviewQueue
+from talamus.scan import (
+    PROFILES,
+    build_plan,
+    execute_plan,
+    format_plan,
+    plan_from_record,
+)
 from talamus.scope import (
     SCOPE_POLICIES,
     ResolvedBrain,
@@ -146,13 +153,83 @@ def _cmd_ui(root: Path) -> int:
 
 
 _ALL_COMMANDS = (
-    "init demo ui status doctor reindex ingest consolidate verify ask overview search read history "
-    "recall neighbors relations remember eval jobs review quickstart brains where export import "
-    "completion mcp hook hook-run"
+    "init demo ui status doctor reindex ingest scan consolidate verify ask overview search read "
+    "history recall neighbors relations remember eval jobs review quickstart brains where export "
+    "import completion mcp hook hook-run"
 )
 
-# Runners that can resume a persisted job, keyed by kind (M3+ registers scan etc.).
+# Runners that can resume a persisted job, keyed by kind (scan registers below).
 JOB_RUNNERS: dict[str, Callable[[Path, JobRecord], int]] = {}
+
+
+def _cmd_scan(
+    root: Path,
+    target: str,
+    llm_factory: Callable[[], LLMProvider],
+    args: argparse.Namespace,
+) -> int:
+    json_out = bool(getattr(args, "json", False))
+    plan = build_plan(
+        Path(target),
+        profile=args.profile,
+        include=args.include or None,
+        exclude=args.exclude or None,
+        max_files=args.max_files,
+    )
+    if args.dry_run or not (args.yes or args.background):
+        if json_out:
+            _print_json(plan.to_dict())
+        else:
+            print(format_plan(plan))
+            if not args.dry_run:
+                print("\n(dry-run shown; pass --yes to execute or --background to queue a job)")
+        return 0
+    if plan.secret_flags and not args.allow_secrets:
+        flagged = sorted({f["path"] for f in plan.secret_flags})
+        print(
+            "error: likely secrets detected; scan stopped before any LLM call\n"
+            f"cause: {len(flagged)} file(s) flagged: {', '.join(flagged[:5])}\n"
+            "fix: review the files, then re-run with --allow-secrets "
+            "(content is redacted) or use a local provider",
+            file=sys.stderr,
+        )
+        return 1
+    if not plan.included:
+        print("nothing to scan (no supported files in plan)")
+        return 0
+    paths = TalamusPaths(root)
+    if args.background:
+        store = JobStore(paths)
+        record = store.create("scan", payload=plan.to_dict())
+        print(f"queued scan job {record.job_id} ({len(plan.included)} files)")
+        print(f"run it with:  talamus jobs resume {record.job_id}")
+        return 0
+    report = execute_plan(paths, plan, llm_factory())
+    if json_out:
+        _print_json(report)
+        return 0
+    print(
+        f"scan {report['state']}: {report['notes_written']} schede da "
+        f"{report['files']} file (job {report['job_id']})"
+    )
+    for failure in report["failed"]:
+        print(f"  ! {failure['path']}: {failure['error']}")
+    return 0
+
+
+def _run_scan_job(root: Path, record: JobRecord) -> int:
+    """Resume runner registered in JOB_RUNNERS for `talamus jobs resume`."""
+    paths = TalamusPaths(root)
+    plan = plan_from_record(record)
+    report = execute_plan(paths, plan, _provider_for(root), job_record=record)
+    print(
+        f"scan {report['state']}: {report['notes_written']} schede da "
+        f"{report['files']} file (job {report['job_id']})"
+    )
+    return 0
+
+
+JOB_RUNNERS["scan"] = _run_scan_job
 
 
 def _cmd_jobs_group(args: argparse.Namespace, root: Path) -> int:
@@ -880,6 +957,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     init = sub.add_parser("init", parents=[common], help="initialize a brain here")
     init.add_argument("--engine", default=None, help="LLM engine (else auto-detected).")
+    init.add_argument(
+        "--scan", action="store_true", help="after init, show the repo scan plan (dry-run)"
+    )
+    init.add_argument("--profile", choices=list(PROFILES), default="all")
     sub.add_parser("demo", parents=[common], help="create a small example brain")
     sub.add_parser("ui", parents=[common], help="launch the desktop UI (needs the 'ui' extra)")
     for name in ("status", "doctor", "reindex"):
@@ -952,6 +1033,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest = sub.add_parser("ingest", parents=[common], help="add a file, folder, or URL")
     ingest.add_argument("target", help="a file, a folder (recursive), or a URL")
+    scan = sub.add_parser(
+        "scan", parents=[common], help="compile an existing repository (plan first, spend later)"
+    )
+    scan.add_argument("target", nargs="?", default=".", help="repository root (default: here)")
+    scan.add_argument("--dry-run", action="store_true", help="show the plan only (no LLM cost)")
+    scan.add_argument("--yes", action="store_true", help="execute the plan")
+    scan.add_argument("--background", action="store_true", help="queue a resumable job instead")
+    scan.add_argument("--profile", choices=list(PROFILES), default="all")
+    scan.add_argument("--max-files", type=int, default=None)
+    scan.add_argument("--include", action="append", default=[], metavar="GLOB")
+    scan.add_argument("--exclude", action="append", default=[], metavar="GLOB")
+    scan.add_argument(
+        "--allow-secrets",
+        action="store_true",
+        help="proceed despite flagged secrets (content is redacted before the LLM)",
+    )
     consolidate = sub.add_parser("consolidate", parents=[common], help="merge duplicate concepts")
     consolidate.add_argument("--apply", action="store_true", help="actually merge (default: list)")
     verify = sub.add_parser("verify", parents=[common], help="check a note against its source")
@@ -1020,7 +1117,13 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
 
     if command == "init":
         resolved = resolve_init_root(args.root, args.brain, args.use_global)
-        return _cmd_init(resolved.root, args.engine, resolved.scope)
+        code = _cmd_init(resolved.root, args.engine, resolved.scope)
+        if code == 0 and getattr(args, "scan", False):
+            plan = build_plan(Path.cwd(), profile=args.profile)
+            print()
+            print(format_plan(plan))
+            print("\n(no LLM call made; review the plan, then run `talamus scan . --yes`)")
+        return code
 
     root = _resolve_root(
         getattr(args, "root", None),
@@ -1070,6 +1173,13 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_neighbors(root, args.concept, json_out)
         if command == "relations":
             return _cmd_relations(root, args.prune, json_out)
+        if command == "scan":
+            return _cmd_scan(
+                root,
+                args.target,
+                lambda: llm if llm is not None else _provider_for(root),
+                args,
+            )
         provider = llm if llm is not None else _provider_for(root)
         if command == "ingest":
             return _cmd_ingest(root, args.target, provider, json_out)

@@ -18,6 +18,8 @@ options. Most commands accept the [global flags](#global-flags) below.
 | Command | What it does |
 | --- | --- |
 | `talamus ingest <file\|dir\|url>` | Turn a document, folder, or URL into source-grounded concept notes (PDF/DOCX/HTML/Markdown/text). |
+| `talamus scan [dir] [--dry-run\|--yes\|--background]` | Compile an existing repository: plan first (zero cost), then execute as a resumable job. `--profile docs\|code\|all`, respects `.gitignore`, excludes vendor/caches/lockfiles/secret files, **redacts likely secrets** and stops for approval (`--allow-secrets`). Code becomes module/API digests, not prose. |
+| `talamus init --scan` | Initialize here and show the scan plan (dry-run; never spends silently). |
 | `talamus ask "<question>"` | Cited answer composed from your brain. |
 | `talamus overview [--rebuild]` | Show the hierarchical domain map induced from the graph. |
 | `talamus search "<query>" [--limit N]` | List relevant notes (token-cheap). |
