@@ -6,7 +6,7 @@ from pathlib import Path
 
 from talamus.adapters.llm import LLMProvider
 from talamus.budget import context_budget, estimate_tokens, fit_to_budget
-from talamus.domains import load_overview
+from talamus.domains import load_overview, load_overview_tree
 from talamus.graph import load_graph, query_graph
 from talamus.naming import note_filename
 from talamus.ontology import load_ontology, neighbors
@@ -120,6 +120,30 @@ def _overview_bundle(
     overview = load_overview(paths)
     if not overview:
         return ContextBundle(question=question, items=[])
+    tree = load_overview_tree(paths)
+    if tree:
+        # Fase R5: two-level routing — pick macro-areas first, then only their
+        # domains enter the second prompt. Keeps the routing prompt ~log(N)
+        # instead of listing every domain (one extra LLM call, big brains only).
+        area_map = "\n".join(
+            f"- {a.get('id', '?')} | {a.get('name', '')}: {a.get('description', '')}" for a in tree
+        )
+        area_raw = llm.complete(_ROUTE_PROMPT.format(map=area_map, question=question))
+        valid_areas = {str(a["id"]) for a in tree if a.get("id")}
+        chosen_areas = [
+            token for token in re.findall(r"[a-z0-9-]+", area_raw.lower()) if token in valid_areas
+        ]
+        if chosen_areas:
+            allowed: set[str] = set()
+            for area in tree:
+                if str(area.get("id", "")) in chosen_areas:
+                    allowed.update(str(c) for c in area.get("children", []))
+            narrowed = [d for d in overview if str(d.get("id", "")) in allowed]
+            if narrowed:
+                overview = narrowed
+        if trace is not None:
+            trace["routing_levels"] = 2
+            trace["areas_chosen"] = chosen_areas
     domain_map = "\n".join(
         f"- {d.get('id', '?')} | {d.get('name', '')}: {d.get('description', '')}" for d in overview
     )

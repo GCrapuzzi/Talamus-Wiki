@@ -994,7 +994,13 @@ def _cmd_overview(
         return 0
     paths = TalamusPaths(root)
     if rebuild or not paths.overview_file.exists():
+        from talamus.domains import TREE_THRESHOLD, build_overview_tree
+
         domains = build_overview(paths, llm)
+        if len(domains) >= TREE_THRESHOLD:
+            areas = build_overview_tree(paths, llm)
+            if areas and not json_out:
+                print(f"(mappa gerarchica: {len(areas)} macro-aree su {len(domains)} domini)")
     else:
         domains = load_overview(paths)
     if json_out:

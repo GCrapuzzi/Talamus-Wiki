@@ -144,3 +144,92 @@ def load_overview(paths: TalamusPaths) -> list[dict]:
     if not paths.overview_file.is_file():
         return []
     return json.loads(paths.overview_file.read_text(encoding="utf-8"))
+
+
+# ---------------------------------------------------------- hierarchical tree
+
+TREE_THRESHOLD = 12  # below this many domains, flat routing is already cheap
+
+_TREE_PROMPT = """Sei un bibliotecario. Raggruppa i DOMINI in 3-9 MACRO-AREE tematiche.
+Ogni dominio deve stare in esattamente una macro-area. Restituisci SOLO un array JSON:
+[{"name": "<nome breve>", "description": "<una frase>", "children": ["<id dominio>", ...]}]
+
+DOMINI (id | nome: descrizione):
+<DOMAINS>
+"""
+
+
+def tree_path(paths: TalamusPaths):
+    return paths.cache / "overview-tree.json"
+
+
+def build_overview_tree(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
+    """Second overview level (Fase R5): macro-areas over the domains, so routing
+    cost stays ~log(N) instead of growing linearly with the domain count.
+    One extra LLM call, only when the flat map is big enough to need it."""
+    overview = load_overview(paths)
+    if len(overview) < TREE_THRESHOLD:
+        tree_path(paths).unlink(missing_ok=True)
+        return []
+    domain_lines = "\n".join(
+        f"- {d.get('id', '?')} | {d.get('name', '')}: {d.get('description', '')}" for d in overview
+    )
+    raw = llm.complete(_TREE_PROMPT.replace("<DOMAINS>", domain_lines))
+    start, end = raw.find("["), raw.rfind("]")
+    parsed: list = []
+    if start != -1 and end != -1 and end > start:
+        try:
+            parsed = json.loads(raw[start : end + 1])
+        except json.JSONDecodeError:
+            parsed = []
+    valid_ids = {str(d["id"]) for d in overview if d.get("id")}
+    areas: list[dict] = []
+    assigned: set[str] = set()
+    taken: set[str] = set()
+    for entry in parsed:
+        if not isinstance(entry, dict):
+            continue
+        children = [c for c in entry.get("children", []) if c in valid_ids and c not in assigned]
+        if not children:
+            continue
+        assigned.update(children)
+        slug = re.sub(r"[^a-z0-9]+", "-", str(entry.get("name", "")).lower()).strip("-") or "x"
+        area_id = f"area-{slug}"
+        suffix = 2
+        while area_id in taken:
+            area_id = f"area-{slug}-{suffix}"
+            suffix += 1
+        taken.add(area_id)
+        areas.append(
+            {
+                "id": area_id,
+                "name": str(entry.get("name", "")).strip() or "Area",
+                "description": str(entry.get("description", "")).strip(),
+                "children": children,
+            }
+        )
+    leftover = [str(d["id"]) for d in overview if d.get("id") and d["id"] not in assigned]
+    if leftover:
+        altro_id = "area-altro"
+        suffix = 2
+        while altro_id in taken:
+            altro_id = f"area-altro-{suffix}"
+            suffix += 1
+        areas.append(
+            {
+                "id": altro_id,
+                "name": "Altro",
+                "description": "Domini non ancora raggruppati.",
+                "children": leftover,
+            }
+        )
+    paths.cache.mkdir(parents=True, exist_ok=True)
+    tree_path(paths).write_text(json.dumps(areas, indent=2, ensure_ascii=False), encoding="utf-8")
+    return areas
+
+
+def load_overview_tree(paths: TalamusPaths) -> list[dict]:
+    path = tree_path(paths)
+    if not path.is_file():
+        return []
+    return json.loads(path.read_text(encoding="utf-8"))

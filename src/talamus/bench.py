@@ -104,6 +104,30 @@ def routing_prompt_tokens(n_notes: int, notes_per_domain: int = 10) -> dict:
     return {"n_notes": n_notes, "n_domains": n_domains, "prompt_tokens": estimate_tokens(prompt)}
 
 
+def routing_prompt_tokens_tree(
+    n_notes: int, notes_per_domain: int = 10, domains_per_area: int = 10
+) -> dict:
+    """Two-level routing (Fase R5): areas prompt + one area's domains prompt.
+
+    Flat routing lists every domain (O(N)); the tree lists ~N/100 areas plus ~10
+    domains — the sum stays bounded as the brain grows."""
+    n_domains = max(1, n_notes // notes_per_domain)
+    n_areas = max(1, n_domains // domains_per_area)
+    line = "- area-{i:04d} | Area di esempio: descrizione di una riga"
+    areas_map = "\n".join(line.format(i=i) for i in range(n_areas))
+    level_one = f"{_ROUTE_PROMPT_OVERHEAD}\n\nMAPPA:\n{areas_map}\n\nDOMANDA: esempio"
+    domains_map = "\n".join(
+        f"- dom-{i:04d} | Dominio di esempio: descrizione di una riga"
+        for i in range(min(domains_per_area, n_domains))
+    )
+    level_two = f"{_ROUTE_PROMPT_OVERHEAD}\n\nMAPPA:\n{domains_map}\n\nDOMANDA: esempio"
+    return {
+        "n_notes": n_notes,
+        "n_areas": n_areas,
+        "prompt_tokens": estimate_tokens(level_one) + estimate_tokens(level_two),
+    }
+
+
 def _git_head(repo_root: Path) -> str:
     try:
         out = subprocess.run(
