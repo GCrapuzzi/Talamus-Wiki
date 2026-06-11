@@ -220,13 +220,14 @@ def cluster_unexplained(evidence: list[Evidence]) -> dict[str, list[Evidence]]:
 
 # ---------------------------------------------------------------- induction
 
-_NAMING_PROMPT = """Sei un ontologo. Per ogni CLUSTER di relazioni osservate nel corpus
-(stessa forma superficiale), proponi un tipo di relazione riusabile. Restituisci SOLO
-un array JSON, un oggetto per cluster:
-[{{"cluster_key": "<chiave>", "name": "<nome-breve-kebab>", "definition": "<una frase>",
-  "inverse": "<nome inverso o vuoto>"}}]
+_NAMING_PROMPT = """You are an ontologist. For each CLUSTER of relations observed in the
+corpus (same surface form), propose a reusable relation type. Use ENGLISH for the
+type name and definition (the schema is the machine layer: one canonical language
+keeps it consistent across corpora). Return ONLY a JSON array, one object per cluster:
+[{{"cluster_key": "<key>", "name": "<short-kebab-name>", "definition": "<one sentence>",
+  "inverse": "<inverse name or empty>"}}]
 
-CLUSTER OSSERVATI:
+OBSERVED CLUSTERS:
 {clusters}
 """
 

@@ -96,14 +96,14 @@ def build_context_bundle(
     return ContextBundle(question=question, items=fit_to_budget(items, budget))
 
 
-_ROUTE_PROMPT = """Data la MAPPA dei domini (id | nome: descrizione) e una DOMANDA, restituisci
-SOLO gli id dei domini pertinenti, separati da virgola (es. dom-retrieval, dom-tempo).
-Nessun'altra parola.
+_ROUTE_PROMPT = """Given the MAP of domains (id | name: description) and a QUESTION, return
+ONLY the ids of the relevant domains, comma-separated (e.g. dom-retrieval, dom-time).
+No other words.
 
-MAPPA:
+MAP:
 {map}
 
-DOMANDA: {question}
+QUESTION: {question}
 """
 
 
@@ -181,10 +181,11 @@ def _overview_bundle(
     return ContextBundle(question=question, items=items)
 
 
-_EXPAND_PROMPT = """Riscrivi la domanda in 3-6 parole chiave o termini tecnici per la ricerca,
-separati da spazio. Restituisci SOLO i termini.
+_EXPAND_PROMPT = """Rewrite the question as 3-6 search keywords or technical terms, separated
+by spaces. Give the terms BOTH in the question's language AND in English (the index
+is bilingual). Return ONLY the terms.
 
-DOMANDA: {question}
+QUESTION: {question}
 """
 
 
@@ -192,13 +193,14 @@ def _expand_query(question: str, llm: LLMProvider) -> str:
     return llm.complete(_EXPAND_PROMPT.format(question=question)).strip() or question
 
 
-_ANSWER_PROMPT = """Rispondi alla domanda usando SOLO il contesto qui sotto.
-Cita le schede tra parentesi quadre con il loro numero, es. [1].
-Se il contesto non basta, dillo esplicitamente.
+_ANSWER_PROMPT = """Answer the question using ONLY the context below.
+Cite the notes with their bracketed number, e.g. [1].
+If the context is not enough, say so explicitly.
+ANSWER IN THE SAME LANGUAGE AS THE QUESTION.
 
-DOMANDA: {question}
+QUESTION: {question}
 
-CONTESTO:
+CONTEXT:
 {context}
 """
 

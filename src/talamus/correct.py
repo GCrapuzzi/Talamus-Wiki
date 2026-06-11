@@ -15,18 +15,18 @@ from talamus.models import CanonicalNote
 from talamus.paths import TalamusPaths
 from talamus.store import load_notes, overwrite_note_json, rebuild_indexes, render_note_markdown
 
-_PROMPT = """Ecco una SCHEDA e la sua FONTE. La scheda e' fedele alla fonte?
-Se e' fedele, rispondi SOLO con: {"ok": true}
-Se NON e' fedele (errori o cose inventate rispetto alla fonte), rispondi SOLO con:
-{"ok": false, "summary": "<riassunto corretto>", "body": "<definizione corretta>"}
-basandoti UNICAMENTE sulla fonte.
+_PROMPT = """Here is a NOTE and its SOURCE. Is the note faithful to the source?
+If it is faithful, reply ONLY with: {"ok": true}
+If it is NOT faithful (errors, or claims invented beyond the source), reply ONLY with:
+{"ok": false, "summary": "<corrected summary>", "body": "<corrected definition>"}
+based SOLELY on the source. Write the corrected text in the SAME LANGUAGE as the note.
 
-SCHEDA
-titolo: <TITLE>
-riassunto: <SUMMARY>
-corpo: <BODY>
+NOTE
+title: <TITLE>
+summary: <SUMMARY>
+body: <BODY>
 
-FONTE
+SOURCE
 <SOURCE>
 """
 

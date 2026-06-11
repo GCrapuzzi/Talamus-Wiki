@@ -120,7 +120,7 @@ class ExecutePlanTests(unittest.TestCase):
             self.assertEqual(report["failed"], [])
             self.assertTrue(load_notes(paths))
             # the code file went through the code-aware preamble
-            self.assertTrue(any("CODICE SORGENTE" in p for p in llm.prompts))
+            self.assertTrue(any("SOURCE CODE" in p for p in llm.prompts))
             # redaction happened before the LLM saw config.md
             self.assertFalse(any("abcdefghij1234567890" in p for p in llm.prompts))
 

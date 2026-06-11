@@ -337,6 +337,12 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
         value=config.llm_model,
         width=320,
     )
+    language_tf = ft.TextField(
+        label="Lingua delle note (vuoto = auto dal sistema)",
+        value=config.language,
+        hint_text="es. Italian, English, German",
+        width=320,
+    )
 
     def save_engine(_e: object) -> None:
         current = load_or_default(paths.config_path)
@@ -344,6 +350,7 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
             current,
             llm_provider=engine_dd.value or current.llm_provider,
             llm_model=model_tf.value or "",
+            language=language_tf.value or "",
         )
         save_config(paths.config_path, updated)
         _notify(f"Motore salvato: {updated.llm_provider}")
@@ -427,7 +434,12 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
             theme.section("Motore"),
             theme.card(
                 ft.Column(
-                    [engine_dd, model_tf, ft.FilledButton("Salva motore", on_click=save_engine)],
+                    [
+                        engine_dd,
+                        model_tf,
+                        language_tf,
+                        ft.FilledButton("Salva motore", on_click=save_engine),
+                    ],
                     spacing=10,
                 )
             ),

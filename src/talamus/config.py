@@ -18,6 +18,11 @@ class TalamusConfig:
     graph_provider: str
     search_provider: str
     llm_model: str = ""
+    # The language the USER reads notes in (prose of title/summary/body).
+    # Prompts are always English (cheap local models obey English best) and the
+    # machine layer (relation surfaces, canonical aliases) is English-canonical.
+    # Empty = auto-detect from the system locale.
+    language: str = ""
 
     @classmethod
     def default(cls) -> TalamusConfig:
@@ -51,7 +56,7 @@ def load_config(path: Path) -> TalamusConfig:
     empty = [
         name
         for name, value in asdict(config).items()
-        if name != "llm_model" and not str(value).strip()
+        if name not in ("llm_model", "language") and not str(value).strip()
     ]
     if empty:
         raise ConfigError(f"Empty config fields in {path}: {', '.join(empty)}")
@@ -72,3 +77,37 @@ def load_or_default(path: Path) -> TalamusConfig:
     """Load config from disk if present (else defaults), then apply env overrides."""
     config = load_config(path) if path.is_file() else TalamusConfig.default()
     return _apply_env_overrides(config)
+
+
+_LOCALE_LANGUAGES = {
+    "it": "Italian",
+    "en": "English",
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+    "pt": "Portuguese",
+    "nl": "Dutch",
+}
+
+
+def resolve_language(config: TalamusConfig) -> str:
+    """The language notes are written in: explicit config wins, else the system
+    locale, else English. Always an English language NAME ("Italian", ...) so it
+    drops cleanly into English prompts."""
+    if config.language.strip():
+        return config.language.strip()
+    import locale
+
+    try:
+        name = (locale.getlocale()[0] or "").strip()
+    except ValueError:
+        name = ""
+    if name:
+        prefix = name.split("_")[0].split("-")[0].lower()
+        if prefix in _LOCALE_LANGUAGES:
+            return _LOCALE_LANGUAGES[prefix]
+        # Windows locales are already English names ("Italian_Italy")
+        head = name.split("_")[0]
+        if head.isalpha() and len(head) > 3:
+            return head
+    return "English"

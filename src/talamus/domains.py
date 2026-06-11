@@ -17,20 +17,20 @@ from talamus.ontology import load_ontology, neighbors
 from talamus.paths import TalamusPaths
 from talamus.store import load_notes
 
-_PROMPT = """Sei un bibliotecario. Le SCHEDE sono pre-raggruppate per connessioni (CLUSTER).
-Trasformale in DOMINI tematici chiari che coprano TUTTE le schede.
-- Dai a ogni dominio un nome breve e una descrizione di una frase.
-- Assegna ogni scheda a UN SOLO dominio (puoi unire cluster piccoli o spostare una
-  scheda in un altro dominio se tematicamente sta meglio).
-- Ogni scheda deve finire in esattamente un dominio.
+_PROMPT = """You are a librarian. The NOTES are pre-grouped by connections (CLUSTERS).
+Turn them into clear thematic DOMAINS covering ALL the notes.
+- Give each domain a short name and a one-sentence description, in <LANGUAGE>.
+- Assign each note to EXACTLY ONE domain (you may merge small clusters, or move a
+  note to a different domain if it fits better thematically).
+- Every note must end up in exactly one domain.
 
-Restituisci SOLO un array JSON:
-[{"name": "<nome>", "description": "<una frase>", "members": ["<titolo>", "<titolo>"]}]
+Return ONLY a JSON array:
+[{"name": "<name>", "description": "<one sentence>", "members": ["<title>", "<title>"]}]
 
-CLUSTER (connessioni esistenti):
+CLUSTERS (existing connections):
 <CLUSTERS>
 
-SCHEDE (titolo: riassunto):
+NOTES (title: summary):
 <SUMMARIES>
 """
 
@@ -64,12 +64,17 @@ def _structural_clusters(notes: list[CanonicalNote], ontology: dict) -> list[lis
 
 
 def _name_domains(
-    clusters: list[list[str]], summaries: dict[str, str], llm: LLMProvider
+    clusters: list[list[str]],
+    summaries: dict[str, str],
+    llm: LLMProvider,
+    language: str = "English",
 ) -> list[dict]:
     cluster_text = "\n".join(f"- {', '.join(cluster)}" for cluster in clusters)
     summary_text = "\n".join(f"- {title}: {summary}" for title, summary in summaries.items())
     raw = llm.complete(
-        _PROMPT.replace("<CLUSTERS>", cluster_text).replace("<SUMMARIES>", summary_text)
+        _PROMPT.replace("<CLUSTERS>", cluster_text)
+        .replace("<SUMMARIES>", summary_text)
+        .replace("<LANGUAGE>", language)
     )
     start, end = raw.find("["), raw.rfind("]")
     parsed: list = []
@@ -106,12 +111,15 @@ def _name_domains(
 
 def build_overview(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
     """Induce the domains and persist the overview. Returns the domain list."""
+    from talamus.config import load_or_default, resolve_language
+
     notes = load_notes(paths)
     if not notes:
         return []
     clusters = _structural_clusters(notes, load_ontology(paths))
     summaries = {note.title: note.summary for note in notes}
-    domains = _name_domains(clusters, summaries, llm)
+    language = resolve_language(load_or_default(paths.config_path))
+    domains = _name_domains(clusters, summaries, llm, language=language)
     save_overview(paths, domains)
     return domains
 
@@ -150,11 +158,12 @@ def load_overview(paths: TalamusPaths) -> list[dict]:
 
 TREE_THRESHOLD = 12  # below this many domains, flat routing is already cheap
 
-_TREE_PROMPT = """Sei un bibliotecario. Raggruppa i DOMINI in 3-9 MACRO-AREE tematiche.
-Ogni dominio deve stare in esattamente una macro-area. Restituisci SOLO un array JSON:
-[{"name": "<nome breve>", "description": "<una frase>", "children": ["<id dominio>", ...]}]
+_TREE_PROMPT = """You are a librarian. Group the DOMAINS into 3-9 thematic MACRO-AREAS.
+Every domain must belong to exactly one macro-area. Name and describe each area in
+<LANGUAGE>. Return ONLY a JSON array:
+[{"name": "<short name>", "description": "<one sentence>", "children": ["<domain id>", ...]}]
 
-DOMINI (id | nome: descrizione):
+DOMAINS (id | name: description):
 <DOMAINS>
 """
 
@@ -171,10 +180,15 @@ def build_overview_tree(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
     if len(overview) < TREE_THRESHOLD:
         tree_path(paths).unlink(missing_ok=True)
         return []
+    from talamus.config import load_or_default, resolve_language
+
     domain_lines = "\n".join(
         f"- {d.get('id', '?')} | {d.get('name', '')}: {d.get('description', '')}" for d in overview
     )
-    raw = llm.complete(_TREE_PROMPT.replace("<DOMAINS>", domain_lines))
+    language = resolve_language(load_or_default(paths.config_path))
+    raw = llm.complete(
+        _TREE_PROMPT.replace("<DOMAINS>", domain_lines).replace("<LANGUAGE>", language)
+    )
     start, end = raw.find("["), raw.rfind("]")
     parsed: list = []
     if start != -1 and end != -1 and end > start:

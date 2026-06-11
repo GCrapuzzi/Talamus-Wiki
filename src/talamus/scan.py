@@ -47,12 +47,12 @@ LOCKFILES = {
 PER_FILE_MAX_BYTES = 1_000_000
 
 CODE_PREAMBLE = (
-    "ISTRUZIONI AGGIUNTIVE PER CODICE SORGENTE: il testo è un digest di un modulo di "
-    "codice (percorso, firme pubbliche, docstring). NON trattarlo come prosa: produci "
-    "poche schede dei tipi Module (responsabilità del modulo), Public API (cosa espone "
-    "e a cosa serve), Architecture Decision / Integration Point / Risk solo se il "
-    "codice li rivela davvero. Niente schede per funzioni private, niente codice "
-    "copiato salvo brevi firme. Includi 'code' tra i tags di ogni scheda.\n\n"
+    "ADDITIONAL INSTRUCTIONS FOR SOURCE CODE: the text is a digest of a code module "
+    "(path, public signatures, docstrings). Do NOT treat it as prose: produce few "
+    "notes of the types Module (the module's responsibility), Public API (what it "
+    "exposes and what for), and Architecture Decision / Integration Point / Risk "
+    "only when the code truly reveals them. No notes for private functions, no "
+    "copied code beyond short signatures. Include 'code' among each note's tags.\n\n"
 )
 
 

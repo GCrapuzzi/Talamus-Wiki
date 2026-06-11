@@ -6,43 +6,53 @@ from talamus.adapters.llm import LLMProvider
 from talamus.models import CanonicalNote, ProposedLink, Relation, SourceRef
 from talamus.normalize import NormalizedPackage, NormalizedSection
 
-_PROMPT = """Sei un bibliotecario esperto: trasformi il testo in SCHEDE di conoscenza chiare e
-autosufficienti. Restituisci SOLO un ARRAY JSON, senza commenti. Ogni scheda = UN
-concetto riutilizzabile, con questi campi:
-- "title": il nome del concetto.
-- "aliases": nomi alternativi e sigle (lista).
-- "tags": 3-6 etichette tematiche (lista).
-- "summary": 1-2 frasi che dicono in sintesi cos'è e perché conta (NON ripeterlo nel corpo).
-- "retrieval_text": parole chiave e termini di ricerca, in una sola stringa.
-- "body_sections": oggetto che usa SOLO queste chiavi, quando pertinenti, in quest'ordine:
-    "definizione"  : cos'è, in frasi complete e collegate.
-    "funzionamento": come funziona / come si usa, spiegando il PERCHÉ.
-    "quando"       : quando conviene e quando no, motivando.
-    "esempio"      : un esempio o caso concreto, se presente nella fonte.
-    "relazioni"    : come si lega o si contrappone ad altri concetti
-                     ("a differenza di...", "usa...", "è un tipo di...").
-- "relations": lista di {{"source","relation","target","confidence"}} verso ALTRI
-  concetti citati (es. uses, is-a, contrasts-with, part-of). Compilala con cura:
-  serve a costruire la mappa della conoscenza.
-- "proposed_links": lista di {{"anchor","target","reason"}}. "anchor" = una frase che
-  compare LETTERALMENTE nel corpo, alla PRIMA menzione del concetto, in QUALSIASI
-  sezione (Definizione, Funzionamento, ecc.) e non solo in "relazioni": così il
-  lettore puo cliccare il concetto proprio dove lo incontra. "target" = il titolo di
-  un'altra scheda. Una sola ancora per concetto. Proponi link solo verso concetti che
-  meritano una scheda propria; il sistema scarta da solo i link verso schede inesistenti.
-- "supported_claims": frasi sostenute dal testo (lista).
-- "confidence": numero 0..1.
+# Instructions are ALWAYS English (cheap local models follow English best); the
+# user-facing prose comes out in {language}; the machine layer (canonical alias,
+# relation verbs, half of retrieval_text) stays English-canonical so search and
+# the emergent ontology work across languages. See docs/research notes (Fase RS).
+_PROMPT = """You are an expert librarian: you turn source text into clear, self-contained
+knowledge NOTES. Return ONLY a JSON array, no comments. Each note = ONE reusable
+concept, with these fields:
+- "title": the concept's name, in {language}.
+- "aliases": alternative names and acronyms (list). ALWAYS include the English
+  canonical name of the concept as one alias — it powers cross-language search.
+- "tags": 3-6 thematic labels (list, lowercase English).
+- "summary": 1-2 sentences in {language}: what it is and why it matters
+  (do NOT repeat them in the body).
+- "retrieval_text": search keywords in ONE string. Include the key terms BOTH in
+  {language} AND in English, so the note is findable in either language.
+- "body_sections": object using ONLY these keys, when pertinent, in this order:
+    "definizione"  : what it is, in connected full sentences.
+    "funzionamento": how it works / how to use it, explaining WHY.
+    "quando"       : when it helps and when it does not, with reasons.
+    "esempio"      : an example or concrete case, if present in the source.
+    "relazioni"    : how it links to or contrasts with other concepts.
+  Write ALL body prose in {language}. The keys stay exactly as given (they are
+  structural identifiers, not display text).
+- "relations": list of {{"source","relation","target","confidence"}} toward OTHER
+  mentioned concepts. Use ENGLISH verbs for "relation" (e.g. uses, is-a, part-of,
+  contrasts-with, depends-on, feeds, replaces, extends): English relation surfaces
+  keep the emergent ontology consistent across languages. Fill this carefully —
+  it builds the knowledge map.
+- "proposed_links": list of {{"anchor","target","reason"}}. "anchor" = a phrase that
+  appears VERBATIM in the body at the FIRST mention of the concept, in ANY section
+  (not only in "relazioni"), so the reader can click the concept right where they
+  meet it. "target" = another note's title. One anchor per concept. Propose links
+  only toward concepts that deserve their own note; the system discards links to
+  missing notes on its own.
+- "supported_claims": sentences supported by the source text (list).
+- "confidence": number 0..1.
 
-REGOLE DI SCRITTURA (importanti):
-- Scrivi in italiano corretto e con gli accenti giusti (è, é, perché, può, così, già).
-- Scrivi PROSA connessa e ragionata, NON frammenti o elenchi telegrafici. Collega le
-  proposizioni ("quindi", "perché", "a differenza di", "in pratica").
-- Ogni sezione deve poter essere capita da sola, da chi non ha letto la fonte.
-- Chiaro e completo MA conciso: poche frasi per sezione, nessun riempitivo.
-- Spiega il ragionamento PRESENTE nella fonte; NON inventare fatti non supportati.
-- Non copiare blocchi grezzi: rielabora con parole tue.
+WRITING RULES (important):
+- Write the notes in correct {language}, with proper accents and grammar.
+- Write CONNECTED, reasoned prose, NOT telegraphic fragments. Link propositions
+  ("therefore", "because", "unlike", "in practice" — in {language}).
+- Every section must stand on its own for someone who never read the source.
+- Clear and complete BUT concise: a few sentences per section, no filler.
+- Explain the reasoning PRESENT in the source; do NOT invent unsupported facts.
+- Never copy raw blocks: rewrite in your own words.
 
-TESTO:
+TEXT:
 {text}
 """
 
@@ -75,12 +85,14 @@ def extract_notes(
     llm: LLMProvider,
     normalized_path: str | None = None,
     preamble: str = "",
+    language: str = "English",
 ) -> list[CanonicalNote]:
     """Extract concept notes. ``preamble`` prepends extra instructions to the
-    librarian prompt (e.g. the code-aware variant used by repo scans)."""
+    librarian prompt (e.g. the code-aware variant used by repo scans);
+    ``language`` is the user's reading language for the note prose."""
     norm = normalized_path or package.raw_path
     text = "\n\n".join(f"# {s.title}\n{s.text}" for s in package.sections)
-    raw = llm.complete(preamble + _PROMPT.format(text=text))
+    raw = llm.complete(preamble + _PROMPT.format(text=text, language=language))
     candidates = _extract_json_array(raw)
     primary_section = package.sections[0]
     notes: list[CanonicalNote] = []
