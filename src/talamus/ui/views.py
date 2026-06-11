@@ -1,0 +1,298 @@
+"""Workbench views — pure builders over the SDK, testable without a window (M9/F9).
+
+Every ``build_*`` function takes the brain paths (plus callbacks where needed) and
+returns a Flet control tree. No business logic lives here: views call the same SDK
+functions the CLI uses (F9 acceptance: no duplicated logic). Builders are
+constructible headless, which is what the smoke tests exercise; rendering is
+verified at runtime via ``talamus ui`` (desktop) or ``talamus ui --web``.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable
+
+import flet as ft
+
+from talamus.domains import load_overview
+from talamus.jobs import JobStore
+from talamus.ontology import load_ontology, neighbors
+from talamus.ontology_lab import load_schema, schema_status
+from talamus.paths import TalamusPaths
+from talamus.review import ReviewQueue
+from talamus.store import load_notes
+from talamus.temporal import note_timeline
+
+_WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+MD = ft.MarkdownExtensionSet.GITHUB_WEB
+
+OpenNote = Callable[[str], None]
+
+
+def wikilinks_to_md(text: str) -> str:
+    """Turn Obsidian [[Target]] / [[Target|Label]] into clickable Markdown links."""
+    return _WIKILINK.sub(lambda m: f"[{m.group(2) or m.group(1)}](<{m.group(1).strip()}>)", text)
+
+
+def heading(text: str) -> ft.Control:
+    return ft.Text(text, size=22, weight=ft.FontWeight.BOLD)
+
+
+def subtle(text: str) -> ft.Control:
+    return ft.Text(text, size=12, opacity=0.7)
+
+
+# ------------------------------------------------------------------- home
+
+
+def build_home(paths: TalamusPaths) -> ft.Control:
+    notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
+    sources = len(list(paths.raw.glob("*"))) if paths.raw.exists() else 0
+    reviews = len(ReviewQueue(paths).list(status="pending"))
+    jobs = [j for j in JobStore(paths).list() if j.state in ("running", "queued")]
+    schema = schema_status(paths)
+    rows = [
+        heading("Stato del brain"),
+        subtle(str(paths.project_root)),
+        ft.Text(f"Note: {notes} · Fonti: {sources} · Review in attesa: {reviews}"),
+        ft.Text(
+            f"Ontologia v{schema['version']} — "
+            f"{schema['types'].get('active', 0)} tipi attivi, "
+            f"{schema['types'].get('candidate', 0)} candidati"
+        ),
+        ft.Text(f"Job attivi: {len(jobs)}"),
+    ]
+    if not paths.config_path.exists():
+        rows.append(ft.Text("Nessun brain qui: esegui `talamus init`.", color=ft.Colors.AMBER))
+    if notes == 0:
+        rows.append(subtle("Suggerito: ingerisci un documento o lancia uno scan (vista Ingest)."))
+    elif reviews:
+        rows.append(subtle("Suggerito: ci sono decisioni in attesa nella vista Review."))
+    return ft.Column(rows, spacing=10)
+
+
+# ------------------------------------------------------------------- notes
+
+
+def build_notes(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
+    notes = sorted(load_notes(paths), key=lambda n: n.title.lower())
+    if not notes:
+        return ft.Column([heading("Note"), ft.Text("Nessuna scheda ancora.")])
+    tiles: list[ft.Control] = [
+        ft.ListTile(
+            title=ft.Text(note.title),
+            subtitle=ft.Text(note.summary),
+            on_click=lambda e, t=note.title: open_note(t),
+        )
+        for note in notes
+    ]
+    return ft.Column([heading(f"Note ({len(notes)})"), *tiles], spacing=2)
+
+
+# ------------------------------------------------------------------- graph
+
+
+def build_graph(paths: TalamusPaths, title: str, open_note: OpenNote) -> ft.Control:
+    """Functional graph view: the typed neighborhood of a note, navigable."""
+    ontology = load_ontology(paths)
+    rows: list[ft.Control] = [heading(f"Grafo — {title}" if title else "Grafo")]
+    if not title:
+        rows.append(ft.Text("Apri una nota (da Note o Cerca) per esplorarne le connessioni."))
+        return ft.Column(rows, spacing=8)
+    connected = neighbors(ontology, title)
+    if not connected:
+        rows.append(ft.Text("Nessuna connessione tipizzata per questa nota."))
+        return ft.Column(rows, spacing=8)
+    by_relation: dict[str, list[dict]] = {}
+    for item in connected:
+        by_relation.setdefault(str(item["relation"]), []).append(item)
+    for relation, items in sorted(by_relation.items()):
+        rows.append(ft.Text(relation, weight=ft.FontWeight.BOLD))
+        for item in items:
+            arrow = "→" if item["direction"] == "out" else "←"
+            rows.append(
+                ft.TextButton(
+                    f"{arrow} {item['title']}",
+                    on_click=lambda e, t=str(item["title"]): open_note(t),
+                )
+            )
+    return ft.Column(rows, spacing=4)
+
+
+# ------------------------------------------------------------------- timeline
+
+
+def build_timeline(paths: TalamusPaths, title: str) -> ft.Control:
+    rows: list[ft.Control] = [heading(f"Timeline — {title}" if title else "Timeline")]
+    if not title:
+        rows.append(ft.Text("Apri una nota per vedere le sue due linee temporali."))
+        return ft.Column(rows, spacing=8)
+    data = note_timeline(paths, title)
+    rows.append(
+        ft.Text("Transazioni (quando Talamus ha cambiato il record)", weight=ft.FontWeight.BOLD)
+    )
+    if not data["transaction"]:
+        rows.append(subtle("nessuna versione"))
+    for event in data["transaction"]:
+        rows.append(subtle(f"[{event['at']}] {event['summary']}"))
+    rows.append(ft.Text("Validità dei fatti", weight=ft.FontWeight.BOLD))
+    if not data["valid"]:
+        rows.append(subtle("nessun claim registrato"))
+    for claim in data["valid"]:
+        marker = f" (invalidato da: {claim['invalidated_by']})" if claim["invalidated_by"] else ""
+        rows.append(subtle(f"[{claim['from']} → {claim['to']}] {claim['text']}{marker}"))
+    return ft.Column(rows, spacing=4)
+
+
+# ------------------------------------------------------------------- domains
+
+
+def build_domains(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
+    overview = load_overview(paths)
+    rows: list[ft.Control] = [heading("Domini")]
+    if not overview:
+        rows.append(ft.Text("Nessun dominio ancora. Esegui `talamus overview`."))
+    for domain in overview:
+        label = f"{domain.get('name', '?')}  ({len(domain.get('members', []))} note)"
+        rows.append(ft.Text(label, size=16, weight=ft.FontWeight.BOLD))
+        if domain.get("description"):
+            rows.append(subtle(str(domain["description"])))
+        for member in domain.get("members", []):
+            rows.append(ft.TextButton(str(member), on_click=lambda e, t=str(member): open_note(t)))
+    return ft.Column(rows, spacing=4)
+
+
+# ------------------------------------------------------------------- review
+
+
+def build_review(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.Control:
+    queue = ReviewQueue(paths)
+    pending = queue.list(status="pending")
+    rows: list[ft.Control] = [heading(f"Review ({len(pending)} in attesa)")]
+    if not pending:
+        rows.append(ft.Text("Coda vuota: nessuna decisione in attesa."))
+        return ft.Column(rows, spacing=8)
+
+    def _apply(item_id: str) -> None:
+        entry = queue.get(item_id)
+        if entry is not None and entry.kind == "correction":
+            from talamus.correct import apply_proposed_correction
+
+            apply_proposed_correction(paths, entry.detail)
+        queue.apply(item_id)
+        refresh()
+
+    def _reject(item_id: str) -> None:
+        queue.reject(item_id)
+        refresh()
+
+    for item in pending:
+        rows.append(
+            ft.Column(
+                [
+                    ft.Text(f"[{item.kind}] {item.title}", weight=ft.FontWeight.BOLD),
+                    subtle(str(item.detail)),
+                    ft.Row(
+                        [
+                            ft.TextButton("Applica", on_click=lambda e, i=item.item_id: _apply(i)),
+                            ft.TextButton("Rifiuta", on_click=lambda e, i=item.item_id: _reject(i)),
+                        ]
+                    ),
+                    ft.Divider(),
+                ],
+                spacing=2,
+            )
+        )
+    return ft.Column(rows, spacing=4)
+
+
+# ------------------------------------------------------------------- ontology
+
+
+def build_ontology_lab(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.Control:
+    schema = load_schema(paths)
+    status = schema_status(paths)
+    cov = status["coverage"]
+    rows: list[ft.Control] = [
+        heading("Ontology Lab"),
+        ft.Text(f"Schema {status['schema_id']} (v{status['version']})"),
+        ft.Text(
+            f"Coverage: {cov['non_related']}/{cov['edges']} archi tipizzati"
+            f" ({cov['non_related_share']:.0%})"
+            if cov["edges"]
+            else "Coverage: nessun arco ancora"
+        ),
+    ]
+
+    def _promote(type_id: str) -> None:
+        from talamus.ontology_lab import promote_candidate
+
+        promote_candidate(paths, type_id, force=True)
+        refresh()
+
+    def _reject(type_id: str) -> None:
+        from talamus.ontology_lab import reject_candidate
+
+        reject_candidate(paths, type_id)
+        refresh()
+
+    for state in ("active", "candidate", "deprecated"):
+        types = [t for t in schema.relation_types if t.status == state]
+        if not types:
+            continue
+        rows.append(ft.Text(state.capitalize(), size=16, weight=ft.FontWeight.BOLD))
+        for rel_type in types:
+            detail = [
+                ft.Text(f"{rel_type.name}  (support {rel_type.support})"),
+                subtle(rel_type.definition or "(senza definizione)"),
+            ]
+            for example in rel_type.examples[:2]:
+                detail.append(subtle(f"es. {example}"))
+            if state == "candidate":
+                detail.append(
+                    ft.Row(
+                        [
+                            ft.TextButton(
+                                "Promuovi", on_click=lambda e, i=rel_type.id: _promote(i)
+                            ),
+                            ft.TextButton("Rifiuta", on_click=lambda e, i=rel_type.id: _reject(i)),
+                        ]
+                    )
+                )
+            detail.append(ft.Divider())
+            rows.append(ft.Column(detail, spacing=2))
+    return ft.Column(rows, spacing=4)
+
+
+# ------------------------------------------------------------------- settings
+
+
+def build_settings(paths: TalamusPaths) -> ft.Control:
+    from talamus.config import load_or_default
+    from talamus.indexes import backend_info
+    from talamus.registry import load_registry
+
+    config = load_or_default(paths.config_path)
+    info = backend_info(paths)
+    registry = load_registry()
+    rows: list[ft.Control] = [
+        heading("Impostazioni"),
+        ft.Text(
+            f"Engine: {config.llm_provider}"
+            + (f" ({config.llm_model})" if config.llm_model else "")
+        ),
+        ft.Text(f"Indice: {info['backend']} ({info['bytes']:,} byte)"),
+        subtle("Engine e budget si cambiano in talamus.json o via TALAMUS_* env."),
+        ft.Text("Brain registrati", size=16, weight=ft.FontWeight.BOLD),
+    ]
+    if not registry.brains:
+        rows.append(subtle("nessun brain nel registry"))
+    for brain in registry.brains:
+        flags = []
+        if not brain.federated:
+            flags.append("no-fed")
+        if brain.sensitive:
+            flags.append("sensitive")
+        extra = f"  [{', '.join(flags)}]" if flags else ""
+        rows.append(subtle(f"{brain.name} ({brain.type}){extra} — {brain.path}"))
+    return ft.Column(rows, spacing=6)

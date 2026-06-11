@@ -219,13 +219,13 @@ def _cmd_quickstart() -> int:
     return 0
 
 
-def _cmd_ui(root: Path) -> int:
+def _cmd_ui(root: Path, web: bool = False, port: int = 8550) -> int:
     try:
         from talamus.ui.app import run_app
     except ImportError:
         print("UI needs the 'ui' extra: pip install talamus[ui]", file=sys.stderr)
         return 1
-    run_app(TalamusPaths(root))
+    run_app(TalamusPaths(root), web=web, port=port)
     return 0
 
 
@@ -1305,7 +1305,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     init.add_argument("--profile", choices=list(PROFILES), default="all")
     sub.add_parser("demo", parents=[common], help="create a small example brain")
-    sub.add_parser("ui", parents=[common], help="launch the desktop UI (needs the 'ui' extra)")
+    ui = sub.add_parser("ui", parents=[common], help="launch the workbench (needs the 'ui' extra)")
+    ui.add_argument("--web", action="store_true", help="open in the browser (test mode, F9.1)")
+    ui.add_argument("--port", type=int, default=8550, help="port for --web (default 8550)")
     for name in ("status", "doctor", "reindex"):
         sub.add_parser(name, parents=[common], help=f"{name} the brain")
     sub.add_parser("quickstart", help="print the essential commands")
@@ -1535,7 +1537,7 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         if command == "demo":
             return _cmd_demo(root)
         if command == "ui":
-            return _cmd_ui(root)
+            return _cmd_ui(root, args.web, args.port)
         if command == "mcp":
             return _cmd_mcp_install(root)
         if command == "hook":

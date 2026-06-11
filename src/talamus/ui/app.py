@@ -1,12 +1,14 @@
-"""Flet desktop/web/mobile UI for Talamus — a thin layer over the SDK.
+"""Talamus workbench — Flet desktop/web UI, a thin shell over the SDK (M9/F9).
 
-Run with `talamus ui`. Package native installers with `flet build <target>`.
-The UI calls the SDK directly (no API); all logic lives in the tested core.
+Eleven views (Home, Chat, Cerca, Note, Domini, Grafo, Timeline, Ingest, Review,
+Ontologia, Impostazioni) built from the pure builders in ``talamus.ui.views``;
+the shell only wires navigation, input fields and threading. Run with
+``talamus ui`` (desktop) or ``talamus ui --web --port 8550`` (browser test mode,
+F9.1). No API layer: every action calls the same SDK functions as the CLI.
 """
 
 from __future__ import annotations
 
-import re
 import threading
 
 import flet as ft
@@ -14,21 +16,9 @@ import flet as ft
 from talamus.adapters.llm import build_provider
 from talamus.ask import answer_question
 from talamus.config import load_or_default
-from talamus.domains import load_overview
 from talamus.paths import TalamusPaths
 from talamus.recall import read_note_text, search_notes
-
-_WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
-_MD = ft.MarkdownExtensionSet.GITHUB_WEB
-
-
-def _wikilinks_to_md(text: str) -> str:
-    """Turn Obsidian [[Target]] / [[Target|Label]] into clickable Markdown links.
-
-    The target is wrapped in angle brackets so titles with spaces stay a single URL
-    (`[Label](<Vector Store>)`), which the tap handler then normalizes.
-    """
-    return _WIKILINK.sub(lambda m: f"[{m.group(2) or m.group(1)}](<{m.group(1).strip()}>)", text)
+from talamus.ui import views
 
 
 def _provider(paths: TalamusPaths):
@@ -40,29 +30,89 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
     page.title = "Talamus"
     page.theme_mode = ft.ThemeMode.SYSTEM
     content = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
+    state = {"note": ""}  # the note the Grafo/Timeline views focus on
 
-    def show(controls: list) -> None:
-        content.controls = controls
+    def show(control: ft.Control) -> None:
+        content.controls = [control]
         page.update()
-
-    def heading(text: str) -> ft.Control:
-        return ft.Text(text, size=24, weight=ft.FontWeight.BOLD)
 
     def open_note(title: str) -> None:
         title = title.strip().strip("<>").strip()
+        state["note"] = title
         text = read_note_text(paths, title)
         if text is None:
-            show([heading(title or "?"), ft.Text("Scheda non trovata.")])
+            show(ft.Column([views.heading(title or "?"), ft.Text("Scheda non trovata.")]))
             return
         body = ft.Markdown(
-            _wikilinks_to_md(text),
+            views.wikilinks_to_md(text),
             selectable=True,
-            extension_set=_MD,
+            extension_set=views.MD,
             on_tap_link=lambda e: open_note(str(e.data)),
         )
-        show([heading(title), ft.Divider(), body])
+        actions = ft.Row(
+            [
+                ft.TextButton("Connessioni", on_click=lambda e: show_view("grafo")),
+                ft.TextButton("Timeline", on_click=lambda e: show_view("timeline")),
+            ]
+        )
+        show(ft.Column([views.heading(title), actions, ft.Divider(), body]))
 
-    def search_view() -> None:
+    # ---------------------------------------------------------------- chat
+    def chat_view() -> ft.Control:
+        answer = ft.Markdown("", selectable=True, extension_set=views.MD)
+        box = ft.TextField(label="Chiedi alla tua memoria")
+        as_of = ft.TextField(label="as-of (opzionale: 2026, 2026-01, ...)", width=260)
+
+        def ask() -> None:
+            question = (box.value or "").strip()
+            if not question:
+                return
+            answer.value = "…"
+            page.update()
+
+            def work() -> None:
+                try:
+                    if (as_of.value or "").strip():
+                        from talamus.ask import answer_from_items
+                        from talamus.temporal import parse_when
+                        from talamus.timeline import note_as_of
+
+                        parse_when(as_of.value.strip())  # validate early
+                        items = []
+                        for hit in search_notes(paths, question, limit=5):
+                            version = note_as_of(paths, hit["title"], as_of.value.strip())
+                            if version is None:
+                                continue
+                            joiner = chr(10)
+                            body = joiner.join(
+                                str(v) for v in version.get("body_sections", {}).values()
+                            )
+                            items.append(
+                                {
+                                    "route": "as-of",
+                                    "path": f"[as-of {as_of.value}] {hit['title']}",
+                                    "content": f"{version.get('summary', '')}{joiner}{body}",
+                                }
+                            )
+                        if items:
+                            answer.value = answer_from_items(question, items, _provider(paths))
+                        else:
+                            answer.value = f"Nessuna conoscenza nel brain alla data {as_of.value}."
+                    else:
+                        answer.value = answer_question(paths, question, _provider(paths))
+                except Exception as exc:  # surface engine errors instead of hanging
+                    answer.value = f"**Errore dal motore:** {exc}"
+                page.update()
+
+            threading.Thread(target=work, daemon=True).start()
+
+        box.on_submit = lambda e: ask()
+        return ft.Column(
+            [views.heading("Chat sulla memoria"), box, as_of, ft.Divider(), answer], spacing=10
+        )
+
+    # ---------------------------------------------------------------- search
+    def search_view() -> ft.Control:
         results_box = ft.Column(spacing=4)
         query = ft.TextField(label="Cerca nel brain")
 
@@ -81,58 +131,104 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             page.update()
 
         query.on_submit = lambda e: run_search()
-        show([heading("Cerca"), query, results_box])
+        return ft.Column([views.heading("Cerca"), query, results_box], spacing=10)
 
-    def chat_view() -> None:
-        answer = ft.Markdown("", selectable=True, extension_set=_MD)
-        box = ft.TextField(label="Chiedi alla tua memoria")
+    # ---------------------------------------------------------------- ingest
+    def ingest_view() -> ft.Control:
+        target = ft.TextField(label="File, cartella o URL (oppure . per la repo)")
+        output = ft.Text("", selectable=True)
 
-        def ask() -> None:
-            question = (box.value or "").strip()
-            if not question:
+        def dry_run() -> None:
+            from talamus.scan import build_plan, format_plan
+
+            try:
+                plan = build_plan(paths.project_root / (target.value or "."))
+                output.value = format_plan(plan)
+            except Exception as exc:
+                output.value = f"Errore: {exc}"
+            page.update()
+
+        def run_ingest() -> None:
+            value = (target.value or "").strip()
+            if not value:
                 return
-            answer.value = "…"
+            output.value = "Ingestione in corso…"
             page.update()
 
             def work() -> None:
                 try:
-                    answer.value = answer_question(paths, question, _provider(paths))
-                except Exception as exc:  # surface engine/config errors instead of hanging on "…"
-                    answer.value = f"**Errore dal motore:** {exc}"
+                    from talamus.ingest import ingest_path
+
+                    result = ingest_path(paths, value, _provider(paths))
+                    output.value = f"Fatto: {result}"
+                except Exception as exc:
+                    output.value = f"Errore: {exc}"
                 page.update()
 
             threading.Thread(target=work, daemon=True).start()
 
-        box.on_submit = lambda e: ask()
-        show([heading("Chat sulla memoria"), box, ft.Divider(), answer])
+        buttons = ft.Row(
+            [
+                ft.TextButton("Piano scan (dry-run, gratis)", on_click=lambda e: dry_run()),
+                ft.ElevatedButton("Ingerisci", on_click=lambda e: run_ingest()),
+            ]
+        )
+        return ft.Column([views.heading("Ingest"), target, buttons, output], spacing=10)
 
-    def domains_view() -> None:
-        overview = load_overview(paths)
-        controls: list = [heading("Domini")]
-        if not overview:
-            controls.append(ft.Text("Nessun dominio ancora. Esegui `talamus overview`."))
-        for domain in overview:
-            controls.append(ft.Text(domain["name"], size=18, weight=ft.FontWeight.BOLD))
-            if domain.get("description"):
-                controls.append(ft.Text(domain["description"]))
-            for member in domain.get("members", []):
-                controls.append(ft.TextButton(member, on_click=lambda e, t=member: open_note(t)))
-        show(controls)
+    # ---------------------------------------------------------------- routing
+    builders: dict[str, object] = {}
 
-    views = [chat_view, search_view, domains_view]
+    def show_view(name: str) -> None:
+        builder = builders[name]
+        show(builder())  # type: ignore[operator]
+
+    builders.update(
+        {
+            "home": lambda: views.build_home(paths),
+            "chat": chat_view,
+            "cerca": search_view,
+            "note": lambda: views.build_notes(paths, open_note),
+            "domini": lambda: views.build_domains(paths, open_note),
+            "grafo": lambda: views.build_graph(paths, state["note"], open_note),
+            "timeline": lambda: views.build_timeline(paths, state["note"]),
+            "ingest": ingest_view,
+            "review": lambda: views.build_review(paths, lambda: show_view("review")),
+            "ontologia": lambda: views.build_ontology_lab(paths, lambda: show_view("ontologia")),
+            "impostazioni": lambda: views.build_settings(paths),
+        }
+    )
+    order = list(builders)
+    destinations = [
+        ("home", ft.Icons.HOME),
+        ("chat", ft.Icons.CHAT),
+        ("cerca", ft.Icons.SEARCH),
+        ("note", ft.Icons.DESCRIPTION),
+        ("domini", ft.Icons.ACCOUNT_TREE),
+        ("grafo", ft.Icons.HUB),
+        ("timeline", ft.Icons.HISTORY),
+        ("ingest", ft.Icons.UPLOAD_FILE),
+        ("review", ft.Icons.CHECKLIST),
+        ("ontologia", ft.Icons.SCHEMA),
+        ("impostazioni", ft.Icons.SETTINGS),
+    ]
     rail = ft.NavigationRail(
         selected_index=0,
         label_type=ft.NavigationRailLabelType.ALL,
         destinations=[
-            ft.NavigationRailDestination(icon=ft.Icons.CHAT, label="Chat"),
-            ft.NavigationRailDestination(icon=ft.Icons.SEARCH, label="Cerca"),
-            ft.NavigationRailDestination(icon=ft.Icons.ACCOUNT_TREE, label="Domini"),
+            ft.NavigationRailDestination(icon=icon, label=name.capitalize())
+            for name, icon in destinations
         ],
-        on_change=lambda e: views[e.control.selected_index or 0](),
+        on_change=lambda e: show_view(order[e.control.selected_index or 0]),
     )
     page.add(ft.Row([rail, ft.VerticalDivider(width=1), content], expand=True))
-    chat_view()
+    show_view("home")
 
 
-def run_app(paths: TalamusPaths) -> None:
-    ft.app(target=lambda page: _build(page, paths))
+def run_app(paths: TalamusPaths, web: bool = False, port: int = 8550) -> None:
+    """Launch the workbench: native window, or browser mode for deterministic
+    testing/screenshots (``talamus ui --web --port N``)."""
+    target = lambda page: _build(page, paths)  # noqa: E731
+    if web:
+        ft.app(target=target, view=ft.AppView.WEB_BROWSER, port=port)
+    else:
+        ft.app(target=target)
