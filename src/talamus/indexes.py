@@ -1,18 +1,19 @@
-"""Persistent retrieval indexes — kill the O(N) scans (PRD 9.4 / F3 / M4).
+"""Persistent retrieval indexes — three channels, no embeddings (M4 + Fase RS).
 
-The M0 baseline measured the truth: at 10.000 notes a single ``search_notes``
-cost ~8.5s, because every query re-read all note JSONs and scanned every BM25
-document. This module replaces that with indexes persisted at build time:
+The 2026-06 recall research measured the dominant failure class on real corpora:
+cross-language vocabulary mismatch (Italian questions vs English-titled notes
+and vice versa). The cure that won the ablations — without embeddings — is a
+**character-trigram channel** over titles/aliases (cognates share trigrams:
+architettur*ali*/architectur*e*, principi/principles) plus a lighter one over
+summaries, blended with the stemmed lexical channel:
 
-- **sqlite + FTS5** (stdlib) when available: terms, metadata (title/aliases/
-  summary) and BM25 ranking inside the database — queries touch only matching
-  rows.
-- **JSON posting lists** as the deterministic fallback: per-term postings with
-  tf/df/lengths, so a query reads only the postings of its own terms.
+    score = lexical + 0.7 * trigram(title+aliases) + 0.3 * trigram(summary)
 
-Tokens are stemmed with the same ``textutil.tokens`` used everywhere, so both
-backends rank consistently with the legacy index. The indexes are derived and
-rebuildable — never source truth.
+measured on the 120-case real eval-set: recall@5 +36%, MRR +40%, hit +31% over
+the lexical-only baseline. Field weighting (title x3, aliases x2) is baked into
+the lexical haystack. Backends: sqlite+FTS5 (preferred) with per-column queries,
+or deterministic JSON posting lists. Indexes stay derived and rebuildable —
+never source truth.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sqlite3
 from collections import Counter
 from pathlib import Path
@@ -30,6 +32,11 @@ from talamus.textutil import tokens
 
 _K1 = 1.5
 _B = 0.75
+W_TRI_TITLE = 0.7
+W_TRI_SUMMARY = 0.3
+_MAX_QUERY_TRIGRAMS = 64  # bound the OR-query cost
+
+_WORD = re.compile(r"[a-zà-ÿ0-9]+")
 
 
 def sqlite_path(paths: TalamusPaths) -> Path:
@@ -41,10 +48,40 @@ def postings_path(paths: TalamusPaths) -> Path:
 
 
 def _haystack(note: CanonicalNote) -> str:
+    """Stemmed lexical field; title and aliases repeated = field weighting."""
     raw = " ".join(
-        [note.title, " ".join(note.aliases), " ".join(note.tags), note.retrieval_text, note.summary]
+        [
+            *([note.title] * 3),
+            *([" ".join(note.aliases)] * 2),
+            " ".join(note.tags),
+            note.retrieval_text,
+            note.summary,
+        ]
     )
     return " ".join(tokens(raw))
+
+
+def trigram_tokens(text: str) -> str:
+    """Character 3-grams as space-joined tokens — the IT<->EN cognate bridge."""
+    grams: list[str] = []
+    seen: set[str] = set()
+    for word in _WORD.findall(text.lower()):
+        if len(word) < 3:
+            continue
+        for i in range(len(word) - 2):
+            gram = word[i : i + 3]
+            if gram not in seen:
+                seen.add(gram)
+                grams.append(gram)
+    return " ".join(grams)
+
+
+def _tri_title(note: CanonicalNote) -> str:
+    return trigram_tokens(f"{note.title} {' '.join(note.aliases)}")
+
+
+def _tri_summary(note: CanonicalNote) -> str:
+    return trigram_tokens(note.summary)
 
 
 def _fts5_available() -> bool:
@@ -77,15 +114,18 @@ def _build_sqlite(paths: TalamusPaths, notes: list[CanonicalNote]) -> None:
         conn.execute(
             "CREATE TABLE meta (note_id TEXT PRIMARY KEY, title TEXT, summary TEXT, aliases TEXT)"
         )
-        conn.execute("CREATE VIRTUAL TABLE search USING fts5(note_id UNINDEXED, haystack)")
+        conn.execute(
+            "CREATE VIRTUAL TABLE search USING "
+            "fts5(note_id UNINDEXED, haystack, tri_title, tri_summary)"
+        )
         for note in notes:
             conn.execute(
                 "INSERT INTO meta VALUES (?, ?, ?, ?)",
                 (note.note_id, note.title, note.summary, json.dumps(note.aliases)),
             )
             conn.execute(
-                "INSERT INTO search VALUES (?, ?)",
-                (note.note_id, _haystack(note)),
+                "INSERT INTO search VALUES (?, ?, ?, ?)",
+                (note.note_id, _haystack(note), _tri_title(note), _tri_summary(note)),
             )
         conn.commit()
     finally:
@@ -94,27 +134,27 @@ def _build_sqlite(paths: TalamusPaths, notes: list[CanonicalNote]) -> None:
 
 
 def _build_postings(paths: TalamusPaths, notes: list[CanonicalNote]) -> None:
-    postings: dict[str, list[list]] = {}
-    lengths: dict[str, int] = {}
-    meta: dict[str, dict] = {}
+    fields = {"haystack": _haystack, "tri_title": _tri_title, "tri_summary": _tri_summary}
+    payload: dict = {"version": 2, "doc_count": len(notes), "meta": {}, "fields": {}}
+    for field_name, extractor in fields.items():
+        postings: dict[str, list[list]] = {}
+        lengths: dict[str, int] = {}
+        for note in notes:
+            counts = Counter(extractor(note).split())
+            lengths[note.note_id] = sum(counts.values())
+            for term, tf in counts.items():
+                postings.setdefault(term, []).append([note.note_id, tf])
+        payload["fields"][field_name] = {
+            "avgdl": (sum(lengths.values()) / len(lengths)) if lengths else 0.0,
+            "lengths": lengths,
+            "postings": postings,
+        }
     for note in notes:
-        counts = Counter(_haystack(note).split())
-        lengths[note.note_id] = sum(counts.values())
-        meta[note.note_id] = {
+        payload["meta"][note.note_id] = {
             "title": note.title,
             "summary": note.summary,
             "aliases": note.aliases,
         }
-        for term, tf in counts.items():
-            postings.setdefault(term, []).append([note.note_id, tf])
-    payload = {
-        "version": 1,
-        "doc_count": len(notes),
-        "avgdl": (sum(lengths.values()) / len(lengths)) if lengths else 0.0,
-        "lengths": lengths,
-        "postings": postings,
-        "meta": meta,
-    }
     target = postings_path(paths)
     tmp = target.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -131,8 +171,22 @@ def backend_info(paths: TalamusPaths) -> dict:
     return {"backend": "none", "bytes": 0}
 
 
+def _blend(channels: list[tuple[dict[str, float], float]]) -> dict[str, float]:
+    """Normalize each channel to 0..1 and sum with its weight."""
+    combined: dict[str, float] = {}
+    for scores, weight in channels:
+        top = max(scores.values(), default=0.0)
+        if top <= 0:
+            continue
+        for note_id, score in scores.items():
+            combined[note_id] = combined.get(note_id, 0.0) + weight * (score / top)
+    return combined
+
+
 def search_index(paths: TalamusPaths, query: str, limit: int = 5) -> list[dict]:
-    """Query the persistent index. Returns [{note_id, title, summary, aliases, score}]."""
+    """Query the persistent index (three blended channels).
+
+    Returns [{note_id, title, summary, aliases, score}]."""
     if sqlite_path(paths).is_file():
         return _search_sqlite(paths, query, limit)
     if postings_path(paths).is_file():
@@ -140,49 +194,73 @@ def search_index(paths: TalamusPaths, query: str, limit: int = 5) -> list[dict]:
     return _search_legacy(paths, query, limit)
 
 
+def _query_trigrams(query: str) -> list[str]:
+    return trigram_tokens(query).split()[:_MAX_QUERY_TRIGRAMS]
+
+
 def _search_sqlite(paths: TalamusPaths, query: str, limit: int) -> list[dict]:
-    terms = tokens(query)
-    if not terms:
+    terms = list(dict.fromkeys(tokens(query)))
+    grams = _query_trigrams(query)
+    if not terms and not grams:
         return []
-    match = " OR ".join(f'"{t}"' for t in dict.fromkeys(terms))
     conn = sqlite3.connect(sqlite_path(paths))
+    pool = max(limit * 4, 20)
+
+    def channel(column: str, words: list[str], weights: str) -> dict[str, float]:
+        if not words:
+            return {}
+        match = f"{{{column}}}: " + " OR ".join(f'"{w}"' for w in words)
+        try:
+            rows = conn.execute(
+                f"SELECT note_id, bm25(search, {weights}) AS rank FROM search "
+                "WHERE search MATCH ? ORDER BY rank LIMIT ?",
+                (match, pool),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return {}
+        # FTS5 bm25() is smaller-is-better (negative): flip sign
+        return {str(note_id): -float(rank) for note_id, rank in rows}
+
     try:
-        rows = conn.execute(
-            "SELECT s.note_id, m.title, m.summary, m.aliases, bm25(search) AS rank "
-            "FROM search s JOIN meta m ON m.note_id = s.note_id "
-            "WHERE search MATCH ? ORDER BY rank LIMIT ?",
-            (match, limit),
-        ).fetchall()
-    except sqlite3.OperationalError:
-        return []
+        blended = _blend(
+            [
+                (channel("haystack", terms, "0, 1.0, 0, 0"), 1.0),
+                (channel("tri_title", grams, "0, 0, 1.0, 0"), W_TRI_TITLE),
+                (channel("tri_summary", grams, "0, 0, 0, 1.0"), W_TRI_SUMMARY),
+            ]
+        )
+        if not blended:
+            return []
+        top = sorted(blended.items(), key=lambda item: (-item[1], item[0]))[:limit]
+        results = []
+        for note_id, score in top:
+            row = conn.execute(
+                "SELECT title, summary, aliases FROM meta WHERE note_id = ?", (note_id,)
+            ).fetchone()
+            if row is None:
+                continue
+            results.append(
+                {
+                    "note_id": note_id,
+                    "title": row[0],
+                    "summary": row[1],
+                    "aliases": json.loads(row[2] or "[]"),
+                    "score": round(score, 4),
+                }
+            )
+        return results
     finally:
         conn.close()
-    return [
-        {
-            "note_id": note_id,
-            "title": title,
-            "summary": summary,
-            "aliases": json.loads(aliases or "[]"),
-            # FTS5 bm25() is "smaller is better" (negative); flip to positive
-            "score": round(-float(rank), 4),
-        }
-        for note_id, title, summary, aliases, rank in rows
-    ]
 
 
-def _search_postings(paths: TalamusPaths, query: str, limit: int) -> list[dict]:
-    try:
-        data = json.loads(postings_path(paths).read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
-    doc_count = int(data.get("doc_count", 0)) or 1
-    avgdl = float(data.get("avgdl", 0.0)) or 1.0
-    lengths = data.get("lengths", {})
-    postings = data.get("postings", {})
-    meta = data.get("meta", {})
+def _field_bm25(field: dict, words: list[str]) -> dict[str, float]:
+    lengths = field.get("lengths", {})
+    postings = field.get("postings", {})
+    doc_count = max(len(lengths), 1)
+    avgdl = float(field.get("avgdl", 0.0)) or 1.0
     scores: dict[str, float] = {}
-    for term in dict.fromkeys(tokens(query)):
-        plist = postings.get(term, [])
+    for word in words:
+        plist = postings.get(word, [])
         df = len(plist)
         if not df:
             continue
@@ -191,7 +269,26 @@ def _search_postings(paths: TalamusPaths, query: str, limit: int) -> list[dict]:
             doc_len = int(lengths.get(note_id, 0)) or 1
             denom = tf + _K1 * (1 - _B + _B * doc_len / avgdl)
             scores[note_id] = scores.get(note_id, 0.0) + idf * (tf * (_K1 + 1)) / denom
-    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)[:limit]
+    return scores
+
+
+def _search_postings(paths: TalamusPaths, query: str, limit: int) -> list[dict]:
+    try:
+        data = json.loads(postings_path(paths).read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    fields = data.get("fields", {})
+    meta = data.get("meta", {})
+    terms = list(dict.fromkeys(tokens(query)))
+    grams = _query_trigrams(query)
+    blended = _blend(
+        [
+            (_field_bm25(fields.get("haystack", {}), terms), 1.0),
+            (_field_bm25(fields.get("tri_title", {}), grams), W_TRI_TITLE),
+            (_field_bm25(fields.get("tri_summary", {}), grams), W_TRI_SUMMARY),
+        ]
+    )
+    ranked = sorted(blended.items(), key=lambda item: (-item[1], item[0]))[:limit]
     return [
         {
             "note_id": note_id,
@@ -206,13 +303,12 @@ def _search_postings(paths: TalamusPaths, query: str, limit: int) -> list[dict]:
 
 def _search_legacy(paths: TalamusPaths, query: str, limit: int) -> list[dict]:
     """Compatibility path for brains indexed before M4 (bm25.json + note JSONs)."""
+    from talamus.naming import note_slug
     from talamus.search import BM25Index
     from talamus.store import load_notes
 
     if not paths.index_file.is_file():
         return []
-    from talamus.naming import note_slug
-
     index = BM25Index.load(paths.index_file)
     by_slug = {note_slug(note.title): note for note in load_notes(paths)}
     results = []

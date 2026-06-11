@@ -14,9 +14,10 @@ from talamus.paths import TalamusPaths
 from talamus.search import BM25Index
 from talamus.storage.obsidian import render_obsidian_note
 
-# v2: M4 persistent indexes + M6 timeline overlay. Migration from v1 = `talamus reindex`
-# (doctor reports the stale cache; everything under .talamus/cache is derived/rebuildable).
-CACHE_VERSION = 2
+# v3: Fase RS three-channel index (bilingual stems + trigram fields). Migration from
+# any prior version = `talamus reindex` (doctor reports the stale cache; everything
+# under .talamus/cache is derived/rebuildable).
+CACHE_VERSION = 3
 
 
 def _write_cache_manifest(paths: TalamusPaths) -> None:

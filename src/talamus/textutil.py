@@ -1,9 +1,11 @@
-"""Light text utilities: tokenization with a small Italian stemmer.
+"""Light text utilities: tokenization with a small bilingual (IT+EN) stemmer.
 
 Retrieval tokenized on raw words misses inflections: a query for "spezzare" would
 not match a note that says "spezza". A light suffix-stripping stemmer collapses the
-common Italian (and incidentally English) inflections so the two meet. It is applied
-symmetrically to both the indexed text and the query.
+common Italian AND English inflections (real brains mix both languages — measured
+as the dominant failure class in the 2026-06 recall research) so the two meet.
+Applied symmetrically to indexed text and query. The English pass runs between two
+Italian passes so pairs like "note"/"notes" land on the same stem.
 """
 
 from __future__ import annotations
@@ -50,6 +52,26 @@ _SUFFIXES = (
 )
 
 
+# English pass: tried longest-first; never strips below a 4-character stem.
+_EN_SUFFIXES = (
+    "ations",
+    "ation",
+    "ements",
+    "ement",
+    "ities",
+    "ings",
+    "ity",
+    "able",
+    "ing",
+    "ive",
+    "ed",
+    "es",
+    "ly",
+    "al",
+    "s",
+)
+
+
 def _stem(word: str) -> str:
     for suffix in _SUFFIXES:
         if word.endswith(suffix) and len(word) - len(suffix) >= 3:
@@ -57,6 +79,13 @@ def _stem(word: str) -> str:
     return word
 
 
+def _stem_en(word: str) -> str:
+    for suffix in _EN_SUFFIXES:
+        if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+            return word[: -len(suffix)]
+    return word
+
+
 def tokens(text: str) -> list[str]:
-    """Lowercase word tokens, lightly stemmed."""
-    return [_stem(match) for match in _TOKEN.findall(text.lower())]
+    """Lowercase word tokens, lightly stemmed (Italian + English)."""
+    return [_stem(_stem_en(_stem(match))) for match in _TOKEN.findall(text.lower())]
