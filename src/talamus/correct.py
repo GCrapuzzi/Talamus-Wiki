@@ -72,6 +72,22 @@ def verify_note(paths: TalamusPaths, title: str, llm: LLMProvider) -> dict:
     return {"found": True, "checked": True, **parsed}
 
 
+def _write_correction(paths: TalamusPaths, note: CanonicalNote, summary: str, body: str) -> None:
+    """Write a corrected note: history preserved, indexes rebuilt, claims rolled (F7.4)."""
+    body_sections = dict(note.body_sections)
+    if body:
+        body_sections["definizione"] = str(body)
+    corrected = dataclasses.replace(
+        note,
+        summary=summary or note.summary,
+        body_sections=body_sections,
+    )
+    overwrite_note_json(paths, corrected)
+    render_note_markdown(paths, corrected, NoteRegistry.from_notes(load_notes(paths)))
+    rebuild_indexes(paths)
+    _record_correction_claims(paths, note, corrected)
+
+
 def apply_correction(paths: TalamusPaths, title: str, llm: LLMProvider) -> bool:
     """Verify and, if needed, write the corrected note (old version kept in history)."""
     result = verify_note(paths, title, llm)
@@ -80,19 +96,110 @@ def apply_correction(paths: TalamusPaths, title: str, llm: LLMProvider) -> bool:
     note = _find(load_notes(paths), title)
     if note is None:
         return False
-    body_sections = dict(note.body_sections)
-    if result.get("body"):
-        body_sections["definizione"] = str(result["body"])
-    corrected = dataclasses.replace(
-        note,
-        summary=str(result.get("summary", note.summary)) or note.summary,
-        body_sections=body_sections,
+    _write_correction(
+        paths, note, str(result.get("summary", note.summary)), str(result.get("body", ""))
     )
-    overwrite_note_json(paths, corrected)
-    render_note_markdown(paths, corrected, NoteRegistry.from_notes(load_notes(paths)))
-    rebuild_indexes(paths)
-    _record_correction_claims(paths, note, corrected)
     return True
+
+
+def apply_proposed_correction(paths: TalamusPaths, detail: dict) -> bool:
+    """Apply a correction previously parked in the review queue (F7.3)."""
+    note = _find(load_notes(paths), str(detail.get("title", "")))
+    if note is None:
+        return False
+    _write_correction(paths, note, str(detail.get("summary", "")), str(detail.get("body", "")))
+    return True
+
+
+LOW_CONFIDENCE = 0.5
+
+
+def _resolve_source(paths: TalamusPaths, note: CanonicalNote):
+    for source in note.sources:
+        rel = source.normalized_path.split("#")[0]
+        for candidate in (paths.project_root / rel, paths.project_root / source.raw_path):
+            if candidate.is_file():
+                return source, candidate
+    return None, None
+
+
+def provenance_status(paths: TalamusPaths, note: CanonicalNote) -> dict:
+    """Deterministic provenance health of one note (F7.2). No LLM."""
+    status = "ok"
+    detail = ""
+    source, resolved = _resolve_source(paths, note)
+    if not note.sources:
+        status, detail = "source_missing", "la scheda non ha fonti registrate"
+    elif resolved is None:
+        status = "source_missing"
+        detail = f"fonte non trovata: {note.sources[0].normalized_path}"
+    else:
+        stored = source.source_hash.removeprefix("sha256:")
+        if len(stored) >= 16 and all(c in "0123456789abcdef" for c in stored):
+            import hashlib
+
+            current = hashlib.sha256(resolved.read_bytes()).hexdigest()
+            if not current.startswith(stored[: len(current)]) and not stored.startswith(
+                current[: len(stored)]
+            ):
+                status = "source_changed"
+                detail = f"la fonte {resolved.name} è cambiata dopo l'estrazione"
+    if status == "ok" and note.confidence < LOW_CONFIDENCE:
+        status, detail = "low_confidence", f"confidence di estrazione {note.confidence}"
+    return {"note_id": note.note_id, "title": note.title, "status": status, "detail": detail}
+
+
+def provenance_report(paths: TalamusPaths) -> list[dict]:
+    return [provenance_status(paths, note) for note in load_notes(paths)]
+
+
+def verify_batch(
+    paths: TalamusPaths,
+    llm: LLMProvider,
+    only_stale: bool = False,
+    source_filter: str | None = None,
+) -> dict:
+    """Batch verification (F7.1): stale provenance becomes review items without
+    LLM cost; content checks propose corrections to the review queue — uncertain
+    changes never overwrite notes directly."""
+    from talamus.review import ReviewQueue
+
+    queue = ReviewQueue(paths)
+    report = {"checked": 0, "ok": 0, "stale": 0, "corrections_proposed": 0, "skipped": 0}
+    for note in load_notes(paths):
+        if source_filter and not any(
+            source_filter in s.normalized_path or source_filter in s.raw_path for s in note.sources
+        ):
+            report["skipped"] += 1
+            continue
+        health = provenance_status(paths, note)
+        if health["status"] != "ok":
+            report["stale"] += 1
+            queue.add(
+                "stale_source",
+                f"{note.title}: {health['status']}",
+                {"title": note.title, **health},
+            )
+            continue
+        if only_stale:
+            report["skipped"] += 1
+            continue
+        result = verify_note(paths, note.title, llm)
+        report["checked"] += 1
+        if result.get("ok", True):
+            report["ok"] += 1
+            continue
+        report["corrections_proposed"] += 1
+        queue.add(
+            "correction",
+            f"{note.title}: la scheda non combacia con la fonte",
+            {
+                "title": note.title,
+                "summary": str(result.get("summary", "")),
+                "body": str(result.get("body", "")),
+            },
+        )
+    return report
 
 
 def _record_correction_claims(paths: TalamusPaths, old: CanonicalNote, new: CanonicalNote) -> None:

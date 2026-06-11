@@ -38,6 +38,7 @@ options. Most commands accept the [global flags](#global-flags) below.
 | --- | --- |
 | `talamus consolidate [--apply]` | Find (and optionally merge) duplicate concepts, across languages. |
 | `talamus verify "<title>" [--apply]` | Check a note against its preserved source; optionally apply the correction. |
+| `talamus verify --all \| --stale \| --source S` | Batch: provenance health (missing/changed source, low confidence — no LLM with `--stale`) + content checks; proposed corrections land in the **review queue**, never overwrite silently. |
 | `talamus relations [--prune MIN]` | List typed relations, or prune those below a confidence. |
 | `talamus eval --cases <f.json> [-k N] [--category C]` | Measure retrieval quality (recall@k / precision@k / MRR) on your own cases. |
 | `talamus eval --scale [--sizes N,N,N]` | Latency benchmark at growing corpus sizes (persistent index backend). |

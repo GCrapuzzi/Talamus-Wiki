@@ -426,7 +426,17 @@ def _cmd_review_group(args: argparse.Namespace, root: Path) -> int:
             print(f"{key}: {value}")
         return 0
     if cmd == "apply":
-        applied = queue.apply(args.item_id)
+        if entry.kind == "correction":
+            from talamus.correct import apply_proposed_correction
+
+            if not apply_proposed_correction(TalamusPaths(root), entry.detail):
+                print(
+                    f"cannot apply: note '{entry.detail.get('title')}' not found", file=sys.stderr
+                )
+                return 1
+        applied = queue.apply(
+            args.item_id, resolution="correction written" if entry.kind == "correction" else ""
+        )
         if applied is None:
             print(f"'{args.item_id}' is not pending", file=sys.stderr)
             return 1
@@ -806,6 +816,25 @@ def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: boo
         others = [m for m in group["members"] if m != group["canonical"]]
         print(f"- keep '{group['canonical']}'  <=  {', '.join(others)}")
     print("\nrun `talamus consolidate --apply` to merge")
+    return 0
+
+
+def _cmd_verify_batch(
+    root: Path, llm: LLMProvider, only_stale: bool, source: str | None, json_out: bool
+) -> int:
+    from talamus.correct import verify_batch
+
+    report = verify_batch(TalamusPaths(root), llm, only_stale=only_stale, source_filter=source)
+    if json_out:
+        _print_json(report)
+        return 0
+    print(
+        f"verificate {report['checked']} schede: {report['ok']} ok, "
+        f"{report['corrections_proposed']} correzioni proposte, "
+        f"{report['stale']} fonti stantie, {report['skipped']} saltate"
+    )
+    if report["corrections_proposed"] or report["stale"]:
+        print("rivedi con `talamus review list`")
     return 0
 
 
@@ -1297,8 +1326,13 @@ def build_parser() -> argparse.ArgumentParser:
     consolidate = sub.add_parser("consolidate", parents=[common], help="merge duplicate concepts")
     consolidate.add_argument("--apply", action="store_true", help="actually merge (default: list)")
     verify = sub.add_parser("verify", parents=[common], help="check a note against its source")
-    verify.add_argument("title")
+    verify.add_argument("title", nargs="?", default=None)
     verify.add_argument("--apply", action="store_true", help="apply the correction")
+    verify.add_argument("--all", action="store_true", help="batch: every note (LLM per note)")
+    verify.add_argument(
+        "--stale", action="store_true", help="batch: provenance health only (no LLM)"
+    )
+    verify.add_argument("--source", default=None, help="batch: only notes from this source")
     overview = sub.add_parser("overview", parents=[common], help="show the domain overview")
     overview.add_argument("--rebuild", action="store_true", help="re-induce the domains")
     ask = sub.add_parser("ask", parents=[common], help="ask the brain (cited answer)")
@@ -1453,6 +1487,11 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         if command == "consolidate":
             return _cmd_consolidate(root, args.apply, provider, json_out)
         if command == "verify":
+            if args.all or args.stale or args.source:
+                return _cmd_verify_batch(root, provider, args.stale, args.source, json_out)
+            if not args.title:
+                print("error: pass a note title, or --all / --stale / --source", file=sys.stderr)
+                return 1
             return _cmd_verify(root, args.title, args.apply, provider, json_out)
         if command == "overview":
             return _cmd_overview(root, provider, json_out, args.rebuild, policy)
