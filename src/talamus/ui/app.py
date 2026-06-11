@@ -175,6 +175,12 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         )
         return ft.Column([views.heading("Ingest"), target, buttons, output], spacing=10)
 
+    # ---------------------------------------------------------------- graph
+    def _graph() -> ft.Control:
+        from talamus.ui.graph import build_graph_canvas
+
+        return build_graph_canvas(paths, state["note"], open_note, page=page)
+
     # ---------------------------------------------------------------- routing
     builders: dict[str, object] = {}
 
@@ -189,7 +195,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             "cerca": search_view,
             "note": lambda: views.build_notes(paths, open_note),
             "domini": lambda: views.build_domains(paths, open_note),
-            "grafo": lambda: views.build_graph(paths, state["note"], open_note),
+            "grafo": lambda: _graph(),
             "timeline": lambda: views.build_timeline(paths, state["note"]),
             "ingest": ingest_view,
             "review": lambda: views.build_review(paths, lambda: show_view("review")),

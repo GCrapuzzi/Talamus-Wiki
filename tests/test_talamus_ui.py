@@ -76,6 +76,32 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
                 control = builder()
                 self.assertIsInstance(control, ft.Control, name)
 
+    def test_graph_canvas_builds_headless_global_and_focused(self) -> None:
+        import flet as ft
+
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+        from talamus.ui.graph import build_graph_canvas
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            create_demo_brain(paths)
+            for focus in ("", "Reranking"):
+                control = build_graph_canvas(paths, focus, lambda t: None, animate=False)
+                self.assertIsInstance(control, ft.Control, focus or "global")
+
+    def test_graph_canvas_on_empty_brain_shows_empty_state(self) -> None:
+        import flet as ft
+
+        from talamus.paths import TalamusPaths
+        from talamus.ui.graph import build_graph_canvas
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            paths.ensure_directories()
+            control = build_graph_canvas(paths, "", lambda t: None, animate=False)
+            self.assertIsInstance(control, ft.Control)
+
     def test_run_app_signature_supports_web_mode(self) -> None:
         import inspect
 
