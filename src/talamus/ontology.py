@@ -25,13 +25,23 @@ _RELATION_PATTERNS: list[tuple[str, tuple[str, ...]]] = [
 ]
 
 
-def normalize_relation(rel: str) -> str:
+def normalize_relation(rel: str, emergent_surfaces: dict[str, str] | None = None) -> str:
+    """Map a raw relation surface to a type. ``emergent_surfaces`` (surface key ->
+    type name, from the Ontology Lab's ACTIVE schema) is consulted before falling
+    back to ``related`` — promoted emergent types reclaim what the fixed patterns
+    would flatten away."""
     low = rel.strip().lower()
     if not low:
         return "related"
     for canonical, keywords in _RELATION_PATTERNS:
         if any(keyword in low for keyword in keywords):
             return canonical
+    if emergent_surfaces:
+        from talamus.textutil import tokens
+
+        key = " ".join(tokens(low))
+        if key in emergent_surfaces:
+            return emergent_surfaces[key]
     return "related"
 
 
@@ -39,8 +49,13 @@ def _key(value: str) -> str:
     return value.strip().lower()
 
 
-def build_ontology(notes: list[CanonicalNote]) -> dict:
-    """Mappa concettuale: le note sono i concetti; i bersagli sono risolti al titolo canonico."""
+def build_ontology(
+    notes: list[CanonicalNote], emergent_surfaces: dict[str, str] | None = None
+) -> dict:
+    """Mappa concettuale: le note sono i concetti; i bersagli sono risolti al titolo canonico.
+
+    ``emergent_surfaces`` re-tipizza con lo schema emergente ATTIVO le superfici che
+    altrimenti finirebbero in ``related`` (Ontology Lab, F5.10)."""
     registry = NoteRegistry.from_notes(notes)
     concepts: dict[str, dict] = {
         note.title: {"aliases": list(note.aliases), "tags": list(note.tags)} for note in notes
@@ -49,7 +64,8 @@ def build_ontology(notes: list[CanonicalNote]) -> dict:
     seen: set[tuple[str, str, str]] = set()
     for note in notes:
         targets: list[tuple[str, str]] = [
-            (relation.target, normalize_relation(relation.relation)) for relation in note.relations
+            (relation.target, normalize_relation(relation.relation, emergent_surfaces))
+            for relation in note.relations
         ]
         targets += [(link.target, "related") for link in note.proposed_links]
         for raw_target, rel_type in targets:

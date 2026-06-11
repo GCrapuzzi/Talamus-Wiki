@@ -63,6 +63,18 @@ default is `project+central`; from the central brain it is `all` (sensitive brai
 Cross-brain results carry markers (`[central]`, `[project:name]`) and always read the real
 notes from the owning brain — the federated index is a pointer index, never source truth.
 
+## Ontology Lab (the emergent type system)
+
+| Command | What it does |
+| --- | --- |
+| `talamus ontology status` | Schema version, type counts, coverage (share of typed edges). |
+| `talamus ontology induce [--min-support N]` | Induce candidate relation types from unexplained surfaces (1 LLM call). |
+| `talamus ontology review` | Candidates with support, definitions and real-source examples. |
+| `talamus ontology apply <id> [--force]` | Promote to active (thresholds: support ≥ 8 on ≥ 3 notes); re-types the concept map. |
+| `talamus ontology reject\|deprecate <id>` | Decisions are recorded, types are never deleted. |
+| `talamus ontology eval --cases <f>` | Retrieval lift: fixed baseline vs active emergent schema. |
+| `talamus ontology stability\|history\|export` | Cluster stability (Jaccard), schema events, full schema JSON. |
+
 ## Jobs & review
 
 | Command | What it does |

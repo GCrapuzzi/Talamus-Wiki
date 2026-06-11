@@ -31,10 +31,17 @@ def _note_path(paths: TalamusPaths, label: str):
 
 
 def _expand_with_ontology(seed_titles: list[str], ontology: dict, limit: int) -> list[str]:
-    """Riempie i candidati seguendo le relazioni dell'ontologia (1 salto), oltre alle parole."""
+    """Riempie i candidati seguendo le relazioni dell'ontologia (1 salto), oltre alle parole.
+
+    Gli archi TIPIZZATI passano prima di quelli ``related``: un tipo promosso dallo
+    Ontology Lab cambia davvero cosa entra nel contesto quando il limite taglia."""
     ranked = list(seed_titles)
     for title in seed_titles:
-        for neighbor in neighbors(ontology, title):
+        connected = sorted(
+            neighbors(ontology, title),
+            key=lambda n: 0 if n.get("relation") != "related" else 1,
+        )
+        for neighbor in connected:
             if neighbor["title"] not in ranked:
                 ranked.append(neighbor["title"])
     return ranked[:limit]

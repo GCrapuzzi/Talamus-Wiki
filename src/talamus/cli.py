@@ -24,6 +24,17 @@ from talamus.federation import build_federated_index, federation_status
 from talamus.ingest import ingest_path, remember_session
 from talamus.jobs import JobRecord, JobStore
 from talamus.log import configure
+from talamus.ontology_lab import (
+    deprecate_type,
+    induce_candidates,
+    load_schema,
+    ontology_eval,
+    promote_candidate,
+    read_history,
+    reject_candidate,
+    schema_status,
+    stability,
+)
 from talamus.paths import TalamusPaths
 from talamus.recall import concept_neighbors, read_note_text, recall_context
 from talamus.registry import (
@@ -154,8 +165,8 @@ def _cmd_ui(root: Path) -> int:
 
 _ALL_COMMANDS = (
     "init demo ui status doctor reindex ingest scan consolidate verify ask overview search read "
-    "history recall neighbors relations remember eval jobs review quickstart brains where export "
-    "import completion mcp hook hook-run"
+    "history recall neighbors relations remember eval ontology jobs review quickstart brains "
+    "where export import completion mcp hook hook-run"
 )
 
 # Runners that can resume a persisted job, keyed by kind (scan registers below).
@@ -230,6 +241,105 @@ def _run_scan_job(root: Path, record: JobRecord) -> int:
 
 
 JOB_RUNNERS["scan"] = _run_scan_job
+
+
+def _cmd_ontology_group(
+    args: argparse.Namespace, root: Path, llm_factory: Callable[[], LLMProvider]
+) -> int:
+    paths = TalamusPaths(root)
+    cmd = getattr(args, "ontology_cmd", None) or "status"
+    json_out = bool(getattr(args, "json", False))
+    if cmd == "status":
+        status = schema_status(paths)
+        if json_out:
+            _print_json(status)
+            return 0
+        print(f"schema: {status['schema_id']} (v{status['version']})")
+        for state, count in sorted(status["types"].items()):
+            print(f"  {state}: {count}")
+        cov = status["coverage"]
+        print(
+            f"coverage: {cov['non_related']}/{cov['edges']} archi tipizzati "
+            f"({cov['non_related_share']:.0%})"
+        )
+        return 0
+    if cmd == "induce":
+        created = induce_candidates(paths, llm_factory(), min_support=args.min_support)
+        if json_out:
+            _print_json([c.to_dict() for c in created])
+            return 0
+        if not created:
+            print("nessun nuovo candidato (superfici già spiegate o supporto insufficiente)")
+            return 0
+        print(f"{len(created)} tipi candidati indotti:")
+        for candidate in created:
+            print(f"  - {candidate.id}  support={candidate.support}  «{candidate.definition}»")
+        print("rivedi con `talamus ontology review`, promuovi con `talamus ontology apply ID`")
+        return 0
+    if cmd == "review":
+        schema = load_schema(paths)
+        pending = [t for t in schema.relation_types if t.status == "candidate"]
+        if json_out:
+            _print_json([t.to_dict() for t in pending])
+            return 0
+        if not pending:
+            print("nessun candidato in attesa")
+        for rel_type in pending:
+            print(f"- {rel_type.id}  support={rel_type.support} note={rel_type.distinct_notes}")
+            if rel_type.definition:
+                print(f"    {rel_type.definition}")
+            for example in rel_type.examples[:2]:
+                print(f"    es. {example}")
+        return 0
+    if cmd == "apply":
+        ok, message = promote_candidate(paths, args.type_id, force=args.force)
+        print(message if ok else f"error: {message}", file=None if ok else sys.stderr)
+        return 0 if ok else 1
+    if cmd == "reject":
+        ok, message = reject_candidate(paths, args.type_id, getattr(args, "reason", "") or "")
+        print(message if ok else f"error: {message}", file=None if ok else sys.stderr)
+        return 0 if ok else 1
+    if cmd == "deprecate":
+        ok, message = deprecate_type(paths, args.type_id, getattr(args, "reason", "") or "")
+        print(message if ok else f"error: {message}", file=None if ok else sys.stderr)
+        return 0 if ok else 1
+    if cmd == "eval":
+        report = ontology_eval(paths, Path(args.cases), k=args.k)
+        if json_out:
+            _print_json(report)
+            return 0
+        print(
+            f"baseline : recall@{report['k']} {report['baseline']['recall_at_k']}"
+            f"  MRR {report['baseline']['mrr']}"
+        )
+        print(
+            f"emergente: recall@{report['k']} {report['emergent']['recall_at_k']}"
+            f"  MRR {report['emergent']['mrr']}"
+        )
+        print(f"lift     : recall {report['lift']['recall_at_k']:+}  MRR {report['lift']['mrr']:+}")
+        cov = report["coverage"]
+        print(f"coverage : {cov['non_related_share']:.0%} archi tipizzati")
+        return 0
+    if cmd == "stability":
+        result = stability(paths, runs=args.runs)
+        _print_json(result) if json_out else print(
+            f"stability (Jaccard, {result['runs']} run): {result['jaccard']}"
+        )
+        return 0
+    if cmd == "history":
+        events = read_history(paths)
+        if json_out:
+            _print_json(events)
+            return 0
+        if not events:
+            print("nessun evento di schema")
+        for event in events:
+            print(f"- {event.get('at', '?')}  {event.get('event', '?')}  {event.get('type', '')}")
+        return 0
+    if cmd == "export":
+        _print_json(load_schema(paths).to_dict())
+        return 0
+    raise ValueError(f"unknown ontology command {cmd}")
 
 
 def _cmd_jobs_group(args: argparse.Namespace, root: Path) -> int:
@@ -1035,6 +1145,32 @@ def build_parser() -> argparse.ArgumentParser:
     b_promote.add_argument("--from", dest="from_brain", required=True)
     b_promote.add_argument("--to", dest="to_brain", default="default")
     sub.add_parser("where", parents=[common], help="print the resolved brain path")
+    onto = sub.add_parser("ontology", help="the emergent type system: induce, review, promote")
+    onto_sub = onto.add_subparsers(dest="ontology_cmd")
+    onto_sub.add_parser("status", parents=[common], help="schema version, types, coverage")
+    o_induce = onto_sub.add_parser(
+        "induce", parents=[common], help="induce candidate relation types from the corpus"
+    )
+    o_induce.add_argument("--min-support", type=int, default=3, help="evidence per candidate")
+    onto_sub.add_parser("review", parents=[common], help="list candidate types with evidence")
+    o_apply = onto_sub.add_parser("apply", parents=[common], help="promote a candidate to active")
+    o_apply.add_argument("type_id")
+    o_apply.add_argument("--force", action="store_true", help="override promotion thresholds")
+    o_reject = onto_sub.add_parser("reject", parents=[common], help="reject a candidate (kept)")
+    o_reject.add_argument("type_id")
+    o_reject.add_argument("--reason", default="")
+    o_depr = onto_sub.add_parser("deprecate", parents=[common], help="deprecate an active type")
+    o_depr.add_argument("type_id")
+    o_depr.add_argument("--reason", default="")
+    o_eval = onto_sub.add_parser(
+        "eval", parents=[common], help="retrieval lift: fixed baseline vs active schema"
+    )
+    o_eval.add_argument("--cases", required=True)
+    o_eval.add_argument("-k", type=int, default=5)
+    o_stab = onto_sub.add_parser("stability", parents=[common], help="cluster stability (Jaccard)")
+    o_stab.add_argument("--runs", type=int, default=3)
+    onto_sub.add_parser("history", parents=[common], help="schema change events")
+    onto_sub.add_parser("export", parents=[common], help="print the full schema JSON")
     jobs = sub.add_parser("jobs", help="inspect and control long-running jobs")
     jobs_sub = jobs.add_subparsers(dest="jobs_cmd")
     jobs_sub.add_parser("list", parents=[common], help="list jobs")
@@ -1177,6 +1313,10 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_export(root, args.file)
         if command == "import":
             return _cmd_import(args.file, root)
+        if command == "ontology":
+            return _cmd_ontology_group(
+                args, root, lambda: llm if llm is not None else _provider_for(root)
+            )
         if command == "jobs":
             return _cmd_jobs_group(args, root)
         if command == "review":
