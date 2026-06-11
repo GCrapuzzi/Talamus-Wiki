@@ -27,13 +27,53 @@ def _provider(paths: TalamusPaths):
 
 
 def _build(page: ft.Page, paths: TalamusPaths) -> None:
+    from talamus.ui import theme
+
     page.title = "Talamus"
-    page.theme_mode = ft.ThemeMode.SYSTEM
+    theme.apply(page)
     content = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
-    state = {"note": ""}  # the note the Grafo/Timeline views focus on
+    inspector = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
+    inspector_panel = ft.Container(
+        content=inspector,
+        width=300,
+        bgcolor=theme.SURFACE,
+        border=ft.Border(left=ft.BorderSide(1, theme.BORDER)),
+        padding=theme.PAD,
+        visible=False,
+    )
+    state = {"note": ""}  # the note the Grafo/Timeline/inspector focus on
 
     def show(control: ft.Control) -> None:
         content.controls = [control]
+        page.update()
+
+    def _refresh_inspector() -> None:
+        title = state["note"]
+        if not title:
+            inspector_panel.visible = False
+            return
+        inspector.controls = [
+            ft.Row(
+                [
+                    ft.Text(title, weight=ft.FontWeight.BOLD, expand=True),
+                    ft.IconButton(
+                        ft.Icons.CLOSE,
+                        icon_size=16,
+                        on_click=lambda e: _close_inspector(),
+                    ),
+                ]
+            ),
+            theme.section("Fonti"),
+            views.build_sources_panel(paths, title),
+            theme.section("Relazioni"),
+            views.build_graph(paths, title, open_note),
+            theme.section("Timeline"),
+            views.build_timeline(paths, title),
+        ]
+        inspector_panel.visible = True
+
+    def _close_inspector() -> None:
+        inspector_panel.visible = False
         page.update()
 
     def open_note(title: str) -> None:
@@ -41,7 +81,13 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         state["note"] = title
         text = read_note_text(paths, title)
         if text is None:
-            show(ft.Column([views.heading(title or "?"), ft.Text("Scheda non trovata.")]))
+            show(
+                theme.empty_state(
+                    ft.Icons.SEARCH_OFF,
+                    title or "?",
+                    "Scheda non trovata nel brain.",
+                )
+            )
             return
         body = ft.Markdown(
             views.wikilinks_to_md(text),
@@ -51,11 +97,12 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         )
         actions = ft.Row(
             [
-                ft.TextButton("Connessioni", on_click=lambda e: show_view("grafo")),
+                ft.TextButton("Grafo", on_click=lambda e: show_view("grafo")),
                 ft.TextButton("Timeline", on_click=lambda e: show_view("timeline")),
             ]
         )
-        show(ft.Column([views.heading(title), actions, ft.Divider(), body]))
+        _refresh_inspector()
+        show(ft.Column([views.heading(title), actions, ft.Divider(), theme.card(body)]))
 
     # ---------------------------------------------------------------- chat
     def chat_view() -> ft.Control:
@@ -217,16 +264,21 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         ("ontologia", ft.Icons.SCHEMA),
         ("impostazioni", ft.Icons.SETTINGS),
     ]
+    from talamus.ui import theme as _theme
+
     rail = ft.NavigationRail(
         selected_index=0,
         label_type=ft.NavigationRailLabelType.ALL,
+        bgcolor=_theme.SURFACE,
+        indicator_color=_theme.SURFACE_2,
         destinations=[
             ft.NavigationRailDestination(icon=icon, label=name.capitalize())
             for name, icon in destinations
         ],
         on_change=lambda e: show_view(order[e.control.selected_index or 0]),
     )
-    page.add(ft.Row([rail, ft.VerticalDivider(width=1), content], expand=True))
+    main_pane = ft.Container(content=content, expand=True, padding=_theme.PAD * 1.5)
+    page.add(ft.Row([rail, main_pane, inspector_panel], expand=True, spacing=0))
     show_view("home")
 
 

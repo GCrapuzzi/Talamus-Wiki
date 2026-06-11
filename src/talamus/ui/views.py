@@ -46,29 +46,65 @@ def subtle(text: str) -> ft.Control:
 
 
 def build_home(paths: TalamusPaths) -> ft.Control:
+    from talamus.ui import theme
+
     notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
     sources = len(list(paths.raw.glob("*"))) if paths.raw.exists() else 0
     reviews = len(ReviewQueue(paths).list(status="pending"))
     jobs = [j for j in JobStore(paths).list() if j.state in ("running", "queued")]
     schema = schema_status(paths)
-    rows = [
-        heading("Stato del brain"),
-        subtle(str(paths.project_root)),
-        ft.Text(f"Note: {notes} · Fonti: {sources} · Review in attesa: {reviews}"),
-        ft.Text(
-            f"Ontologia v{schema['version']} — "
-            f"{schema['types'].get('active', 0)} tipi attivi, "
-            f"{schema['types'].get('candidate', 0)} candidati"
-        ),
-        ft.Text(f"Job attivi: {len(jobs)}"),
+    active = schema["types"].get("active", 0)
+    candidates = schema["types"].get("candidate", 0)
+    tiles = ft.Row(
+        [
+            theme.stat("note", str(notes)),
+            theme.stat("fonti", str(sources)),
+            theme.stat("review", str(reviews), color=theme.WARN if reviews else theme.TEXT),
+            theme.stat("tipi attivi", str(active), color=theme.ACCENT),
+            theme.stat("job", str(len(jobs))),
+        ],
+        wrap=True,
+        spacing=theme.GAP,
+    )
+    rows: list[ft.Control] = [
+        heading("Talamus"),
+        theme.muted(str(paths.project_root)),
+        tiles,
     ]
     if not paths.config_path.exists():
-        rows.append(ft.Text("Nessun brain qui: esegui `talamus init`.", color=ft.Colors.AMBER))
+        rows.append(
+            theme.empty_state(
+                ft.Icons.PSYCHOLOGY_ALT,
+                "Nessun brain qui",
+                "Crea il brain di questo progetto con `talamus init` (o usa la vista Ingest).",
+            )
+        )
+        return ft.Column(rows, spacing=14)
+    suggestions: list[str] = []
     if notes == 0:
-        rows.append(subtle("Suggerito: ingerisci un documento o lancia uno scan (vista Ingest)."))
-    elif reviews:
-        rows.append(subtle("Suggerito: ci sono decisioni in attesa nella vista Review."))
-    return ft.Column(rows, spacing=10)
+        suggestions.append("Ingerisci un documento o lancia uno scan dalla vista Ingest.")
+    if reviews:
+        suggestions.append(f"{reviews} decisioni ti aspettano nella vista Review.")
+    if candidates:
+        suggestions.append(f"{candidates} tipi candidati da valutare nell'Ontology Lab.")
+    if not suggestions:
+        suggestions.append("Tutto in ordine: fai una domanda dalla Chat.")
+    rows.append(theme.section("Prossimi passi"))
+    rows.extend(theme.card(ft.Text(s, size=13)) for s in suggestions)
+    return ft.Column(rows, spacing=14)
+
+
+def build_sources_panel(paths: TalamusPaths, title: str) -> ft.Control:
+    """Provenance of one note, for the right inspector (PRD 14.2)."""
+    for note in load_notes(paths):
+        if note.title.lower() == title.strip().lower():
+            if not note.sources:
+                return subtle("nessuna fonte registrata")
+            return ft.Column(
+                [subtle(f"{s.normalized_path}\n({s.locator})") for s in note.sources],
+                spacing=6,
+            )
+    return subtle("scheda non trovata")
 
 
 # ------------------------------------------------------------------- notes
