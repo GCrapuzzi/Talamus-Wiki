@@ -8,6 +8,41 @@ semantic versioning once it reaches a public release.
 
 Pre-release. The project was renamed **Kortex → Talamus**.
 
+### Final-product phase (PRD M0–M11, 2026-06-10/11)
+
+- **Measured baseline**: real 120-case eval-set (`examples/eval-cases-real.json`),
+  deterministic corpora, latency/cost curves (`docs/benchmarks/`).
+- **Multi-brain**: machine-wide registry, `talamus brains` group (use/info/rename/
+  delete/register/set/index/promote), federated read index with pointers + markers,
+  `--scope` / `--all-brains` on read commands, `where --json`; **`talamus init` now
+  always targets the current directory** (bug fix).
+- **Jobs & review**: persistent resumable jobs (`talamus jobs`), review queue
+  (`talamus review`) — crashes resume, cancels never corrupt notes, rejections stay
+  logged.
+- **Repo scan**: `talamus scan` — plan first/spend later (dry-run with estimates),
+  profiles docs/code/all, `.gitignore` respect, **secret redaction with
+  stop-and-confirm**, code-aware digests (ast), resumable job.
+- **Persistent indexes**: sqlite/FTS5 (+ JSON posting fallback) — search p95 at
+  10k notes **8458ms → 34ms (~249x)**; structured domain routing by stable ids;
+  `ask --trace`; `eval --scale`.
+- **Ontology Lab** (the differentiator): evidence layer → deterministic candidate
+  induction → versioned schema candidate/active/deprecated with promotion rules →
+  runtime re-typing + typed-first expansion with **measured retrieval lift**
+  (`talamus ontology ...`); research review in `docs/research/`.
+- **Full temporal model**: valid-time claim overlay, robust `--as-of` parsing
+  (year/month/date/tz), corrections close+open claims, `talamus timeline`,
+  `ask`/`read --as-of`. Cache v2 (migration: `talamus reindex`).
+- **Active verifiability**: `verify --all/--stale/--source`, provenance health,
+  corrections proposed to review (never silent overwrites).
+- **Final CLI**: state dashboard on bare `talamus`, JSON coverage, help under
+  100 columns, snapshot tests, `--plain/--no-color`.
+- **UI workbench**: 11 views (Home/Chat/Cerca/Note/Domini/Grafo/Timeline/Ingest/
+  Review/Ontologia/Impostazioni) over the SDK, `talamus ui --web --port`,
+  headless smoke tests. *(runtime rendering: verify with `talamus ui`)*
+- **MCP finalized**: read tools + history/sources/ontology_status; write tools
+  with explicit scopes; `propose_note` routes uncertain knowledge to review;
+  capture decisions logged.
+
 ### Added
 
 - **CLI**: no-arg status panel, `quickstart`, smart `init` (engine auto-detect,

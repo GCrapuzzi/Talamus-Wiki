@@ -20,12 +20,16 @@ Most "AI memory" is either a pile of vector chunks (no structure, no provenance)
 or a cloud service (your knowledge leaves your machine). Talamus is built on three
 properties that, **together**, nothing else gives you:
 
-- **TIME** — a bitemporal graph: contradictions *invalidate* old facts instead of
-  deleting them, so you never lose what was true **and** you know what's true now. *(shipping — MVP: versioned history & `--as-of`)*
-- **MEANING** — a typed, self-emerging **ontology** (uses / is-a / part-of /
-  contrasts-with / depends-on) the LLM reasons over, not just "related pages". *(shipping — Level 1 today)*
-- **VERIFIABILITY** — every note keeps its **sources**, and the original is
-  preserved so you can **verify and correct against it** (`talamus verify`). *(shipping)*
+- **TIME** — a bitemporal model: contradictions *invalidate* old facts instead of
+  deleting them — `talamus timeline`, `ask --as-of 2026-01`. *(shipped: transaction
+  history + valid-time claim overlay)*
+- **MEANING** — a typed, **self-emerging ontology**: free-form relation surfaces
+  the fixed types can't explain are induced into *candidate types*, reviewed,
+  promoted, versioned — and measurably improve retrieval (`talamus ontology`).
+  *(shipped: fixed types + Ontology Lab; experimental: emergent schema at scale)*
+- **VERIFIABILITY** — every note keeps its **sources**; verify single notes or in
+  batch, with proposed corrections going through a review queue (`talamus verify
+  --all`). *(shipped)*
 
 Plus a wedge the others don't optimize for: **memory for agents** that need
 current, cited, reasoned truth.
@@ -107,14 +111,23 @@ extras (MCP, engines) are optional. See **[architecture](docs/architecture.md)**
 
 ## Status & roadmap
 
-Working **today**: the text → notes → cited-answers loop, the typed ontology (Level 1),
-the **domain overview** + overview-routed retrieval, **reranking** + the `eval` harness
-+ context budgets, **concept consolidation**, **source-correction** (`verify`), a
-**bitemporal MVP** (`history --as-of`), **multi-format ingestion** (PDF/DOCX/HTML/URL),
-a native **desktop UI** (`talamus ui`), the CLI, the engine adapters, and the MCP server.
-On the **[roadmap](docs/superpowers/specs/2026-06-08-talamus-roadmap.md)**: full
-valid-time bitemporal, hover-preview & graph view in the UI, OCR & more formats, and
-packaged installers.
+**Shipped** (tested, gate-green): the sources → notes → cited-answers loop;
+**multi-brain** with a federated read index (`brains`, `--all-brains`); **repo scan**
+with dry-run, secret redaction and resumable jobs (`scan`, `jobs`); **persistent
+indexes** (sqlite/FTS5 — search p95 at 10.000 notes: **34 ms**); the **Ontology Lab**
+(emergent relation types: induce → review → promote, with measured retrieval lift);
+the **temporal model** (`timeline`, `ask --as-of`); **batch verification** with a
+review queue; multi-format ingestion (PDF/DOCX/HTML/URL); the CLI dashboard; the
+**MCP server** (read+write with explicit scopes); the **UI workbench** (11 views,
+`talamus ui [--web]`).
+
+**Experimental**: emergent-schema quality at large scale (metrics built-in:
+`ontology eval`/`stability`); UI runtime polish (smoke-tested headless, verify
+rendering with `talamus ui`).
+
+**Roadmap** ([dettagli](docs/superpowers/specs/2026-06-08-talamus-roadmap.md)): OCR &
+more formats (PPTX/XLSX/EPUB/media), packaged installers (`flet build`), remote
+authenticated MCP, synonym-merge for emergent types, graph canvas view.
 
 ## Development
 
