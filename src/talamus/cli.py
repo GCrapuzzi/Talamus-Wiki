@@ -122,22 +122,87 @@ def _print_json(data: object) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-def _cmd_panel(root: Path) -> int:
-    paths = TalamusPaths(root)
-    print("Talamus — local-first knowledge compiler\n")
-    if not paths.config_path.exists():
-        print(f"No brain here ({root}). Create one:")
-        print("  talamus init                  initialize a brain in this folder")
-        print('\nThen:  talamus ingest <file>   ·   talamus ask "..."')
+def _dashboard_data(resolved: ResolvedBrain) -> dict:
+    from talamus.indexes import backend_info
+    from talamus.store import cache_is_current as _fresh
+
+    paths = TalamusPaths(resolved.root)
+    central = central_brain()
+    notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
+    sources = len(list(paths.raw.glob("*"))) if paths.raw.exists() else 0
+    reviews = len(ReviewQueue(paths).list(status="pending"))
+    jobs_running = sum(1 for j in JobStore(paths).list() if j.state in ("running", "queued"))
+    schema = schema_status(paths)
+    active_types = schema["types"].get("active", 0)
+    candidates = schema["types"].get("candidate", 0)
+    return {
+        "brain": str(resolved.root),
+        "scope": resolved.scope,
+        "config_exists": paths.config_path.exists(),
+        "central": str(central.root()) if central else None,
+        "notes": notes,
+        "sources": sources,
+        "reviews": reviews,
+        "indexes": {
+            "fresh": _fresh(paths),
+            "backend": backend_info(paths)["backend"],
+        },
+        "ontology": {
+            "version": schema["version"],
+            "active": active_types,
+            "candidates": candidates,
+        },
+        "jobs_running": jobs_running,
+        "overview_built": paths.overview_file.is_file(),
+    }
+
+
+def _dashboard_next(data: dict) -> list[str]:
+    suggestions: list[str] = []
+    if not data["config_exists"]:
+        return ["talamus init", "talamus demo   (example brain, no LLM needed)"]
+    if data["notes"] == 0:
+        suggestions.append("talamus ingest <file>   o   talamus scan . --dry-run")
+    if data["jobs_running"]:
+        suggestions.append("talamus jobs list")
+    if data["reviews"]:
+        suggestions.append("talamus review list")
+    if data["notes"] and not data["overview_built"]:
+        suggestions.append("talamus overview   (build the domain map)")
+    if not data["indexes"]["fresh"]:
+        suggestions.append("talamus reindex   (cache is stale)")
+    if not suggestions:
+        suggestions.append('talamus ask "..."')
+    return suggestions
+
+
+def _cmd_panel(resolved: ResolvedBrain, json_out: bool = False) -> int:
+    data = _dashboard_data(resolved)
+    if json_out:
+        _print_json({**data, "next": _dashboard_next(data)})
+        return 0
+    print("Talamus")
+    print(f"Brain      {data['brain']}  [{data['scope']}]")
+    if data["central"] and data["central"] != data["brain"]:
+        print(f"Central    {data['central']}")
+    if not data["config_exists"]:
+        print("Stato      nessun brain qui (talamus init per crearlo)")
     else:
-        n_notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
-        print(f"Brain: {root}  ·  {n_notes} notes\n")
-        print("Common commands:")
-        print("  talamus ingest <file>         add a document")
-        print('  talamus ask "<question>"      cited answer from your brain')
-        print('  talamus search "<query>"      find relevant notes (cheap)')
-        print("  talamus doctor                health check")
-    print("\n`talamus <command> -h` for options  ·  `talamus quickstart` for the basics")
+        print(
+            f"Notes      {data['notes']}      Sources  {data['sources']}"
+            f"      Reviews  {data['reviews']}"
+        )
+        fresh = "fresh" if data["indexes"]["fresh"] else "stale"
+        onto = data["ontology"]
+        ontology_label = f"v{onto['version']} ({onto['active']} active"
+        ontology_label += f", {onto['candidates']} candidate)" if onto["candidates"] else ")"
+        print(
+            f"Indexes    {fresh} ({data['indexes']['backend']})"
+            f"    Ontology {ontology_label}    Jobs {data['jobs_running']} running"
+        )
+    print("\nNext")
+    for suggestion in _dashboard_next(data):
+        print(f"  {suggestion}")
     return 0
 
 
@@ -718,12 +783,23 @@ def _cmd_hook_run(root: Path) -> int:
     return 0
 
 
-def _cmd_status(root: Path) -> int:
+def _cmd_status(root: Path, json_out: bool = False) -> int:
     paths = TalamusPaths(root)
     missing = [p for p in paths.required_directories() if not p.exists()]
     not_directories = [p for p in paths.required_directories() if p.exists() and not p.is_dir()]
     config_exists = paths.config_path.exists()
-    if missing or not_directories or not config_exists:
+    healthy = config_exists and not missing and not not_directories
+    if json_out:
+        _print_json(
+            {
+                "ok": healthy,
+                "config_exists": config_exists,
+                "missing": [str(p) for p in missing],
+                "not_directories": [str(p) for p in not_directories],
+            }
+        )
+        return 0 if healthy else 1
+    if not healthy:
         if not config_exists:
             print(f"missing config: {paths.config_path}", file=sys.stderr)
         for path in missing:
@@ -1197,11 +1273,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--global", dest="use_global", action="store_true", help="Use the default global brain."
     )
     common.add_argument("--verbose", action="store_true", help="Verbose diagnostics to stderr.")
+    common.add_argument(
+        "--plain",
+        "--no-color",
+        dest="plain",
+        action="store_true",
+        help="Plain output (no ANSI color; honored by default — output is already plain).",
+    )
     common.add_argument("--json", action="store_true", help="Machine-readable JSON output.")
 
-    parser = argparse.ArgumentParser(prog="talamus", description="Local-first knowledge compiler.")
+    parser = argparse.ArgumentParser(
+        prog="talamus",
+        description="Local-first knowledge compiler.",
+        epilog=(
+            "examples:\n"
+            "  talamus init --scan             brain here + repo scan plan (dry-run)\n"
+            '  talamus ask "come funziona X?"  cited answer from your notes\n'
+            "  talamus search ontologia --all-brains\n"
+            '  talamus ask "..." --as-of 2026-01 --trace\n'
+            "  talamus ontology induce         grow the emergent type system"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--version", action="version", version=f"talamus {__version__}")
-    sub = parser.add_subparsers(dest="command")
+    sub = parser.add_subparsers(dest="command", metavar="<command>")
 
     init = sub.add_parser("init", parents=[common], help="initialize a brain here")
     init.add_argument("--engine", default=None, help="LLM engine (else auto-detected).")
@@ -1397,7 +1492,7 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
     configure(getattr(args, "verbose", False))
     command = args.command
     if command is None:
-        return _cmd_panel(_resolve_root(None, None, False))
+        return _cmd_panel(resolve_brain(None, None, False))
     if command == "quickstart":
         return _cmd_quickstart()
     if command == "brains":
@@ -1448,7 +1543,7 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         if command == "hook-run":
             return _cmd_hook_run(root)
         if command == "status":
-            return _cmd_status(root)
+            return _cmd_status(root, json_out)
         if command == "doctor":
             return _cmd_doctor(root)
         if command == "reindex":
