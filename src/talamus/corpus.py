@@ -25,17 +25,21 @@ from talamus.models import CanonicalNote, Relation, SourceRef
 from talamus.paths import TalamusPaths
 from talamus.store import load_notes, rebuild_indexes, render_note_markdown, write_note_json
 
+# Corpus CONGELATO come fixture (2026-06-12): l'eval-set da 120 casi referenzia
+# i titoli di sezione di QUESTE versioni dei documenti. Mai modificare i file in
+# tests/fixtures/docs-corpus/ — l'immutabilita' e' cio' che rende i numeri
+# confrontabili nel tempo. Le docs vive evolvono liberamente altrove.
 DOC_FILES = [
-    "README.md",
-    "docs/index.md",
-    "docs/quickstart.md",
-    "docs/commands.md",
-    "docs/configuration.md",
-    "docs/evaluation.md",
-    "docs/architecture.md",
-    "docs/agent-tool-calling.md",
-    "docs/superpowers/specs/2026-06-08-talamus-roadmap.md",
-    "docs/superpowers/specs/2026-06-08-talamus-ui-design.md",
+    "tests/fixtures/docs-corpus/readme.md",
+    "tests/fixtures/docs-corpus/index.md",
+    "tests/fixtures/docs-corpus/quickstart.md",
+    "tests/fixtures/docs-corpus/commands.md",
+    "tests/fixtures/docs-corpus/configuration.md",
+    "tests/fixtures/docs-corpus/evaluation.md",
+    "tests/fixtures/docs-corpus/architecture.md",
+    "tests/fixtures/docs-corpus/agent-tool-calling.md",
+    "tests/fixtures/docs-corpus/roadmap.md",
+    "tests/fixtures/docs-corpus/ui-design.md",
 ]
 
 _MIN_SECTION_CHARS = 120

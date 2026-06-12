@@ -125,7 +125,7 @@ review queue; multi-format ingestion (PDF/DOCX/HTML/URL); the CLI dashboard; the
 `ontology eval`/`stability`); UI runtime polish (smoke-tested headless, verify
 rendering with `talamus ui`).
 
-**Roadmap** ([details](dev/STATE.md)): OCR &
+**Roadmap** ([dettagli](docs/superpowers/specs/2026-06-08-talamus-roadmap.md)): OCR &
 more formats (PPTX/XLSX/EPUB/media), packaged installers (`flet build`), remote
 authenticated MCP, synonym-merge for emergent types, graph canvas view.
 

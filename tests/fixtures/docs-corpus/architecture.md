@@ -68,5 +68,5 @@ Surfaces (CLI, MCP, future UI) are **thin shells** over the SDK. The engine
 ## Principles
 
 Local-first · the LLM reasons and chooses · the graph is an **index**, not the
-truth · stdlib core + optional adapters · the full developer deep-dive lives in
-[`dev/ARCHITECTURE.md`](https://github.com/GCrapuzzi/Talamus-Wiki/blob/main/dev/ARCHITECTURE.md).
+truth · stdlib core + optional adapters · see `docs/superpowers/specs/` for the
+vision and the execution roadmap.

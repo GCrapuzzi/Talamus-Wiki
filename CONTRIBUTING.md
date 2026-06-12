@@ -41,6 +41,13 @@ mkdocs serve            # preview the docs site at http://127.0.0.1:8000
 
 ## Pull requests
 
-Keep changes focused, explain the *why*, and make sure the gate is green. See the
-[architecture doc](docs/architecture.md) for module responsibilities and the
-[roadmap](docs/superpowers/specs/2026-06-08-talamus-roadmap.md) for direction.
+Keep changes focused, explain the *why*, and make sure the gate is green.
+
+## Where the project truth lives
+
+Start from [AGENTS.md](AGENTS.md) (yes, even as a human — it is the entry
+point for everyone), then the developer canon in `dev/`:
+[CONSTRAINTS.md](dev/CONSTRAINTS.md) (binding rules and why),
+[ARCHITECTURE.md](dev/ARCHITECTURE.md) (how every part works),
+[STATE.md](dev/STATE.md) (what is built, measured, rejected — and the open
+queue), [PRODUCT.md](dev/PRODUCT.md) (the final product definition).

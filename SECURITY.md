@@ -14,8 +14,8 @@ or an API you opt into).
   exposed to your network or the internet.
 - **No remote endpoint yet.** Exposing the brain to browser-based LLMs would
   require a remote endpoint; that is deliberately **out of scope** and, when
-  built, will be **authenticated and read-only** (see
-  `docs/superpowers/specs/talamus-future-evolutions.md`).
+  built, will be **authenticated and read-only** (see the out-of-scope list in
+  `dev/PRODUCT.md`).
 - **Secrets.** Talamus does not store API keys in the brain. Provide engine
   credentials via environment variables; they are not written to logs.
 - **Your data is yours.** Deleting the project directory deletes the brain.

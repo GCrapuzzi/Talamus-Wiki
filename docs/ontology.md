@@ -43,4 +43,4 @@ talamus ontology history | export
   clustering; the LLM only names).
 
 The research context and the design decisions live in
-[`docs/research/2026-06-ontology-learning-review.md`](research/2026-06-ontology-learning-review.md).
+[`dev/research/2026-06-ontology-learning-review.md`](https://github.com/GCrapuzzi/Talamus-Wiki/blob/main/dev/research/2026-06-ontology-learning-review.md).
