@@ -74,6 +74,9 @@ def enrich_notes(paths: TalamusPaths, llm: LLMProvider, language: str = "English
             symptoms = str(entry.get("symptoms", "")).strip()
             if note is None or not symptoms or _MARKER in note.retrieval_text:
                 continue
+            # guard-rail per modelli deboli: il retrieval_text non va inquinato
+            if len(symptoms) > 400 or any(c in symptoms for c in "{}[]<>"):
+                continue
             updated = dataclasses.replace(
                 note, retrieval_text=f"{note.retrieval_text}{_MARKER}{symptoms}"
             )

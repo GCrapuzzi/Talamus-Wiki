@@ -150,6 +150,26 @@ Zero regressioni; "il modello si inventa le cose" ora trova Allucinazione.
 - Prompt di `consolidate` migrato all'inglese (era sfuggito alla migrazione
   3 livelli).
 
+## Focus di prodotto (regola fissata il 2026-06-12)
+
+Il bersaglio NON è il brain di prova: è **qualsiasi utente, con qualsiasi
+motore, anche non all'avanguardia**. Conseguenze operative:
+
+1. **Regola dei due corpora = legge**: nulla entra in produzione se non vince
+   su entrambi (docs in CI + libro locale). Il libro è un banco di prova, non
+   il prodotto.
+2. **Batteria "modello ostile" in CI** (`test_talamus_hostile_models.py`):
+   ogni punto che consuma output LLM — estrazione, routing, espansione,
+   naming domini, enrich, consolidate — è testato contro risposte vuote,
+   prosa senza JSON, JSON troncato, tipo sbagliato, fence con spazzatura.
+   Degradare con grazia sempre, corrompere mai.
+3. **Guard-rail sull'enrich**: tetto di lunghezza (400) e filtro strutturale
+   sui sintomi — un modello debole non può inquinare il retrieval_text.
+4. **In coda, prima del pubblico**: e2e reale con ollama + modello piccolo
+   (la tesi dei 20€ include chi non ha alcun abbonamento) e un terzo corpus
+   di dominio diverso (non-AI, possibilmente non bilingue IT/EN) per
+   smascherare l'overfitting residuo.
+
 ## Prossime ipotesi (in ordine)
 
 1. **Vocabolario dei sintomi all'ingest (RS2.4-bis)**: l'estrattore aggiunge
