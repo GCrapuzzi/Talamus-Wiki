@@ -94,6 +94,62 @@ amplifica l'errore.
 non condivide alcun token (né trigramma utile) con "Allucinazione". Nessun
 trucco lessicale a query-time lo colma.
 
+## Risultati della seconda giornata (vinti e spediti)
+
+### V1 — Selezione intra-dominio classificata (fix ask, RS2.2)
+
+Il percorso overview leggeva i primi 8 membri dei domini scelti **nell'ordine
+di elenco del dominio**, senza alcun ranking contro la domanda. Misurato con
+routing reale (flash-lite, cache condivisa tra le varianti):
+
+| selezione | recall@8 | MRR | hit |
+|---|---|---|---|
+| vecchia (produzione) | 0.306 | 0.113 | **0.361** |
+| nuova (ranking via indice + 2 seed globali) | 0.708 | 0.558 | **0.750** |
+
+L'ask leggeva la nota giusta 1 volta su 3. Spedito in produzione.
+
+### V2 — Arricchimento sintomi (`talamus enrich`, RS2.4-bis)
+
+Il tentativo "direttiva sintomi nel prompt di estrazione" è stato misurato con
+un re-ingest completo del libro e BOCCIATO: ai modelli lite il prompt più lungo
+costa copertura (-12% note, 4 chunk malformati vs 1) e la perdita supera il
+guadagno. Il design vincente è il passo separato post-ingest a lotti
+(`talamus enrich`, 13 chiamate per 243 note, idempotente, stima+consenso),
+che consente anche l'A/B perfetto — stesso brain, cambia solo il retrieval_text:
+
+| search k=5 | prima | dopo enrich |
+|---|---|---|
+| recall@5 | 0.722 | 0.736 |
+| MRR | 0.641 | 0.668 |
+| hit | 0.806 | **0.833** |
+| vague-en hit | 0.250 | **0.500** |
+
+Zero regressioni; "il modello si inventa le cose" ora trova Allucinazione.
+
+### Effetto composto sul percorso ask (fix selezione + indice arricchito)
+
+| ask k=8 | recall | MRR | hit | vague | vague-en |
+|---|---|---|---|---|---|
+| produzione (mattina) | 0.306 | 0.113 | 0.361 | 0.188 | 0.250 |
+| selezione nuova | 0.708 | 0.558 | 0.750 | 0.375 | 0.250 |
+| + enrich | **0.778** | **0.630** | **0.861** | **0.500** | **0.625** |
+
+### Bocciato nel frattempo (coi dati)
+
+- **Triangolazione ontologica** (convergenza di più hit deboli via archi):
+  su docs MRR -0.14, hub pollution anche col filtro di convergenza. Terza
+  conferma: l'ontologia non paga nello scoring del retrieval.
+- **Direttiva sintomi nel prompt di estrazione**: vedi sopra (costa copertura).
+
+### Fix collaterali trovati dalle misure
+
+- `json.loads(..., strict=False)` ovunque si parsa JSON del modello: i flash
+  emettono a-capo letterali nelle stringhe (3 dei 4 chunk falliti del
+  re-ingest). Salva i chunk gratis.
+- Prompt di `consolidate` migrato all'inglese (era sfuggito alla migrazione
+  3 livelli).
+
 ## Prossime ipotesi (in ordine)
 
 1. **Vocabolario dei sintomi all'ingest (RS2.4-bis)**: l'estrattore aggiunge

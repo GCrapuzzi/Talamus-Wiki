@@ -233,8 +233,8 @@ def _cmd_ui(root: Path, web: bool = False, port: int = 8550) -> int:
 
 
 _ALL_COMMANDS = (
-    "setup init demo ui status doctor reindex ingest scan consolidate verify ask overview search "
-    "read "
+    "setup init demo ui status doctor reindex ingest scan consolidate enrich verify ask overview "
+    "search read "
     "history timeline recall neighbors relations remember eval ontology jobs review quickstart "
     "brains where export import completion mcp hook hook-run"
 )
@@ -973,6 +973,36 @@ def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: boo
     return 0
 
 
+def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
+    """Arricchimento sintomi (RS2.4-bis): stima prima, lotti solo con --yes."""
+    from talamus.config import load_or_default, resolve_language
+    from talamus.enrich import enrich_estimate, enrich_notes
+
+    paths = TalamusPaths(root)
+    estimate = enrich_estimate(paths)
+    if estimate["notes"] == 0:
+        print("tutte le note hanno già il vocabolario dei sintomi")
+        return 0
+    if not yes:
+        if json_out:
+            _print_json(estimate)
+        else:
+            print(f"Da arricchire: {estimate['notes']} note in {estimate['batches']} lotti")
+            print(f"  = {estimate['est_llm_calls']} chiamate LLM")
+            print("  Conferma con:  talamus enrich --yes")
+        return 0
+    language = resolve_language(load_or_default(paths.config_path))
+    report = enrich_notes(paths, llm, language=language)
+    if json_out:
+        _print_json(report)
+    else:
+        print(
+            f"arricchite {report['enriched']} note "
+            f"({report['failed_batches']} lotti falliti, {report['skipped']} saltate)"
+        )
+    return 0
+
+
 def _cmd_verify_batch(
     root: Path, llm: LLMProvider, only_stale: bool, source: str | None, json_out: bool
 ) -> int:
@@ -1513,6 +1543,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     consolidate = sub.add_parser("consolidate", parents=[common], help="merge duplicate concepts")
     consolidate.add_argument("--apply", action="store_true", help="actually merge (default: list)")
+
+    enrich = sub.add_parser(
+        "enrich", parents=[common], help="add symptom phrasings to retrieval_text"
+    )
+    enrich.add_argument("--yes", action="store_true", help="run the batches (default: estimate)")
     verify = sub.add_parser("verify", parents=[common], help="check a note against its source")
     verify.add_argument("title", nargs="?", default=None)
     verify.add_argument("--apply", action="store_true", help="apply the correction")
@@ -1678,6 +1713,8 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_ingest(root, args.target, provider, json_out, args.yes)
         if command == "consolidate":
             return _cmd_consolidate(root, args.apply, provider, json_out)
+        if command == "enrich":
+            return _cmd_enrich(root, args.yes, provider, json_out)
         if command == "verify":
             if args.all or args.stale or args.source:
                 return _cmd_verify_batch(root, provider, args.stale, args.source, json_out)

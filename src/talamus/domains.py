@@ -68,7 +68,8 @@ def _parse_json_array(raw: str) -> list:
     if start == -1 or end == -1 or end <= start:
         return []
     try:
-        parsed = json.loads(raw[start : end + 1])
+        # strict=False: tollera i control character letterali dei modelli flash
+        parsed = json.loads(raw[start : end + 1], strict=False)
     except json.JSONDecodeError:
         return []
     return parsed if isinstance(parsed, list) else []

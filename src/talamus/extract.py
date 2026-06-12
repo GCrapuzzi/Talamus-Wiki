@@ -66,7 +66,9 @@ def _extract_json_array(raw: str) -> list[dict]:
     end = raw.rfind("]")
     if start == -1 or end == -1 or end < start:
         raise ValueError("nessun array JSON nella risposta del modello")
-    return json.loads(raw[start : end + 1])
+    # strict=False: i modelli flash emettono a-capo LETTERALI dentro le stringhe
+    # (3 chunk su 4 falliti nel re-ingest del libro) — accettarli salva il chunk
+    return json.loads(raw[start : end + 1], strict=False)
 
 
 def _section_source(
