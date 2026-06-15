@@ -49,6 +49,9 @@ credentials.json
 # (the leading-dot dir; never the dev/ docs)
 .talamus/
 
+# --- Downloaded benchmark datasets (BEIR etc.) — regenerable, never committed ---
+.bench-data/
+
 # --- Transient CI-tier benchmark artifacts (real shootout results stay tracked) ---
 benchmarks/results/*-ci.json
 benchmarks/results/*-ci.md

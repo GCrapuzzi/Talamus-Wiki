@@ -14,10 +14,11 @@ from talamus.smartsearch import expand_query
 from talamus.store import overwrite_note_json, rebuild_indexes
 
 
-def _note_for(doc: Doc) -> CanonicalNote:
+def _note_for(note_id: str, doc: Doc) -> CanonicalNote:
     src = SourceRef("raw/bench.md", "raw/bench.md#1", "bench", "sha256:x", [doc.text])
     return dataclasses.replace(
-        CanonicalNote.minimal(doc.title, sources=[src]),
+        CanonicalNote.minimal(doc.title or note_id, sources=[src]),
+        note_id=note_id,
         retrieval_text=f"{doc.title} {doc.text}",
         summary=doc.text[:200],
     )
@@ -30,20 +31,22 @@ class _TalamusBase:
         self._tmp = tempfile.TemporaryDirectory()
         self._paths = TalamusPaths(Path(self._tmp.name))
         self._paths.ensure_directories()
-        self._title_to_id: dict[str, str] = {}
+        # map by note_id (which search_index returns), robust to empty/duplicate titles
+        self._noteid_to_docid: dict[str, str] = {}
 
     def ingest(self, docs: list[Doc]) -> IngestStats:
         start = time.perf_counter()
-        for doc in docs:
-            self._title_to_id[doc.title] = doc.doc_id
-            overwrite_note_json(self._paths, _note_for(doc))
+        for i, doc in enumerate(docs):
+            note_id = f"bench-{i:06d}"
+            self._noteid_to_docid[note_id] = doc.doc_id
+            overwrite_note_json(self._paths, _note_for(note_id, doc))
         rebuild_indexes(self._paths)
         index_bytes = sum(p.stat().st_size for p in self._paths.cache.rglob("*") if p.is_file())
         return IngestStats(seconds=time.perf_counter() - start, index_bytes=index_bytes)
 
     def _search(self, query: str, k: int) -> list[str]:
         hits = search_index(self._paths, query, limit=k)
-        return [self._title_to_id.get(h["title"], h["title"]) for h in hits]
+        return [self._noteid_to_docid.get(h["note_id"], h["note_id"]) for h in hits]
 
 
 class TalamusSearch(_TalamusBase):

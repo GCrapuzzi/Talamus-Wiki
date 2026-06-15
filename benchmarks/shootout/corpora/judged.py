@@ -3,6 +3,9 @@ load_beir; beir_to_corpus is pure and unit-tested."""
 
 from __future__ import annotations
 
+import json
+import urllib.request
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,15 +36,56 @@ def beir_to_corpus(
     return JudgedCorpus(docs=docs, queries=judged_q, qrels={q: qrels[q] for q in judged_q})
 
 
-def load_beir(name: str = "scifact", data_root: str = ".bench-data") -> JudgedCorpus:
-    """Download (once) and load a BEIR dataset as a JudgedCorpus. Manual tier."""
-    from beir import util
-    from beir.datasets.data_loader import GenericDataLoader
+_BEIR_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{name}.zip"
 
-    root = Path(data_root)
+
+def _download_beir(name: str, root: Path) -> Path:
+    """Download + unzip a BEIR dataset (once). Returns the dataset folder."""
     data_path = root / name
-    if not data_path.is_dir():
-        url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{name}.zip"
-        util.download_and_unzip(url, str(root))
-    corpus, queries, qrels = GenericDataLoader(data_folder=str(data_path)).load(split="test")
+    if data_path.is_dir():
+        return data_path
+    root.mkdir(parents=True, exist_ok=True)
+    zip_path = root / f"{name}.zip"
+    urllib.request.urlretrieve(_BEIR_URL.format(name=name), zip_path)  # noqa: S310 (trusted host)
+    with zipfile.ZipFile(zip_path) as zf:
+        zf.extractall(root)
+    zip_path.unlink(missing_ok=True)
+    return data_path
+
+
+def _read_jsonl(path: Path) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                row = json.loads(line)
+                out[str(row["_id"])] = row
+    return out
+
+
+def load_beir(
+    name: str = "scifact", data_root: str = ".bench-data", split: str = "test"
+) -> JudgedCorpus:
+    """Download (once) and load a BEIR dataset as a JudgedCorpus.
+
+    Lightweight: reads the BEIR file format (corpus.jsonl, queries.jsonl,
+    qrels/<split>.tsv) directly with the stdlib — no torch / beir package."""
+    data_path = _download_beir(name, Path(data_root))
+    corpus_rows = _read_jsonl(data_path / "corpus.jsonl")
+    corpus = {
+        doc_id: {"title": row.get("title", ""), "text": row.get("text", "")}
+        for doc_id, row in corpus_rows.items()
+    }
+    query_rows = _read_jsonl(data_path / "queries.jsonl")
+    queries = {qid: row.get("text", "") for qid, row in query_rows.items()}
+    qrels: dict[str, dict[str, int]] = {}
+    qrels_file = data_path / "qrels" / f"{split}.tsv"
+    with qrels_file.open(encoding="utf-8") as handle:
+        next(handle)  # header: query-id\tcorpus-id\tscore
+        for line in handle:
+            parts = line.split()
+            if len(parts) >= 3:
+                qid, doc_id, score = parts[0], parts[1], int(parts[2])
+                if score > 0:
+                    qrels.setdefault(qid, {})[doc_id] = score
     return beir_to_corpus(corpus, queries, qrels)
