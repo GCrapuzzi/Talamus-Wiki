@@ -23,6 +23,7 @@ bench = [
     "rank-bm25>=0.2",
     "faiss-cpu>=1.8",
     "sentence-transformers>=3.0",
+    "mem0ai>=0.1",
 ]
 docs = ["mkdocs-material>=9"]
 ui = ["flet>=0.24"]

@@ -26,6 +26,38 @@ class JudgedCorpus:
         return [Doc(doc_id, title, text) for doc_id, title, text in self.docs]
 
 
+def corpus_from_brain(brain_path: str, eval_path: str) -> JudgedCorpus:
+    """Build a JudgedCorpus from a real Talamus brain + an eval-cases file.
+
+    Each note becomes one doc (id = title) carrying its enriched search text
+    (title + summary + retrieval_text, which includes symptom phrasings), so
+    every system retrieves over IDENTICAL content — this isolates the retrieval
+    method on Talamus's own turf (cross-language + vague queries). Relevance =
+    the eval cases' relevant titles. Copyright-safe: only used locally; reports
+    publish aggregates, never the text."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    from talamus.paths import TalamusPaths
+    from talamus.store import load_notes
+
+    notes = load_notes(TalamusPaths(_Path(brain_path)))
+    docs = [(n.title, n.title, f"{n.title} {n.summary} {n.retrieval_text}".strip()) for n in notes]
+    titles = {n.title for n in notes}
+    data = _json.loads(_Path(eval_path).read_text(encoding="utf-8"))
+    cases = data["cases"] if isinstance(data, dict) else data
+    queries: dict[str, str] = {}
+    qrels: dict[str, dict[str, int]] = {}
+    for case in cases:
+        relevant = [t for t in case.get("relevant", []) if t in titles]
+        if not relevant:  # negatives or unmatched titles can't be scored for recall
+            continue
+        qid = str(case.get("id") or case.get("question", ""))
+        queries[qid] = case["question"]
+        qrels[qid] = dict.fromkeys(relevant, 1)
+    return JudgedCorpus(docs=docs, queries=queries, qrels=qrels)
+
+
 def beir_to_corpus(
     corpus: dict[str, dict], queries: dict[str, str], qrels: dict[str, dict[str, int]]
 ) -> JudgedCorpus:

@@ -7,6 +7,7 @@ python benchmarks/run.py --tier shootout --yes   # real competitors + LLM (paid)
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -88,8 +89,16 @@ def _run_shootout(
             f"--dataset {dataset} --queries {n_queries or 0}"
         )
         return 0
-    print(f"Loading BEIR {dataset}...", flush=True)
-    corpus = _subset_queries(load_beir(dataset), n_queries)
+    if dataset == "book":
+        from benchmarks.shootout.corpora.judged import corpus_from_brain
+
+        brain = os.environ.get("TALAMUS_BENCH_BRAIN", r"C:\dev\_talamus_book")
+        eval_path = os.environ.get("TALAMUS_BENCH_EVAL", str(Path(brain) / "eval-cases-book.json"))
+        print(f"Loading brain corpus from {brain}...", flush=True)
+        corpus = _subset_queries(corpus_from_brain(brain, eval_path), n_queries)
+    else:
+        print(f"Loading BEIR {dataset}...", flush=True)
+        corpus = _subset_queries(load_beir(dataset), n_queries)
     print(f"  {corpus.n_docs} docs, {len(corpus.queries)} judged queries", flush=True)
     systems = _build_systems(engine, model, smart=smart)
     result = run_shootout(systems, corpus, k=10)
