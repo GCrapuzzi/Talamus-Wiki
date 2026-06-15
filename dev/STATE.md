@@ -81,6 +81,14 @@ Docs corpus (120 cases) floors in CI: recall ≥ 0.45, MRR ≥ 0.40, hit ≥ 0.5
    the second LLM-enriched corpus the enrich findings still lack).
 8. 100k-note bench; UI visual verdict from the maintainer; clean-venv install
    checklist.
+9. **Chunking quality** (maintainer-flagged): `split_chunks` cuts at paragraph
+   boundaries but a concept spanning a chunk boundary can still be split across
+   two chunks and lose information. Investigate an overlap window between chunks
+   (and/or semantic chunking) so boundary concepts survive. Measure the effect
+   on ingest quality.
+10. **MarkItDown (Microsoft)** (maintainer-flagged): evaluate it as an ingest
+    front-end / optional extra — it already supports more file types including
+    audio and video, which would extend `extract_text` beyond the current set.
 
 ## Live artifacts (not in repo)
 
