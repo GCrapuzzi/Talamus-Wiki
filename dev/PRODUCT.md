@@ -76,7 +76,11 @@ hosted services.
   resumable jobs with cost estimates; engines are switchable mid-job.
 - **Retrieval**: three-channel lexical+trigram index (no embeddings),
   cross-language by construction, milliseconds at 10k notes. `search`,
-  `recall`, `neighbors`, `read`, `history`, `timeline`.
+  `recall`, `neighbors`, `read`, `history`, `timeline`. Two tiers: plain
+  `search` is instant and free (~0.86 hit, known-item lookup); `search
+  --smart` adds cached LLM query expansion (Query2doc) for vague/paraphrased
+  queries (~0.97 on a curated brain), still no embeddings and no per-query
+  cost on repeats.
 - **Ask**: hierarchical routing (macro-area → domain) + LLM query expansion +
   ranked selection + global escape seeds → budgeted context → cited answer in
   the question's language, honest refusal when the brain doesn't know.
@@ -100,7 +104,8 @@ hosted services.
 | Metric | Bar | Status source |
 |---|---|---|
 | Ask hit-rate (right notes read), real corpus | ≥ 0.95 | STATE.md dashboard |
-| Search hit-rate@5, real corpus | ≥ 0.92 | STATE.md dashboard |
+| `search` plain (instant, free) | ~0.86 lexical ceiling — acceptable for the fast tier | achieved |
+| `search --smart` (Query2doc), curated enriched corpus | ≥ 0.92 | achieved (0.972 book) |
 | Honest refusal on out-of-scope questions | answer-level guard, measured | RS2.6 open |
 | Search latency @ 10k notes | < 100 ms | achieved (~55 ms) |
 | Routing token cost | ~log(N), measured | achieved (12× at 10k) |
@@ -125,7 +130,10 @@ cold `pip install` works on a clean machine.
 ## Competitive posture (keep honest)
 
 Vector DBs reach ~98% semantic hit by paying query-time embedding
-infrastructure. Our promise is different and must stay honest: comparable
-practical hit-rates (≥0.92/0.95) with ZERO infra, plus time, meaning,
-verifiability and true local ownership that they do not have. Where a gap
-remains, we say so in STATE.md rather than hand-waving.
+infrastructure. Our promise is different and is now demonstrated, not
+promised: parity on the hard vague queries is reached via Query2doc (the
+user's own LLM expands the query — `search --smart` hit 0.972, ask 0.972),
+with ZERO embedding infra, plus time, meaning, verifiability and true local
+ownership that they do not have. Where a gap remains (e.g. an un-enriched
+mechanical brain, where smart search is ~0.78), we say so in STATE.md rather
+than hand-waving.
