@@ -1,5 +1,7 @@
 .worktrees/
 .claude/
+# Superpowers brainstorming-companion runtime cache (servers, logs, pids)
+.superpowers/
 
 # Python
 __pycache__/
