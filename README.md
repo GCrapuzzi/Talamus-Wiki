@@ -103,6 +103,24 @@ Storage is **hybrid**: `notes/*.md` is the human-editable view (Obsidian-compati
 `talamus reindex` folds your hand-edits back in. The core is **Python stdlib-only**;
 extras (MCP, engines) are optional. See **[architecture](docs/architecture.md)**.
 
+## How it compares (measured)
+
+A real head-to-head against a dense vector-DB RAG pipeline (sentence-transformers
++ FAISS) and vanilla BM25, same corpus/queries/judgments
+([details](dev/research/2026-06-rs5-competitive-shootout.md)):
+
+| corpus | metric | Talamus | BM25 | Vector DB |
+|---|---|---|---|---|
+| BEIR SciFact (English, dense's turf) | recall@10 | 0.776 | 0.776 | 0.783 |
+| BEIR SciFact | hit@10 | 0.793 | 0.797 | 0.793 |
+| Cross-language + vague (our turf) | recall@10 | **0.886** | 0.771 | 0.700 |
+| Cross-language + vague | hit@10 | **0.971** | 0.829 | 0.743 |
+
+**On the vector DB's home turf we tie it — with zero embedding infrastructure.
+On cross-language and vague queries we win decisively** (the dense model lands
+last). Plus time, meaning and verifiability (100% of notes source-resolvable;
+97.7% fewer tokens than loading the brain) — moats no vector DB has.
+
 ## Use cases
 
 - **Second brain** — compile your reading and notes into a connected, cited wiki.
