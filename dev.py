@@ -7,13 +7,26 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+
+
+def _env() -> dict[str, str]:
+    env = os.environ.copy()
+    pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = str(SRC) if not pythonpath else f"{SRC}{os.pathsep}{pythonpath}"
+    return env
 
 
 def run(cmd: list[str]) -> int:
     print(f"\n$ {' '.join(cmd)}", flush=True)
-    return subprocess.call(cmd)
+    return subprocess.call(cmd, cwd=ROOT, env=_env())
 
 
 def main() -> int:
