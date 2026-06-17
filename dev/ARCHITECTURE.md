@@ -224,7 +224,10 @@ returning the secret. Mutating service calls return `ServiceResult` from
   engine setup slice handles settings parity without duplicating adapter logic;
   `ingestion.py` exposes typed ingest preview/confirmation/run operations over
   `estimate_chunks` and `ingest_path`, preserving the no-LLM-call consent gate
-  for large local files;
+  for large local files; `scan.py` exposes typed repository scan preview,
+  confirmation, secret-blocking, background queueing, and execution over the
+  existing dry-run/JobStore/execute_plan flow without constructing an LLM
+  provider before approval;
   `brains.py` wraps registry list/register/select/rename/delete/flag operations
   in typed `ServiceResult` contracts for CLI/UI parity; `jobs.py` exposes
   read/cancel/log controls over persisted job records while execution resume

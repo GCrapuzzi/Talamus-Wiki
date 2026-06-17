@@ -86,6 +86,7 @@ from talamus.services.review import (
     list_review_items,
     reject_review_item,
 )
+from talamus.services.scan import ScanActionResult, ScanPreview, preview_scan, run_scan
 from talamus.store import reindex
 from talamus.temporal import note_timeline, parse_when
 from talamus.timeline import note_as_of, note_history
@@ -281,14 +282,19 @@ def _cmd_scan(
     args: argparse.Namespace,
 ) -> int:
     json_out = bool(getattr(args, "json", False))
-    plan = build_plan(
-        Path(target),
-        profile=args.profile,
-        include=args.include or None,
-        exclude=args.exclude or None,
-        max_files=args.max_files,
-    )
     if args.dry_run or not (args.yes or args.background):
+        preview_result = preview_scan(
+            root,
+            target,
+            profile=args.profile,
+            include=args.include or None,
+            exclude=args.exclude or None,
+            max_files=args.max_files,
+        )
+        if not preview_result.success or not isinstance(preview_result.data, ScanPreview):
+            print(preview_result.message, file=sys.stderr)
+            return 1
+        plan = preview_result.data.plan
         if json_out:
             _print_json(plan.to_dict())
         else:
@@ -296,8 +302,22 @@ def _cmd_scan(
             if not args.dry_run:
                 print("\n(dry-run shown; pass --yes to execute or --background to queue a job)")
         return 0
-    if plan.secret_flags and not args.allow_secrets:
-        flagged = sorted({f["path"] for f in plan.secret_flags})
+    service_result = run_scan(
+        root,
+        target,
+        llm_factory,
+        profile=args.profile,
+        include=args.include or None,
+        exclude=args.exclude or None,
+        max_files=args.max_files,
+        confirmed=args.yes,
+        background=args.background,
+        allow_secrets=args.allow_secrets,
+    )
+    if service_result.code == "scan_secrets_blocked" and isinstance(
+        service_result.data, ScanPreview
+    ):
+        flagged = service_result.data.secret_files
         print(
             "error: likely secrets detected; scan stopped before any LLM call\n"
             f"cause: {len(flagged)} file(s) flagged: {', '.join(flagged[:5])}\n"
@@ -306,17 +326,18 @@ def _cmd_scan(
             file=sys.stderr,
         )
         return 1
-    if not plan.included:
+    if service_result.code == "scan_nothing_to_scan":
         print("nothing to scan (no supported files in plan)")
         return 0
-    paths = TalamusPaths(root)
-    if args.background:
-        store = JobStore(paths)
-        record = store.create("scan", payload=plan.to_dict())
-        print(f"queued scan job {record.job_id} ({len(plan.included)} files)")
-        print(f"run it with:  talamus jobs resume {record.job_id}")
+    if service_result.code == "scan_queued" and isinstance(service_result.data, ScanActionResult):
+        result = service_result.data
+        print(f"queued scan job {result.job_id} ({result.files} files)")
+        print(f"run it with:  talamus jobs resume {result.job_id}")
         return 0
-    report = execute_plan(paths, plan, llm_factory())
+    if not service_result.success or not isinstance(service_result.data, ScanActionResult):
+        print(service_result.message, file=sys.stderr)
+        return 1
+    report = service_result.data.raw
     if json_out:
         _print_json(report)
         return 0
