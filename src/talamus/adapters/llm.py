@@ -99,16 +99,42 @@ class GeminiCliProvider:
 
 
 class OllamaProvider:
-    """Local model via the Ollama CLI — fully local, no subscription."""
+    """Local model via Ollama — fully local, no subscription.
+
+    Default path uses the CLI (`ollama run`). When `options` is given (e.g.
+    num_predict to cap one-word judge output, temperature=0 for determinism),
+    the HTTP /api/generate endpoint is used because the CLI does not expose
+    generation options."""
 
     def __init__(
-        self, model: str = "llama3", runner: Callable[[list[str], str], str] = _default_runner
+        self,
+        model: str = "llama3",
+        runner: Callable[[list[str], str], str] = _default_runner,
+        options: dict | None = None,
+        poster: Callable[[str, dict[str, str], dict], dict] = _default_poster,
     ) -> None:
         self._model = model
         self._runner = runner
+        self._options = options
+        self._poster = poster
 
     def complete(self, prompt: str) -> str:
-        return self._runner(["ollama", "run", self._model], prompt)
+        if not self._options:
+            return self._runner(["ollama", "run", self._model], prompt)
+        host = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+        if not host.startswith("http"):
+            host = f"http://{host}"
+        data = self._poster(
+            f"{host}/api/generate",
+            {"content-type": "application/json"},
+            {
+                "model": self._model,
+                "prompt": prompt,
+                "stream": False,
+                "options": dict(self._options),
+            },
+        )
+        return str(data.get("response", "")).strip()
 
 
 class AnthropicApiProvider:
