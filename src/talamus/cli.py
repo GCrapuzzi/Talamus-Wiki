@@ -13,7 +13,6 @@ from talamus import __version__
 from talamus.adapters.llm import LLMProvider, build_provider, engine_command
 from talamus.ask import answer_from_items, answer_question
 from talamus.config import TalamusConfig, load_config, load_or_default, save_config
-from talamus.consolidate import apply_consolidation, find_duplicates
 from talamus.correct import apply_correction, verify_note
 from talamus.demo import create_demo_brain
 from talamus.domains import build_overview, load_overview
@@ -63,6 +62,7 @@ from talamus.services.brains import (
     set_registered_brain_flags,
     unregister_registered_brain,
 )
+from talamus.services.consolidation import apply_consolidation_groups, list_consolidation_groups
 from talamus.services.diagnostics import inspect_diagnostics
 from talamus.services.engines import choose_default_engine, list_engines
 from talamus.services.enrich import EnrichPreview, EnrichRunResult, run_enrich
@@ -1006,15 +1006,22 @@ def _cmd_ingest(
 
 
 def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: bool) -> int:
-    paths = TalamusPaths(root)
     if do_apply:
-        merged = apply_consolidation(paths, llm)
+        apply_result = apply_consolidation_groups(root, llm)
+        if not apply_result.success or apply_result.data is None:
+            print(apply_result.message, file=sys.stderr)
+            return 1
+        merged = apply_result.data.merged
         if json_out:
             _print_json({"merged": merged})
         else:
             print(f"consolidate: merged {merged} note(s)")
         return 0
-    groups = find_duplicates(paths, llm)
+    list_result = list_consolidation_groups(root, llm)
+    if not list_result.success or list_result.data is None:
+        print(list_result.message, file=sys.stderr)
+        return 1
+    groups = [group.to_dict() for group in list_result.data.groups]
     if json_out:
         _print_json(groups)
         return 0

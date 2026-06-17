@@ -229,6 +229,8 @@ returning the secret. Mutating service calls return `ServiceResult` from
   existing dry-run/JobStore/execute_plan flow without constructing an LLM
   provider before approval; `enrich.py` exposes typed symptom-vocabulary
   preview/confirmation/run operations over the existing batched enrichment path;
+  `consolidation.py` exposes typed duplicate-group proposals and reviewed-group
+  apply operations over the existing consolidation merge path;
   `brains.py` wraps registry list/register/select/rename/delete/flag operations
   in typed `ServiceResult` contracts for CLI/UI parity; `jobs.py` exposes
   read/cancel/log controls over persisted job records while execution resume
