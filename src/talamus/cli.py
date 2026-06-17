@@ -72,6 +72,12 @@ from talamus.services.brains import (
 from talamus.services.engines import choose_default_engine, list_engines
 from talamus.services.jobs import cancel_job, get_job, list_jobs, read_job_log
 from talamus.services.readiness import ReadinessReport, inspect_readiness
+from talamus.services.review import (
+    apply_review_item,
+    get_review_item,
+    list_review_items,
+    reject_review_item,
+)
 from talamus.store import cache_is_current, reindex
 from talamus.temporal import note_timeline, parse_when
 from talamus.timeline import note_as_of, note_history
@@ -518,24 +524,28 @@ def _cmd_jobs_group(args: argparse.Namespace, root: Path) -> int:
 
 
 def _cmd_review_group(args: argparse.Namespace, root: Path) -> int:
-    queue = ReviewQueue(TalamusPaths(root))
     cmd = getattr(args, "review_cmd", None) or "list"
     json_out = bool(getattr(args, "json", False))
     if cmd == "list":
         status = None if getattr(args, "all", False) else "pending"
-        items = queue.list(status=status)
+        list_result = list_review_items(root, status=status)
+        if not list_result.success or list_result.data is None:
+            print(f"error: {list_result.message}", file=sys.stderr)
+            return 1
+        items = list_result.data
         if json_out:
-            _print_json([i.to_dict() for i in items])
+            _print_json([item.to_dict() for item in items])
             return 0
         if not items:
             print("review queue empty")
         for item in items:
             print(f"- {item.item_id}  [{item.kind}]  {item.status}  {item.title}")
         return 0
-    entry = queue.get(args.item_id)
-    if entry is None:
-        print(f"no review item '{args.item_id}'", file=sys.stderr)
+    entry_result = get_review_item(root, args.item_id)
+    if not entry_result.success or entry_result.data is None:
+        print(entry_result.message, file=sys.stderr)
         return 1
+    entry = entry_result.data
     if cmd == "show":
         if json_out:
             _print_json(entry.to_dict())
@@ -544,28 +554,18 @@ def _cmd_review_group(args: argparse.Namespace, root: Path) -> int:
             print(f"{key}: {value}")
         return 0
     if cmd == "apply":
-        if entry.kind == "correction":
-            from talamus.correct import apply_proposed_correction
-
-            if not apply_proposed_correction(TalamusPaths(root), entry.detail):
-                print(
-                    f"cannot apply: note '{entry.detail.get('title')}' not found", file=sys.stderr
-                )
-                return 1
-        applied = queue.apply(
-            args.item_id, resolution="correction written" if entry.kind == "correction" else ""
-        )
-        if applied is None:
-            print(f"'{args.item_id}' is not pending", file=sys.stderr)
+        applied = apply_review_item(root, args.item_id)
+        if not applied.success or applied.data is None:
+            print(applied.message, file=sys.stderr)
             return 1
-        print(f"applied {applied.item_id} ({applied.kind})")
+        print(f"applied {applied.data.item_id} ({applied.data.kind})")
         return 0
     if cmd == "reject":
-        rejected = queue.reject(args.item_id, getattr(args, "reason", "") or "")
-        if rejected is None:
-            print(f"'{args.item_id}' is not pending", file=sys.stderr)
+        rejected = reject_review_item(root, args.item_id, getattr(args, "reason", "") or "")
+        if not rejected.success or rejected.data is None:
+            print(rejected.message, file=sys.stderr)
             return 1
-        print(f"rejected {rejected.item_id} (kept in the log)")
+        print(f"rejected {rejected.data.item_id} (kept in the log)")
         return 0
     raise ValueError(f"unknown review command {cmd}")
 
