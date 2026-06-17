@@ -226,7 +226,9 @@ returning the secret. Mutating service calls return `ServiceResult` from
   in typed `ServiceResult` contracts for CLI/UI parity; `jobs.py` exposes
   read/cancel/log controls over persisted job records while execution resume
   stays with CLI runners; `review.py` exposes review queue list/show/apply/reject
-  decisions, including correction application, behind the same service contract.
+  decisions, including correction application, behind the same service contract;
+  `query.py` exposes read-side search/read/recall without introducing new LLM
+  calls.
 - **CLI** (`cli.py`): the full surface; bare `talamus` = dashboard; `--json`
   on read commands; `--root`/scope flags; consent gates.
 - **MCP** (`mcp_server.py`, optional extra): read tools (search, read_note,

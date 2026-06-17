@@ -36,7 +36,7 @@ from talamus.ontology_lab import (
     stability,
 )
 from talamus.paths import TalamusPaths
-from talamus.recall import concept_neighbors, read_note_text, recall_context, search_notes
+from talamus.recall import concept_neighbors, search_notes
 from talamus.registry import (
     central_brain,
     load_registry,
@@ -60,7 +60,6 @@ from talamus.scope import (
     resolve_brain,
     resolve_init_root,
     scoped_context_items,
-    scoped_search,
 )
 from talamus.services.brains import (
     register_existing_brain,
@@ -71,6 +70,7 @@ from talamus.services.brains import (
 )
 from talamus.services.engines import choose_default_engine, list_engines
 from talamus.services.jobs import cancel_job, get_job, list_jobs, read_job_log
+from talamus.services.query import read_note, recall_brain, search_brain
 from talamus.services.readiness import ReadinessReport, inspect_readiness
 from talamus.services.review import (
     apply_review_item,
@@ -1251,7 +1251,12 @@ def _cmd_search(
 
         provider = llm if llm is not None else _provider_for(root)
         query = expand_query(TalamusPaths(root), query, provider)
-    results, warnings = scoped_search(root, query, policy, limit=limit)
+    search_result = search_brain(root, query, policy=policy, limit=limit)
+    if not search_result.success or search_result.data is None:
+        print(search_result.message, file=sys.stderr)
+        return 1
+    report = search_result.data
+    results = [hit.to_dict() for hit in report.hits]
     if json_out:
         _print_json(results)
         return 0
@@ -1260,17 +1265,21 @@ def _cmd_search(
     for item in results:
         marker = "" if item.get("scope") == "[project]" else f"{item.get('scope', '')} "
         print(f"- {marker}{item['title']}: {item['summary']}")
-    for warning in warnings:
+    for warning in report.warnings:
         print(f"  ! {warning}", file=sys.stderr)
     return 0
 
 
 def _cmd_read(root: Path, title: str, json_out: bool, as_of: str | None = None) -> int:
-    paths = TalamusPaths(root)
+    read_result = read_note(root, title, as_of=as_of)
+    data = read_result.data
+    if data is None:
+        print(read_result.message, file=sys.stderr)
+        return 1
     if as_of:
-        version = note_as_of(paths, title, as_of)
+        version = data.version
         if version is None:
-            print(f"nessuna versione di '{title}' a {as_of}", file=sys.stderr)
+            print(read_result.message, file=sys.stderr)
             return 1
         if json_out:
             _print_json(version)
@@ -1284,14 +1293,13 @@ def _cmd_read(root: Path, title: str, json_out: bool, as_of: str | None = None) 
             print(body)
             print()
         return 0
-    text = read_note_text(paths, title)
     if json_out:
-        _print_json({"title": title, "found": text is not None, "markdown": text})
-        return 0 if text is not None else 1
-    if text is None:
+        _print_json({"title": title, "found": data.found, "markdown": data.markdown})
+        return 0 if read_result.success else 1
+    if not read_result.success:
         print(f"scheda non trovata: {title}", file=sys.stderr)
         return 1
-    print(text)
+    print(data.markdown)
     return 0
 
 
@@ -1348,25 +1356,16 @@ def _render_scoped_items(items: list[dict]) -> str:
 def _cmd_recall(
     root: Path, question: str, json_out: bool, limit: int = 5, policy: str | None = None
 ) -> int:
-    policy = policy or default_scope(root)
-    warnings: list[str] = []
-    if policy == "central-only":
-        items, warnings = scoped_context_items(root, question, "central-only", limit=limit)
-        context = _render_scoped_items(items) or "Nessun contesto pertinente trovato nel brain."
-    else:
-        context = recall_context(TalamusPaths(root), question, limit=limit)
-        if policy in ("project+central", "all"):
-            sub_policy = "central-only" if policy == "project+central" else "all"
-            extra, warnings = scoped_context_items(
-                root, question, sub_policy, limit=limit, exclude_roots=[root]
-            )
-            if extra:
-                context += "\n\n" + _render_scoped_items(extra)
+    recall_result = recall_brain(root, question, policy=policy, limit=limit)
+    if not recall_result.success or recall_result.data is None:
+        print(recall_result.message, file=sys.stderr)
+        return 1
+    result = recall_result.data
     if json_out:
-        _print_json({"context": context, "scope": policy, "warnings": warnings})
+        _print_json(result.to_dict())
     else:
-        print(context)
-        for warning in warnings:
+        print(result.context)
+        for warning in result.warnings:
             print(f"  ! {warning}", file=sys.stderr)
     return 0
 
