@@ -39,6 +39,23 @@ Docs corpus (120 cases) floors in CI: recall ≥ 0.45, MRR ≥ 0.40, hit ≥ 0.5
 | M7 | Active verify: provenance status, batch verify, corrections → review |
 | M8–M11 | Dashboard CLI; UI workbench 11 views; MCP final; release hardening |
 | Fase R | UI revolution (physics graph, inspector, full settings); codex/gemini adapters; `talamus setup`; hierarchical overview (areas) |
+| UI readiness foundation | Readiness service, status JSON and home next-actions now preserve onboarding state; the full product UI/redesign remains pending |
+| Milestone 3A | Shared engine setup service slice: typed `ServiceResult`, canonical engine listing/default selection, engine settings load/update, Anthropic credential save without returning secrets, and CLI setup reuse |
+| Milestone 3B | Shared brain registry service slice: typed list/info/register/select/rename/delete/flag results for UI/CLI parity; federation index and note promotion remain separate slices |
+| Milestone 3C | Shared jobs service slice: typed list/status/log/cancel results for UI/CLI parity; resume remains in CLI runners because it depends on command-specific execution |
+| Milestone 3D | Shared review queue service slice: typed list/show/apply/reject results for UI/CLI parity, including proposed-correction application without hiding failures |
+| Milestone 3E | Shared query read-side service slice: typed search/read/recall results for UI/CLI parity without adding new LLM calls; ask/smart expansion remain separate |
+| Milestone 3F | Shared graph service slice: typed graph-cache snapshot and ontology-neighbor results for UI/CLI parity; Obsidian-grade rendering remains a later UI milestone |
+| Milestone 3G | Shared diagnostics service slice: typed doctor-style config/layout/engine/cache/index/overview checks for UI onboarding/settings and CLI reuse |
+| Milestone 3H | Shared library service slice: typed read-only note list and detail metadata/markdown for UI library, inspector, and provenance surfaces |
+| Milestone 3I | Shared integrations service slice: typed MCP config status/install and capture-hook snippet generation for UI settings and CLI reuse |
+| Milestone 3J | Shared backup service slice: typed export/import results for UI/CLI portability, with zip path-traversal rejection before extraction |
+| Milestone 3K | Shared ontology service slice: typed status/candidate review/apply/reject/deprecate/history/export for UI/CLI parity; LLM induction/eval remain separate |
+| Milestone 3L | Shared ingestion service slice: typed ingest preview/confirmation/run for UI/CLI parity, preserving the no-LLM-call consent gate for large local files |
+| Milestone 3M | Shared scan service slice: typed repository scan preview/confirmation/secret-block/queue/run for UI/CLI parity, preserving zero LLM construction before approval |
+| Milestone 3N | Shared enrich service slice: typed symptom-vocabulary preview/confirmation/run for UI/CLI parity, preserving the estimate-before-batches consent gate |
+| Milestone 3O | Shared consolidation service slice: typed duplicate-group proposals and reviewed-group apply operations for UI/CLI parity without forcing a second LLM call after review |
+| Milestone 3P | Shared verification service slice: typed batch provenance/content reports, single-note verification, and explicit correction application for UI/CLI parity |
 | RS1 (recall research) | **Trigram cognate bridge** (no embeddings): 3-channel index → recall +25%, MRR +35%, cross-source +76%; CI floors. Rejected with data: graph propagation (−2 pt), RRF, seed displacement |
 | Language | Three-layer architecture (English prompts / user-language prose / English-canonical machine layer); validated e2e with real codex |
 | Book test | 500-page real PDF: 58 chunks, ~33 min, 267 notes, resumable job, consent gate. Found+fixed 4 real bugs: self-links, stale running jobs, domain induction collapse at scale (→ batched), verify hashing wrong artifact (243/243 false stale → 0) |

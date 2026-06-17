@@ -5,47 +5,35 @@ import json
 import shutil
 import subprocess
 import sys
-import zipfile
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
 from talamus import __version__
-from talamus.adapters.llm import LLMProvider, build_provider
+from talamus.adapters.llm import LLMProvider, build_provider, engine_command
 from talamus.ask import answer_from_items, answer_question
 from talamus.config import TalamusConfig, load_config, load_or_default, save_config
-from talamus.consolidate import apply_consolidation, find_duplicates
-from talamus.correct import apply_correction, verify_note
 from talamus.demo import create_demo_brain
 from talamus.domains import build_overview, load_overview
 from talamus.errors import TalamusError
 from talamus.eval import evaluate, load_cases, search_retriever
 from talamus.federation import build_federated_index, federation_status
-from talamus.ingest import ingest_path, remember_session
+from talamus.ingest import remember_session
 from talamus.jobs import JobRecord, JobStore
 from talamus.log import configure
 from talamus.ontology_lab import (
-    deprecate_type,
     induce_candidates,
-    load_schema,
     ontology_eval,
-    promote_candidate,
-    read_history,
-    reject_candidate,
     schema_status,
     stability,
 )
 from talamus.paths import TalamusPaths
-from talamus.recall import concept_neighbors, read_note_text, recall_context, search_notes
+from talamus.recall import search_notes
 from talamus.registry import (
     central_brain,
     load_registry,
     register_brain,
-    rename_brain,
-    select_brain,
-    set_brain_flag,
     talamus_home,
-    unregister_brain,
 )
 from talamus.relations import list_relations, prune_relations
 from talamus.review import ReviewQueue
@@ -64,35 +52,56 @@ from talamus.scope import (
     resolve_brain,
     resolve_init_root,
     scoped_context_items,
-    scoped_search,
 )
-from talamus.store import cache_is_current, reindex
+from talamus.services.backup import export_brain, import_brain_archive
+from talamus.services.brains import (
+    register_existing_brain,
+    rename_registered_brain,
+    select_registered_brain,
+    set_registered_brain_flags,
+    unregister_registered_brain,
+)
+from talamus.services.consolidation import apply_consolidation_groups, list_consolidation_groups
+from talamus.services.diagnostics import inspect_diagnostics
+from talamus.services.engines import choose_default_engine, list_engines
+from talamus.services.enrich import EnrichPreview, EnrichRunResult, run_enrich
+from talamus.services.graph import list_graph_neighbors
+from talamus.services.ingestion import IngestPreview, IngestRunResult, run_ingest
+from talamus.services.integrations import build_hook_snippet, install_mcp_config
+from talamus.services.jobs import cancel_job, get_job, list_jobs, read_job_log
+from talamus.services.ontology import (
+    apply_ontology_candidate,
+    deprecate_ontology_type,
+    export_ontology_schema,
+    get_ontology_history,
+    get_ontology_status,
+    list_ontology_candidates,
+    reject_ontology_candidate,
+)
+from talamus.services.query import read_note, recall_brain, search_brain
+from talamus.services.readiness import ReadinessReport, inspect_readiness
+from talamus.services.review import (
+    apply_review_item,
+    get_review_item,
+    list_review_items,
+    reject_review_item,
+)
+from talamus.services.scan import ScanActionResult, ScanPreview, preview_scan, run_scan
+from talamus.services.verification import (
+    VerificationBatchResult,
+    VerificationNoteResult,
+    apply_note_correction,
+    run_verification_batch,
+    verify_single_note,
+)
+from talamus.store import reindex
 from talamus.temporal import note_timeline, parse_when
 from talamus.timeline import note_as_of, note_history
-
-_ENGINE_COMMANDS: dict[str, str | None] = {
-    "claude-cli": "claude",
-    "codex-cli": "codex",
-    "gemini-cli": "gemini",
-    "ollama": "ollama",
-    "codex": "codex",
-    "gemini": "gemini",
-    "api": None,
-    "anthropic-api": None,
-}
-
-
-def _engine_command(provider: str) -> str | None:
-    return _ENGINE_COMMANDS.get(provider, provider)
 
 
 def _detect_engine() -> str:
     """Pick an LLM engine that is actually installed; fall back to claude-cli."""
-    for provider in ("claude-cli", "ollama"):
-        command = _ENGINE_COMMANDS[provider]
-        if command and shutil.which(command):
-            return provider
-    return "claude-cli"
+    return choose_default_engine()
 
 
 def _global_home() -> Path:
@@ -246,12 +255,11 @@ JOB_RUNNERS: dict[str, Callable[[Path, JobRecord], int]] = {}
 def _cmd_setup(root: Path, engine: str | None) -> int:
     """One-command onboarding (Fase R4): the coding-agent subscription you
     already pay for becomes a personal + agentic memory, in minutes."""
-    from talamus.adapters.llm import detect_engines
-
     print("Talamus setup\n")
-    engines = detect_engines()
-    chosen = engine or next((e for e in engines if e != "anthropic-api"), "claude-cli")
-    print(f"1/4  Motori rilevati: {', '.join(engines)}")
+    engines = list_engines()
+    engine_ids = [item.provider for item in engines if item.available or item.needs_secret]
+    chosen = engine or choose_default_engine()
+    print(f"1/4  Motori rilevati: {', '.join(engine_ids)}")
     print(f"     Uso: {chosen} (cambialo con --engine o dalle Impostazioni)\n")
     code = _cmd_init(root, chosen, "project")
     if code != 0:
@@ -281,14 +289,19 @@ def _cmd_scan(
     args: argparse.Namespace,
 ) -> int:
     json_out = bool(getattr(args, "json", False))
-    plan = build_plan(
-        Path(target),
-        profile=args.profile,
-        include=args.include or None,
-        exclude=args.exclude or None,
-        max_files=args.max_files,
-    )
     if args.dry_run or not (args.yes or args.background):
+        preview_result = preview_scan(
+            root,
+            target,
+            profile=args.profile,
+            include=args.include or None,
+            exclude=args.exclude or None,
+            max_files=args.max_files,
+        )
+        if not preview_result.success or not isinstance(preview_result.data, ScanPreview):
+            print(preview_result.message, file=sys.stderr)
+            return 1
+        plan = preview_result.data.plan
         if json_out:
             _print_json(plan.to_dict())
         else:
@@ -296,8 +309,22 @@ def _cmd_scan(
             if not args.dry_run:
                 print("\n(dry-run shown; pass --yes to execute or --background to queue a job)")
         return 0
-    if plan.secret_flags and not args.allow_secrets:
-        flagged = sorted({f["path"] for f in plan.secret_flags})
+    service_result = run_scan(
+        root,
+        target,
+        llm_factory,
+        profile=args.profile,
+        include=args.include or None,
+        exclude=args.exclude or None,
+        max_files=args.max_files,
+        confirmed=args.yes,
+        background=args.background,
+        allow_secrets=args.allow_secrets,
+    )
+    if service_result.code == "scan_secrets_blocked" and isinstance(
+        service_result.data, ScanPreview
+    ):
+        flagged = service_result.data.secret_files
         print(
             "error: likely secrets detected; scan stopped before any LLM call\n"
             f"cause: {len(flagged)} file(s) flagged: {', '.join(flagged[:5])}\n"
@@ -306,17 +333,18 @@ def _cmd_scan(
             file=sys.stderr,
         )
         return 1
-    if not plan.included:
+    if service_result.code == "scan_nothing_to_scan":
         print("nothing to scan (no supported files in plan)")
         return 0
-    paths = TalamusPaths(root)
-    if args.background:
-        store = JobStore(paths)
-        record = store.create("scan", payload=plan.to_dict())
-        print(f"queued scan job {record.job_id} ({len(plan.included)} files)")
-        print(f"run it with:  talamus jobs resume {record.job_id}")
+    if service_result.code == "scan_queued" and isinstance(service_result.data, ScanActionResult):
+        result = service_result.data
+        print(f"queued scan job {result.job_id} ({result.files} files)")
+        print(f"run it with:  talamus jobs resume {result.job_id}")
         return 0
-    report = execute_plan(paths, plan, llm_factory())
+    if not service_result.success or not isinstance(service_result.data, ScanActionResult):
+        print(service_result.message, file=sys.stderr)
+        return 1
+    report = service_result.data.raw
     if json_out:
         _print_json(report)
         return 0
@@ -370,7 +398,11 @@ def _cmd_ontology_group(
     cmd = getattr(args, "ontology_cmd", None) or "status"
     json_out = bool(getattr(args, "json", False))
     if cmd == "status":
-        status = schema_status(paths)
+        status_result = get_ontology_status(root)
+        if not status_result.success or status_result.data is None:
+            print(status_result.message, file=sys.stderr)
+            return 1
+        status = status_result.data.to_dict()
         if json_out:
             _print_json(status)
             return 0
@@ -397,10 +429,13 @@ def _cmd_ontology_group(
         print("rivedi con `talamus ontology review`, promuovi con `talamus ontology apply ID`")
         return 0
     if cmd == "review":
-        schema = load_schema(paths)
-        pending = [t for t in schema.relation_types if t.status == "candidate"]
+        pending_result = list_ontology_candidates(root)
+        if not pending_result.success or pending_result.data is None:
+            print(pending_result.message, file=sys.stderr)
+            return 1
+        pending = pending_result.data
         if json_out:
-            _print_json([t.to_dict() for t in pending])
+            _print_json([rel_type.to_dict() for rel_type in pending])
             return 0
         if not pending:
             print("nessun candidato in attesa")
@@ -412,17 +447,34 @@ def _cmd_ontology_group(
                 print(f"    es. {example}")
         return 0
     if cmd == "apply":
-        ok, message = promote_candidate(paths, args.type_id, force=args.force)
-        print(message if ok else f"error: {message}", file=None if ok else sys.stderr)
-        return 0 if ok else 1
+        decision_result = apply_ontology_candidate(root, args.type_id, force=args.force)
+        if decision_result.success:
+            print(decision_result.message)
+            return 0
+        print(f"error: {decision_result.message}", file=sys.stderr)
+        return 1
     if cmd == "reject":
-        ok, message = reject_candidate(paths, args.type_id, getattr(args, "reason", "") or "")
-        print(message if ok else f"error: {message}", file=None if ok else sys.stderr)
-        return 0 if ok else 1
+        decision_result = reject_ontology_candidate(
+            root,
+            args.type_id,
+            reason=getattr(args, "reason", "") or "",
+        )
+        if decision_result.success:
+            print(decision_result.message)
+            return 0
+        print(f"error: {decision_result.message}", file=sys.stderr)
+        return 1
     if cmd == "deprecate":
-        ok, message = deprecate_type(paths, args.type_id, getattr(args, "reason", "") or "")
-        print(message if ok else f"error: {message}", file=None if ok else sys.stderr)
-        return 0 if ok else 1
+        decision_result = deprecate_ontology_type(
+            root,
+            args.type_id,
+            reason=getattr(args, "reason", "") or "",
+        )
+        if decision_result.success:
+            print(decision_result.message)
+            return 0
+        print(f"error: {decision_result.message}", file=sys.stderr)
+        return 1
     if cmd == "eval":
         report = ontology_eval(paths, Path(args.cases), k=args.k)
         if json_out:
@@ -441,13 +493,17 @@ def _cmd_ontology_group(
         print(f"coverage : {cov['non_related_share']:.0%} archi tipizzati")
         return 0
     if cmd == "stability":
-        result = stability(paths, runs=args.runs)
-        _print_json(result) if json_out else print(
-            f"stability (Jaccard, {result['runs']} run): {result['jaccard']}"
+        stability_result = stability(paths, runs=args.runs)
+        _print_json(stability_result) if json_out else print(
+            f"stability (Jaccard, {stability_result['runs']} run): {stability_result['jaccard']}"
         )
         return 0
     if cmd == "history":
-        events = read_history(paths)
+        history_result = get_ontology_history(root)
+        if not history_result.success or history_result.data is None:
+            print(history_result.message, file=sys.stderr)
+            return 1
+        events = history_result.data.events
         if json_out:
             _print_json(events)
             return 0
@@ -457,19 +513,26 @@ def _cmd_ontology_group(
             print(f"- {event.get('at', '?')}  {event.get('event', '?')}  {event.get('type', '')}")
         return 0
     if cmd == "export":
-        _print_json(load_schema(paths).to_dict())
+        export_result = export_ontology_schema(root)
+        if not export_result.success or export_result.data is None:
+            print(export_result.message, file=sys.stderr)
+            return 1
+        _print_json(export_result.data.schema)
         return 0
     raise ValueError(f"unknown ontology command {cmd}")
 
 
 def _cmd_jobs_group(args: argparse.Namespace, root: Path) -> int:
-    store = JobStore(TalamusPaths(root))
     cmd = getattr(args, "jobs_cmd", None) or "list"
     json_out = bool(getattr(args, "json", False))
     if cmd == "list":
-        records = store.list()
+        list_result = list_jobs(root)
+        if not list_result.success or list_result.data is None:
+            print(f"error: {list_result.message}", file=sys.stderr)
+            return 1
+        records = list_result.data
         if json_out:
-            _print_json([r.to_dict() for r in records])
+            _print_json([record.to_dict() for record in records])
             return 0
         if not records:
             print("no jobs")
@@ -479,10 +542,11 @@ def _cmd_jobs_group(args: argparse.Namespace, root: Path) -> int:
             total = progress.get("total", "-")
             print(f"- {record.job_id}  {record.state}  {done}/{total}")
         return 0
-    job = store.load(args.job_id)
-    if job is None:
-        print(f"no job '{args.job_id}'", file=sys.stderr)
+    job_result = get_job(root, args.job_id)
+    if not job_result.success or job_result.data is None:
+        print(job_result.message, file=sys.stderr)
         return 1
+    job = job_result.data
     if cmd == "status":
         if json_out:
             _print_json(job.to_dict())
@@ -495,48 +559,61 @@ def _cmd_jobs_group(args: argparse.Namespace, root: Path) -> int:
             print(f"error: {job.error}")
         return 0
     if cmd == "logs":
-        log = store.read_log(args.job_id)
+        log_result = read_job_log(root, args.job_id)
+        if not log_result.success or log_result.data is None:
+            print(log_result.message, file=sys.stderr)
+            return 1
+        log = log_result.data.log
         print(log if log else "no log")
         return 0
     if cmd == "cancel":
-        if store.cancel(args.job_id):
+        cancel_result = cancel_job(root, args.job_id)
+        if cancel_result.success:
             print(f"cancelled {args.job_id}")
             return 0
-        print(f"cannot cancel '{args.job_id}' (missing or already terminal)", file=sys.stderr)
+        print(cancel_result.message, file=sys.stderr)
         return 1
     if cmd == "resume":
-        runner = JOB_RUNNERS.get(job.kind)
+        resume_record = JobStore(TalamusPaths(root)).load(args.job_id)
+        if resume_record is None:
+            print(f"no job '{args.job_id}'", file=sys.stderr)
+            return 1
+        runner = JOB_RUNNERS.get(resume_record.kind)
         if runner is None:
             print(
-                f"error: no runner available for job kind '{job.kind}'\n"
+                f"error: no runner available for job kind '{resume_record.kind}'\n"
                 f"cause: this kind is resumed by the feature that created it\n"
                 f"fix: re-run the original command",
                 file=sys.stderr,
             )
             return 1
-        return runner(root, job)
+        return runner(root, resume_record)
     raise ValueError(f"unknown jobs command {cmd}")
 
 
 def _cmd_review_group(args: argparse.Namespace, root: Path) -> int:
-    queue = ReviewQueue(TalamusPaths(root))
     cmd = getattr(args, "review_cmd", None) or "list"
     json_out = bool(getattr(args, "json", False))
     if cmd == "list":
         status = None if getattr(args, "all", False) else "pending"
-        items = queue.list(status=status)
+        list_result = list_review_items(root, status=status)
+        if not list_result.success or list_result.data is None:
+            print(f"error: {list_result.message}", file=sys.stderr)
+            return 1
+        items = list_result.data
         if json_out:
-            _print_json([i.to_dict() for i in items])
+            _print_json([item.to_dict() for item in items])
             return 0
         if not items:
             print("review queue empty")
         for item in items:
             print(f"- {item.item_id}  [{item.kind}]  {item.status}  {item.title}")
         return 0
-    entry = queue.get(args.item_id)
-    if entry is None:
-        print(f"no review item '{args.item_id}'", file=sys.stderr)
+    entry_result = get_review_item(root, args.item_id)
+    if not entry_result.success or entry_result.data is None:
+        print(entry_result.message, file=sys.stderr)
         return 1
+    entry = entry_result.data
     if cmd == "show":
         if json_out:
             _print_json(entry.to_dict())
@@ -545,28 +622,18 @@ def _cmd_review_group(args: argparse.Namespace, root: Path) -> int:
             print(f"{key}: {value}")
         return 0
     if cmd == "apply":
-        if entry.kind == "correction":
-            from talamus.correct import apply_proposed_correction
-
-            if not apply_proposed_correction(TalamusPaths(root), entry.detail):
-                print(
-                    f"cannot apply: note '{entry.detail.get('title')}' not found", file=sys.stderr
-                )
-                return 1
-        applied = queue.apply(
-            args.item_id, resolution="correction written" if entry.kind == "correction" else ""
-        )
-        if applied is None:
-            print(f"'{args.item_id}' is not pending", file=sys.stderr)
+        applied = apply_review_item(root, args.item_id)
+        if not applied.success or applied.data is None:
+            print(applied.message, file=sys.stderr)
             return 1
-        print(f"applied {applied.item_id} ({applied.kind})")
+        print(f"applied {applied.data.item_id} ({applied.data.kind})")
         return 0
     if cmd == "reject":
-        rejected = queue.reject(args.item_id, getattr(args, "reason", "") or "")
-        if rejected is None:
-            print(f"'{args.item_id}' is not pending", file=sys.stderr)
+        rejected = reject_review_item(root, args.item_id, getattr(args, "reason", "") or "")
+        if not rejected.success or rejected.data is None:
+            print(rejected.message, file=sys.stderr)
             return 1
-        print(f"rejected {rejected.item_id} (kept in the log)")
+        print(f"rejected {rejected.data.item_id} (kept in the log)")
         return 0
     raise ValueError(f"unknown review command {cmd}")
 
@@ -659,42 +726,49 @@ def _cmd_brains_group(args: argparse.Namespace) -> int:
     if cmd == "list":
         return _cmd_brains_list(json_out)
     if cmd == "use":
-        if select_brain(args.name):
+        select_result = select_registered_brain(args.name)
+        if select_result.success:
             print(f"selected brain: {args.name}")
             return 0
-        print(f"no brain named '{args.name}' (see `talamus brains list`)", file=sys.stderr)
+        print(f"{select_result.message} (see `talamus brains list`)", file=sys.stderr)
         return 1
     if cmd == "info":
         return _cmd_brains_info(args.name, json_out)
     if cmd == "rename":
-        try:
-            ok = rename_brain(args.old, args.new)
-        except ValueError as exc:
-            print(f"error: {exc}", file=sys.stderr)
+        rename_result = rename_registered_brain(args.old, args.new)
+        if not rename_result.success:
+            print(f"error: {rename_result.message}", file=sys.stderr)
             return 1
-        print(f"renamed: {args.old} -> {args.new}" if ok else f"no brain named '{args.old}'")
-        return 0 if ok else 1
+        print(f"renamed: {args.old} -> {args.new}")
+        return 0
     if cmd == "delete":
-        if unregister_brain(args.name):
+        delete_result = unregister_registered_brain(args.name)
+        if delete_result.success:
             print(f"unregistered '{args.name}' (files on disk are preserved)")
             return 0
-        print(f"no brain named '{args.name}'", file=sys.stderr)
+        print(delete_result.message, file=sys.stderr)
         return 1
     if cmd == "register":
-        info = register_brain(Path(args.path).resolve(), args.name, args.type)
+        register_result = register_existing_brain(Path(args.path), args.name, args.type)
+        if not register_result.success or register_result.data is None:
+            print(f"error: {register_result.message}", file=sys.stderr)
+            return 1
+        info = register_result.data
         print(f"registered '{info.name}' ({info.type}) at {info.path}")
         return 0
     if cmd == "set":
-        changed = False
-        for flag in ("federated", "sensitive"):
-            value = getattr(args, flag, None)
-            if value is not None:
-                if not set_brain_flag(args.name, flag, value == "true"):
-                    print(f"no brain named '{args.name}'", file=sys.stderr)
-                    return 1
-                changed = True
-        if not changed:
+        federated = getattr(args, "federated", None)
+        sensitive = getattr(args, "sensitive", None)
+        if federated is None and sensitive is None:
             print("nothing to set (pass --federated and/or --sensitive)", file=sys.stderr)
+            return 1
+        flags_result = set_registered_brain_flags(
+            args.name,
+            federated=None if federated is None else federated == "true",
+            sensitive=None if sensitive is None else sensitive == "true",
+        )
+        if not flags_result.success:
+            print(flags_result.message, file=sys.stderr)
             return 1
         print(f"updated '{args.name}'")
         return 0
@@ -733,24 +807,20 @@ def _cmd_where(resolved: ResolvedBrain, json_out: bool) -> int:
 
 
 def _cmd_export(root: Path, out_file: str) -> int:
-    paths = TalamusPaths(root)
-    if not paths.config_path.exists():
-        print(f"no brain at {root}", file=sys.stderr)
+    result = export_brain(root, out_file)
+    if not result.success:
+        print(result.message, file=sys.stderr)
         return 1
-    members = [paths.config_path, *paths.notes.rglob("*"), *paths.talamus_dir.rglob("*")]
-    with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as archive:
-        for member in members:
-            if member.is_file():
-                archive.write(member, member.relative_to(root).as_posix())
-    print(f"exported brain to {out_file}")
+    print(result.message)
     return 0
 
 
 def _cmd_import(out_file: str, root: Path) -> int:
-    root.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(out_file) as archive:
-        archive.extractall(root)
-    print(f"imported brain into {root}")
+    result = import_brain_archive(out_file, root)
+    if not result.success:
+        print(result.message, file=sys.stderr)
+        return 1
+    print(result.message)
     return 0
 
 
@@ -764,7 +834,7 @@ def _cmd_init(root: Path, engine: str | None = None, scope_kind: str = "project"
     print(f"initialized talamus project at {root}")
     if created:
         config = load_config(paths.config_path)
-        command = _engine_command(config.llm_provider)
+        command = engine_command(config.llm_provider)
         found = command is None or shutil.which(command) is not None
         print(f"engine: {config.llm_provider} ({'found' if found else 'not on PATH'})")
     brain_type = "central" if scope_kind == "global" else "project"
@@ -788,32 +858,21 @@ def _cmd_demo(root: Path) -> int:
 
 
 def _cmd_mcp_install(root: Path) -> int:
-    config_file = root / ".mcp.json"
-    data: dict = {}
-    if config_file.exists():
-        try:
-            data = json.loads(config_file.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            data = {}
-    data.setdefault("mcpServers", {})["talamus"] = {
-        "command": "talamus-mcp",
-        "args": ["--root", str(root)],
-    }
-    config_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    print(f"wrote talamus MCP server to {config_file}")
+    result = install_mcp_config(root)
+    if not result.success:
+        print(result.message, file=sys.stderr)
+        return 1
+    print(result.message)
     return 0
 
 
 def _cmd_hook(root: Path) -> int:
-    snippet = {
-        "hooks": {
-            "SessionEnd": [
-                {"hooks": [{"type": "command", "command": f"talamus hook-run --root {root}"}]}
-            ]
-        }
-    }
+    result = build_hook_snippet(root)
+    if not result.success or result.data is None:
+        print(result.message, file=sys.stderr)
+        return 1
     print("Add to your Claude Code settings (.claude/settings.json):")
-    print(json.dumps(snippet, indent=2))
+    print(json.dumps(result.data.settings, indent=2))
     return 0
 
 
@@ -837,19 +896,24 @@ def _cmd_hook_run(root: Path) -> int:
     return 0
 
 
-def _cmd_status(root: Path, json_out: bool = False) -> int:
+def _cmd_status(
+    root: Path, json_out: bool = False, readiness: ReadinessReport | None = None
+) -> int:
     paths = TalamusPaths(root)
     missing = [p for p in paths.required_directories() if not p.exists()]
     not_directories = [p for p in paths.required_directories() if p.exists() and not p.is_dir()]
     config_exists = paths.config_path.exists()
     healthy = config_exists and not missing and not not_directories
     if json_out:
+        if readiness is None:
+            readiness = inspect_readiness(root=str(root))
         _print_json(
             {
                 "ok": healthy,
                 "config_exists": config_exists,
                 "missing": [str(p) for p in missing],
                 "not_directories": [str(p) for p in not_directories],
+                "readiness": readiness.to_dict(),
             }
         )
         return 0 if healthy else 1
@@ -865,39 +929,36 @@ def _cmd_status(root: Path, json_out: bool = False) -> int:
     return 0
 
 
-def _cmd_doctor(root: Path) -> int:
-    paths = TalamusPaths(root)
-    if not paths.config_path.exists():
-        print("talamus project is not initialized; run `talamus init`", file=sys.stderr)
-        return 1
-    try:
-        config = load_config(paths.config_path)
-    except TalamusError as exc:
-        print(f"config error: {paths.config_path}: {exc}", file=sys.stderr)
-        return 1
-    print(f"brain: {paths.project_root}")
-    print(f"storage: {config.storage_provider}")
-    print(f"pdf converter: {config.pdf_converter}")
-    print(f"ocr: {config.ocr_provider}/{config.ocr_model}")
-    command = _engine_command(config.llm_provider)
-    engine_status = (
-        "ok" if (command is None or shutil.which(command)) else f"NOT on PATH ({command})"
-    )
-    print(f"llm: {config.llm_provider} [{engine_status}]")
-    print(f"graph: {config.graph_provider}")
-    print(f"search: {config.search_provider}")
-    from talamus.indexes import backend_info
+def _cmd_status_json(
+    root: str | None = None, brain: str | None = None, use_global: bool = False
+) -> int:
+    readiness = inspect_readiness(root=root, brain=brain, use_global=use_global)
+    return _cmd_status(Path(str(readiness.root)), json_out=True, readiness=readiness)
 
-    n_notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
-    print(f"notes: {n_notes}")
-    info = backend_info(paths)
-    print(f"index backend: {info['backend']} ({info['bytes']:,} bytes)")
-    overview = load_overview(paths)
-    if overview:
-        print(f"overview: built ({len(overview)} domini)")
+
+def _cmd_doctor(root: Path) -> int:
+    result = inspect_diagnostics(root)
+    report = result.data
+    if report is None:
+        print(result.message, file=sys.stderr)
+        return 1
+    if not result.success:
+        print(result.message, file=sys.stderr)
+        return 1
+    print(f"brain: {report.root}")
+    print(f"storage: {report.storage_provider}")
+    print(f"pdf converter: {report.pdf_converter}")
+    print(f"ocr: {report.ocr_provider}/{report.ocr_model}")
+    print(f"llm: {report.llm_provider} [{report.llm_status}]")
+    print(f"graph: {report.graph_provider}")
+    print(f"search: {report.search_provider}")
+    print(f"notes: {report.notes}")
+    print(f"index backend: {report.index_backend} ({report.index_bytes:,} bytes)")
+    if report.overview_built:
+        print(f"overview: built ({report.overview_domains} domini)")
     else:
         print("overview: not built — run `talamus overview`")
-    print("cache: ok" if cache_is_current(paths) else "cache: stale — run `talamus reindex`")
+    print("cache: ok" if report.cache_current else "cache: stale — run `talamus reindex`")
     return 0
 
 
@@ -913,24 +974,24 @@ def _cmd_reindex(root: Path, json_out: bool) -> int:
 def _cmd_ingest(
     root: Path, target: str, llm: LLMProvider, json_out: bool, yes: bool = False
 ) -> int:
-    from talamus.ingest import estimate_chunks
-    from talamus.sources import is_url
-
-    paths = TalamusPaths(root)
-    target_path = Path(target)
-    if not is_url(target) and target_path.is_file():
-        estimate = estimate_chunks(paths, target_path)
-        if estimate["chunks"] > 3 and not yes:
-            print(f"Documento grande: {estimate['source']}")
-            print(
-                f"  {estimate['chars']:,} caratteri -> {estimate['chunks']} chunk = "
-                f"{estimate['est_llm_calls']} chiamate LLM "
-                f"(~{estimate['est_input_tokens']:,} token input)"
-            )
-            print("  Il lavoro gira come job resumabile (talamus jobs).")
-            print(f'  Conferma con:  talamus ingest "{target}" --yes')
-            return 0
-    result = ingest_path(paths, target, llm)
+    service_result = run_ingest(root, target, llm, confirmed=yes)
+    if service_result.code == "ingest_confirmation_required" and isinstance(
+        service_result.data, IngestPreview
+    ):
+        estimate = service_result.data
+        print(f"Documento grande: {estimate.source}")
+        print(
+            f"  {estimate.chars:,} caratteri -> {estimate.chunks} chunk = "
+            f"{estimate.est_llm_calls} chiamate LLM "
+            f"(~{estimate.est_input_tokens:,} token input)"
+        )
+        print("  Il lavoro gira come job resumabile (talamus jobs).")
+        print(f'  Conferma con:  talamus ingest "{target}" --yes')
+        return 0
+    if not service_result.success or not isinstance(service_result.data, IngestRunResult):
+        print(service_result.message, file=sys.stderr)
+        return 1
+    result = service_result.data.raw
     if json_out:
         _print_json(result)
     elif "files" in result:
@@ -951,15 +1012,22 @@ def _cmd_ingest(
 
 
 def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: bool) -> int:
-    paths = TalamusPaths(root)
     if do_apply:
-        merged = apply_consolidation(paths, llm)
+        apply_result = apply_consolidation_groups(root, llm)
+        if not apply_result.success or apply_result.data is None:
+            print(apply_result.message, file=sys.stderr)
+            return 1
+        merged = apply_result.data.merged
         if json_out:
             _print_json({"merged": merged})
         else:
             print(f"consolidate: merged {merged} note(s)")
         return 0
-    groups = find_duplicates(paths, llm)
+    list_result = list_consolidation_groups(root, llm)
+    if not list_result.success or list_result.data is None:
+        print(list_result.message, file=sys.stderr)
+        return 1
+    groups = [group.to_dict() for group in list_result.data.groups]
     if json_out:
         _print_json(groups)
         return 0
@@ -975,24 +1043,25 @@ def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: boo
 
 def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
     """Arricchimento sintomi (RS2.4-bis): stima prima, lotti solo con --yes."""
-    from talamus.config import load_or_default, resolve_language
-    from talamus.enrich import enrich_estimate, enrich_notes
-
-    paths = TalamusPaths(root)
-    estimate = enrich_estimate(paths)
-    if estimate["notes"] == 0:
+    service_result = run_enrich(root, llm, confirmed=yes)
+    if service_result.code == "enrich_nothing_to_do":
         print("tutte le note hanno già il vocabolario dei sintomi")
         return 0
-    if not yes:
+    if service_result.code == "enrich_confirmation_required" and isinstance(
+        service_result.data, EnrichPreview
+    ):
+        estimate = service_result.data
         if json_out:
-            _print_json(estimate)
+            _print_json(estimate.estimate_dict())
         else:
-            print(f"Da arricchire: {estimate['notes']} note in {estimate['batches']} lotti")
-            print(f"  = {estimate['est_llm_calls']} chiamate LLM")
+            print(f"Da arricchire: {estimate.notes} note in {estimate.batches} lotti")
+            print(f"  = {estimate.est_llm_calls} chiamate LLM")
             print("  Conferma con:  talamus enrich --yes")
         return 0
-    language = resolve_language(load_or_default(paths.config_path))
-    report = enrich_notes(paths, llm, language=language)
+    if not service_result.success or not isinstance(service_result.data, EnrichRunResult):
+        print(service_result.message, file=sys.stderr)
+        return 1
+    report = service_result.data.raw
     if json_out:
         _print_json(report)
     else:
@@ -1006,9 +1075,11 @@ def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
 def _cmd_verify_batch(
     root: Path, llm: LLMProvider, only_stale: bool, source: str | None, json_out: bool
 ) -> int:
-    from talamus.correct import verify_batch
-
-    report = verify_batch(TalamusPaths(root), llm, only_stale=only_stale, source_filter=source)
+    service_result = run_verification_batch(root, llm, only_stale=only_stale, source_filter=source)
+    if not service_result.success or not isinstance(service_result.data, VerificationBatchResult):
+        print(service_result.message, file=sys.stderr)
+        return 1
+    report = service_result.data.raw
     if json_out:
         _print_json(report)
         return 0
@@ -1023,15 +1094,22 @@ def _cmd_verify_batch(
 
 
 def _cmd_verify(root: Path, title: str, do_apply: bool, llm: LLMProvider, json_out: bool) -> int:
-    paths = TalamusPaths(root)
     if do_apply:
-        corrected = apply_correction(paths, title, llm)
+        apply_result = apply_note_correction(root, title, llm)
+        if not apply_result.success or apply_result.data is None:
+            print(apply_result.message, file=sys.stderr)
+            return 1
+        corrected = apply_result.data.corrected
         if json_out:
             _print_json({"corrected": corrected})
         else:
             print(f"verify: {'corrected' if corrected else 'no correction needed for'} '{title}'")
         return 0
-    result = verify_note(paths, title, llm)
+    note_result = verify_single_note(root, title, llm)
+    if not note_result.success or not isinstance(note_result.data, VerificationNoteResult):
+        print(note_result.message, file=sys.stderr)
+        return 1
+    result = note_result.data.raw
     if json_out:
         _print_json(result)
         return 0
@@ -1233,7 +1311,12 @@ def _cmd_search(
 
         provider = llm if llm is not None else _provider_for(root)
         query = expand_query(TalamusPaths(root), query, provider)
-    results, warnings = scoped_search(root, query, policy, limit=limit)
+    search_result = search_brain(root, query, policy=policy, limit=limit)
+    if not search_result.success or search_result.data is None:
+        print(search_result.message, file=sys.stderr)
+        return 1
+    report = search_result.data
+    results = [hit.to_dict() for hit in report.hits]
     if json_out:
         _print_json(results)
         return 0
@@ -1242,17 +1325,21 @@ def _cmd_search(
     for item in results:
         marker = "" if item.get("scope") == "[project]" else f"{item.get('scope', '')} "
         print(f"- {marker}{item['title']}: {item['summary']}")
-    for warning in warnings:
+    for warning in report.warnings:
         print(f"  ! {warning}", file=sys.stderr)
     return 0
 
 
 def _cmd_read(root: Path, title: str, json_out: bool, as_of: str | None = None) -> int:
-    paths = TalamusPaths(root)
+    read_result = read_note(root, title, as_of=as_of)
+    data = read_result.data
+    if data is None:
+        print(read_result.message, file=sys.stderr)
+        return 1
     if as_of:
-        version = note_as_of(paths, title, as_of)
+        version = data.version
         if version is None:
-            print(f"nessuna versione di '{title}' a {as_of}", file=sys.stderr)
+            print(read_result.message, file=sys.stderr)
             return 1
         if json_out:
             _print_json(version)
@@ -1266,14 +1353,13 @@ def _cmd_read(root: Path, title: str, json_out: bool, as_of: str | None = None) 
             print(body)
             print()
         return 0
-    text = read_note_text(paths, title)
     if json_out:
-        _print_json({"title": title, "found": text is not None, "markdown": text})
-        return 0 if text is not None else 1
-    if text is None:
+        _print_json({"title": title, "found": data.found, "markdown": data.markdown})
+        return 0 if read_result.success else 1
+    if not read_result.success:
         print(f"scheda non trovata: {title}", file=sys.stderr)
         return 1
-    print(text)
+    print(data.markdown)
     return 0
 
 
@@ -1330,31 +1416,26 @@ def _render_scoped_items(items: list[dict]) -> str:
 def _cmd_recall(
     root: Path, question: str, json_out: bool, limit: int = 5, policy: str | None = None
 ) -> int:
-    policy = policy or default_scope(root)
-    warnings: list[str] = []
-    if policy == "central-only":
-        items, warnings = scoped_context_items(root, question, "central-only", limit=limit)
-        context = _render_scoped_items(items) or "Nessun contesto pertinente trovato nel brain."
-    else:
-        context = recall_context(TalamusPaths(root), question, limit=limit)
-        if policy in ("project+central", "all"):
-            sub_policy = "central-only" if policy == "project+central" else "all"
-            extra, warnings = scoped_context_items(
-                root, question, sub_policy, limit=limit, exclude_roots=[root]
-            )
-            if extra:
-                context += "\n\n" + _render_scoped_items(extra)
+    recall_result = recall_brain(root, question, policy=policy, limit=limit)
+    if not recall_result.success or recall_result.data is None:
+        print(recall_result.message, file=sys.stderr)
+        return 1
+    result = recall_result.data
     if json_out:
-        _print_json({"context": context, "scope": policy, "warnings": warnings})
+        _print_json(result.to_dict())
     else:
-        print(context)
-        for warning in warnings:
+        print(result.context)
+        for warning in result.warnings:
             print(f"  ! {warning}", file=sys.stderr)
     return 0
 
 
 def _cmd_neighbors(root: Path, concept: str, json_out: bool) -> int:
-    items = concept_neighbors(TalamusPaths(root), concept)
+    result = list_graph_neighbors(root, concept)
+    if not result.success or result.data is None:
+        print(result.message, file=sys.stderr)
+        return 1
+    items = [item.to_dict() for item in result.data]
     if json_out:
         _print_json(items)
         return 0
@@ -1657,6 +1738,9 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             print(format_plan(plan))
             print("\n(no LLM call made; review the plan, then run `talamus scan . --yes`)")
         return code
+
+    if command == "status" and bool(getattr(args, "json", False)):
+        return _cmd_status_json(args.root, args.brain, args.use_global)
 
     root = _resolve_root(
         getattr(args, "root", None),

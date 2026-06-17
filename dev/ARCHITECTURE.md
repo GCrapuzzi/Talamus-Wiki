@@ -209,8 +209,47 @@ with `shutil.which` (Windows shims). All model JSON is parsed defensively
 (strict=False, balanced-object salvage, batch isolation) — enforced by the
 hostile-model CI battery.
 
+`services/engines.py` is the shared UI/CLI/SDK setup slice over this adapter
+metadata: it lists canonical engine ids and readiness statuses, chooses the
+default installed CLI engine with the `claude-cli` fallback, loads/updates only
+`llm_provider`, `llm_model` and `language` in `talamus.json`, and saves the
+Anthropic API key through the existing machine credential store without
+returning the secret. Mutating service calls return `ServiceResult` from
+`services/result.py` (`success`, `message`, optional `code`, optional `data`).
+
 ## Interfaces
 
+- **Shared services** (`services/`): UI/CLI/SDK-neutral contracts and probes.
+  `readiness.py` reports brain/engine/cache/job state for dashboards; the
+  engine setup slice handles settings parity without duplicating adapter logic;
+  `ingestion.py` exposes typed ingest preview/confirmation/run operations over
+  `estimate_chunks` and `ingest_path`, preserving the no-LLM-call consent gate
+  for large local files; `scan.py` exposes typed repository scan preview,
+  confirmation, secret-blocking, background queueing, and execution over the
+  existing dry-run/JobStore/execute_plan flow without constructing an LLM
+  provider before approval; `enrich.py` exposes typed symptom-vocabulary
+  preview/confirmation/run operations over the existing batched enrichment path;
+  `consolidation.py` exposes typed duplicate-group proposals and reviewed-group
+  apply operations over the existing consolidation merge path; `verification.py`
+  exposes typed batch provenance/content verification, single-note verification,
+  and explicit correction application over the existing correction path;
+  `brains.py` wraps registry list/register/select/rename/delete/flag operations
+  in typed `ServiceResult` contracts for CLI/UI parity; `jobs.py` exposes
+  read/cancel/log controls over persisted job records while execution resume
+  stays with CLI runners; `review.py` exposes review queue list/show/apply/reject
+  decisions, including correction application, behind the same service contract;
+  `query.py` exposes read-side search/read/recall without introducing new LLM
+  calls; `graph.py` exposes typed graph-cache snapshots and ontology neighbors
+  for CLI/UI graph navigation while keeping rendering and physics inside the UI;
+  `diagnostics.py` exposes doctor-style config/layout/engine/cache/index/overview
+  checks as typed warnings/errors for onboarding, settings, and CLI reuse;
+  `library.py` exposes read-only note lists and note detail metadata/markdown for
+  library, inspector, and provenance-oriented UI surfaces; `integrations.py`
+  exposes MCP config status/install and capture-hook snippets for UI settings
+  and CLI reuse; `backup.py` exposes export/import archive operations with
+  explicit path-traversal rejection for UI/CLI portability flows; `ontology.py`
+  exposes typed status/candidate review/apply/reject/deprecate/history/export
+  operations while LLM-backed induction and eval remain separate contracts.
 - **CLI** (`cli.py`): the full surface; bare `talamus` = dashboard; `--json`
   on read commands; `--root`/scope flags; consent gates.
 - **MCP** (`mcp_server.py`, optional extra): read tools (search, read_note,
