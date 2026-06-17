@@ -221,7 +221,9 @@ returning the secret. Mutating service calls return `ServiceResult` from
 
 - **Shared services** (`services/`): UI/CLI/SDK-neutral contracts and probes.
   `readiness.py` reports brain/engine/cache/job state for dashboards; the
-  engine setup slice handles settings parity without duplicating adapter logic.
+  engine setup slice handles settings parity without duplicating adapter logic;
+  `brains.py` wraps registry list/register/select/rename/delete/flag operations
+  in typed `ServiceResult` contracts for CLI/UI parity.
 - **CLI** (`cli.py`): the full surface; bare `talamus` = dashboard; `--json`
   on read commands; `--root`/scope flags; consent gates.
 - **MCP** (`mcp_server.py`, optional extra): read tools (search, read_note,

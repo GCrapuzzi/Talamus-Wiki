@@ -41,11 +41,7 @@ from talamus.registry import (
     central_brain,
     load_registry,
     register_brain,
-    rename_brain,
-    select_brain,
-    set_brain_flag,
     talamus_home,
-    unregister_brain,
 )
 from talamus.relations import list_relations, prune_relations
 from talamus.review import ReviewQueue
@@ -65,6 +61,13 @@ from talamus.scope import (
     resolve_init_root,
     scoped_context_items,
     scoped_search,
+)
+from talamus.services.brains import (
+    register_existing_brain,
+    rename_registered_brain,
+    select_registered_brain,
+    set_registered_brain_flags,
+    unregister_registered_brain,
 )
 from talamus.services.engines import choose_default_engine, list_engines
 from talamus.services.readiness import ReadinessReport, inspect_readiness
@@ -641,42 +644,49 @@ def _cmd_brains_group(args: argparse.Namespace) -> int:
     if cmd == "list":
         return _cmd_brains_list(json_out)
     if cmd == "use":
-        if select_brain(args.name):
+        select_result = select_registered_brain(args.name)
+        if select_result.success:
             print(f"selected brain: {args.name}")
             return 0
-        print(f"no brain named '{args.name}' (see `talamus brains list`)", file=sys.stderr)
+        print(f"{select_result.message} (see `talamus brains list`)", file=sys.stderr)
         return 1
     if cmd == "info":
         return _cmd_brains_info(args.name, json_out)
     if cmd == "rename":
-        try:
-            ok = rename_brain(args.old, args.new)
-        except ValueError as exc:
-            print(f"error: {exc}", file=sys.stderr)
+        rename_result = rename_registered_brain(args.old, args.new)
+        if not rename_result.success:
+            print(f"error: {rename_result.message}", file=sys.stderr)
             return 1
-        print(f"renamed: {args.old} -> {args.new}" if ok else f"no brain named '{args.old}'")
-        return 0 if ok else 1
+        print(f"renamed: {args.old} -> {args.new}")
+        return 0
     if cmd == "delete":
-        if unregister_brain(args.name):
+        delete_result = unregister_registered_brain(args.name)
+        if delete_result.success:
             print(f"unregistered '{args.name}' (files on disk are preserved)")
             return 0
-        print(f"no brain named '{args.name}'", file=sys.stderr)
+        print(delete_result.message, file=sys.stderr)
         return 1
     if cmd == "register":
-        info = register_brain(Path(args.path).resolve(), args.name, args.type)
+        register_result = register_existing_brain(Path(args.path), args.name, args.type)
+        if not register_result.success or register_result.data is None:
+            print(f"error: {register_result.message}", file=sys.stderr)
+            return 1
+        info = register_result.data
         print(f"registered '{info.name}' ({info.type}) at {info.path}")
         return 0
     if cmd == "set":
-        changed = False
-        for flag in ("federated", "sensitive"):
-            value = getattr(args, flag, None)
-            if value is not None:
-                if not set_brain_flag(args.name, flag, value == "true"):
-                    print(f"no brain named '{args.name}'", file=sys.stderr)
-                    return 1
-                changed = True
-        if not changed:
+        federated = getattr(args, "federated", None)
+        sensitive = getattr(args, "sensitive", None)
+        if federated is None and sensitive is None:
             print("nothing to set (pass --federated and/or --sensitive)", file=sys.stderr)
+            return 1
+        flags_result = set_registered_brain_flags(
+            args.name,
+            federated=None if federated is None else federated == "true",
+            sensitive=None if sensitive is None else sensitive == "true",
+        )
+        if not flags_result.success:
+            print(flags_result.message, file=sys.stderr)
             return 1
         print(f"updated '{args.name}'")
         return 0
