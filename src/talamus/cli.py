@@ -68,6 +68,7 @@ from talamus.services.brains import (
     set_registered_brain_flags,
     unregister_registered_brain,
 )
+from talamus.services.diagnostics import inspect_diagnostics
 from talamus.services.engines import choose_default_engine, list_engines
 from talamus.services.graph import list_graph_neighbors
 from talamus.services.jobs import cancel_job, get_job, list_jobs, read_job_log
@@ -79,7 +80,7 @@ from talamus.services.review import (
     list_review_items,
     reject_review_item,
 )
-from talamus.store import cache_is_current, reindex
+from talamus.store import reindex
 from talamus.temporal import note_timeline, parse_when
 from talamus.timeline import note_as_of, note_history
 
@@ -885,38 +886,28 @@ def _cmd_status_json(
 
 
 def _cmd_doctor(root: Path) -> int:
-    paths = TalamusPaths(root)
-    if not paths.config_path.exists():
-        print("talamus project is not initialized; run `talamus init`", file=sys.stderr)
+    result = inspect_diagnostics(root)
+    report = result.data
+    if report is None:
+        print(result.message, file=sys.stderr)
         return 1
-    try:
-        config = load_config(paths.config_path)
-    except TalamusError as exc:
-        print(f"config error: {paths.config_path}: {exc}", file=sys.stderr)
+    if not result.success:
+        print(result.message, file=sys.stderr)
         return 1
-    print(f"brain: {paths.project_root}")
-    print(f"storage: {config.storage_provider}")
-    print(f"pdf converter: {config.pdf_converter}")
-    print(f"ocr: {config.ocr_provider}/{config.ocr_model}")
-    command = engine_command(config.llm_provider)
-    engine_status = (
-        "ok" if (command is None or shutil.which(command)) else f"NOT on PATH ({command})"
-    )
-    print(f"llm: {config.llm_provider} [{engine_status}]")
-    print(f"graph: {config.graph_provider}")
-    print(f"search: {config.search_provider}")
-    from talamus.indexes import backend_info
-
-    n_notes = len(list(paths.notes.glob("*.md"))) if paths.notes.exists() else 0
-    print(f"notes: {n_notes}")
-    info = backend_info(paths)
-    print(f"index backend: {info['backend']} ({info['bytes']:,} bytes)")
-    overview = load_overview(paths)
-    if overview:
-        print(f"overview: built ({len(overview)} domini)")
+    print(f"brain: {report.root}")
+    print(f"storage: {report.storage_provider}")
+    print(f"pdf converter: {report.pdf_converter}")
+    print(f"ocr: {report.ocr_provider}/{report.ocr_model}")
+    print(f"llm: {report.llm_provider} [{report.llm_status}]")
+    print(f"graph: {report.graph_provider}")
+    print(f"search: {report.search_provider}")
+    print(f"notes: {report.notes}")
+    print(f"index backend: {report.index_backend} ({report.index_bytes:,} bytes)")
+    if report.overview_built:
+        print(f"overview: built ({report.overview_domains} domini)")
     else:
         print("overview: not built — run `talamus overview`")
-    print("cache: ok" if cache_is_current(paths) else "cache: stale — run `talamus reindex`")
+    print("cache: ok" if report.cache_current else "cache: stale — run `talamus reindex`")
     return 0
 
 

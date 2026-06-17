@@ -229,7 +229,9 @@ returning the secret. Mutating service calls return `ServiceResult` from
   decisions, including correction application, behind the same service contract;
   `query.py` exposes read-side search/read/recall without introducing new LLM
   calls; `graph.py` exposes typed graph-cache snapshots and ontology neighbors
-  for CLI/UI graph navigation while keeping rendering and physics inside the UI.
+  for CLI/UI graph navigation while keeping rendering and physics inside the UI;
+  `diagnostics.py` exposes doctor-style config/layout/engine/cache/index/overview
+  checks as typed warnings/errors for onboarding, settings, and CLI reuse.
 - **CLI** (`cli.py`): the full surface; bare `talamus` = dashboard; `--json`
   on read commands; `--root`/scope flags; consent gates.
 - **MCP** (`mcp_server.py`, optional extra): read tools (search, read_note,
