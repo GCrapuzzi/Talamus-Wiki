@@ -20,7 +20,7 @@ from talamus.domains import build_overview, load_overview
 from talamus.errors import TalamusError
 from talamus.eval import evaluate, load_cases, search_retriever
 from talamus.federation import build_federated_index, federation_status
-from talamus.ingest import ingest_path, remember_session
+from talamus.ingest import remember_session
 from talamus.jobs import JobRecord, JobStore
 from talamus.log import configure
 from talamus.ontology_lab import (
@@ -66,6 +66,7 @@ from talamus.services.brains import (
 from talamus.services.diagnostics import inspect_diagnostics
 from talamus.services.engines import choose_default_engine, list_engines
 from talamus.services.graph import list_graph_neighbors
+from talamus.services.ingestion import IngestPreview, IngestRunResult, run_ingest
 from talamus.services.integrations import build_hook_snippet, install_mcp_config
 from talamus.services.jobs import cancel_job, get_job, list_jobs, read_job_log
 from talamus.services.ontology import (
@@ -945,24 +946,24 @@ def _cmd_reindex(root: Path, json_out: bool) -> int:
 def _cmd_ingest(
     root: Path, target: str, llm: LLMProvider, json_out: bool, yes: bool = False
 ) -> int:
-    from talamus.ingest import estimate_chunks
-    from talamus.sources import is_url
-
-    paths = TalamusPaths(root)
-    target_path = Path(target)
-    if not is_url(target) and target_path.is_file():
-        estimate = estimate_chunks(paths, target_path)
-        if estimate["chunks"] > 3 and not yes:
-            print(f"Documento grande: {estimate['source']}")
-            print(
-                f"  {estimate['chars']:,} caratteri -> {estimate['chunks']} chunk = "
-                f"{estimate['est_llm_calls']} chiamate LLM "
-                f"(~{estimate['est_input_tokens']:,} token input)"
-            )
-            print("  Il lavoro gira come job resumabile (talamus jobs).")
-            print(f'  Conferma con:  talamus ingest "{target}" --yes')
-            return 0
-    result = ingest_path(paths, target, llm)
+    service_result = run_ingest(root, target, llm, confirmed=yes)
+    if service_result.code == "ingest_confirmation_required" and isinstance(
+        service_result.data, IngestPreview
+    ):
+        estimate = service_result.data
+        print(f"Documento grande: {estimate.source}")
+        print(
+            f"  {estimate.chars:,} caratteri -> {estimate.chunks} chunk = "
+            f"{estimate.est_llm_calls} chiamate LLM "
+            f"(~{estimate.est_input_tokens:,} token input)"
+        )
+        print("  Il lavoro gira come job resumabile (talamus jobs).")
+        print(f'  Conferma con:  talamus ingest "{target}" --yes')
+        return 0
+    if not service_result.success or not isinstance(service_result.data, IngestRunResult):
+        print(service_result.message, file=sys.stderr)
+        return 1
+    result = service_result.data.raw
     if json_out:
         _print_json(result)
     elif "files" in result:
