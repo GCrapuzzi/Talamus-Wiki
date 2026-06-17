@@ -38,9 +38,11 @@ W_TRI_SUMMARY = 0.3
 # cognate bridge only adds noise (it costs nDCG/MRR vs BM25 on English SciFact and
 # vs a multilingual dense model on the book). The trigram weights are scaled by
 # MONO_TRIGRAM_SCALE when the indexed corpus is detected monolingual-ASCII.
-# 1.0 = no-op: neutral default until the two-corpora ablation picks a winner.
-# Overridable via env so the RS8 ablation can sweep it without editing the source.
-MONO_TRIGRAM_SCALE = float(os.environ.get("TALAMUS_MONO_TRIGRAM_SCALE", "1.0"))
+# 0.3 won the ablation: SciFact recall 0.776->0.797, nDCG 0.607->0.664, MRR
+# 0.562->0.628, hit 0.793->0.813 (now beating BM25 on all four), while the two law
+# corpora (docs, book) are NOT flagged monolingual and stay byte-identical (zero
+# regression). Overridable via env for future sweeps.
+MONO_TRIGRAM_SCALE = float(os.environ.get("TALAMUS_MONO_TRIGRAM_SCALE", "0.3"))
 _MAX_QUERY_TRIGRAMS = 64  # bound the OR-query cost
 # Hub suppression (RS4): long "hub" notes accumulate blended score across many
 # weak matches and crowd out short, precisely-titled notes. A mild length
