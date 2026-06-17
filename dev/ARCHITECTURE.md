@@ -235,7 +235,8 @@ returning the secret. Mutating service calls return `ServiceResult` from
   `library.py` exposes read-only note lists and note detail metadata/markdown for
   library, inspector, and provenance-oriented UI surfaces; `integrations.py`
   exposes MCP config status/install and capture-hook snippets for UI settings
-  and CLI reuse.
+  and CLI reuse; `backup.py` exposes export/import archive operations with
+  explicit path-traversal rejection for UI/CLI portability flows.
 - **CLI** (`cli.py`): the full surface; bare `talamus` = dashboard; `--json`
   on read commands; `--root`/scope flags; consent gates.
 - **MCP** (`mcp_server.py`, optional extra): read tools (search, read_note,

@@ -5,7 +5,6 @@ import json
 import shutil
 import subprocess
 import sys
-import zipfile
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -61,6 +60,7 @@ from talamus.scope import (
     resolve_init_root,
     scoped_context_items,
 )
+from talamus.services.backup import export_brain, import_brain_archive
 from talamus.services.brains import (
     register_existing_brain,
     rename_registered_brain,
@@ -742,24 +742,20 @@ def _cmd_where(resolved: ResolvedBrain, json_out: bool) -> int:
 
 
 def _cmd_export(root: Path, out_file: str) -> int:
-    paths = TalamusPaths(root)
-    if not paths.config_path.exists():
-        print(f"no brain at {root}", file=sys.stderr)
+    result = export_brain(root, out_file)
+    if not result.success:
+        print(result.message, file=sys.stderr)
         return 1
-    members = [paths.config_path, *paths.notes.rglob("*"), *paths.talamus_dir.rglob("*")]
-    with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as archive:
-        for member in members:
-            if member.is_file():
-                archive.write(member, member.relative_to(root).as_posix())
-    print(f"exported brain to {out_file}")
+    print(result.message)
     return 0
 
 
 def _cmd_import(out_file: str, root: Path) -> int:
-    root.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(out_file) as archive:
-        archive.extractall(root)
-    print(f"imported brain into {root}")
+    result = import_brain_archive(out_file, root)
+    if not result.success:
+        print(result.message, file=sys.stderr)
+        return 1
+    print(result.message)
     return 0
 
 
