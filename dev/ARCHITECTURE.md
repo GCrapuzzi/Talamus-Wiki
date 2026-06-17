@@ -233,7 +233,9 @@ returning the secret. Mutating service calls return `ServiceResult` from
   `diagnostics.py` exposes doctor-style config/layout/engine/cache/index/overview
   checks as typed warnings/errors for onboarding, settings, and CLI reuse;
   `library.py` exposes read-only note lists and note detail metadata/markdown for
-  library, inspector, and provenance-oriented UI surfaces.
+  library, inspector, and provenance-oriented UI surfaces; `integrations.py`
+  exposes MCP config status/install and capture-hook snippets for UI settings
+  and CLI reuse.
 - **CLI** (`cli.py`): the full surface; bare `talamus` = dashboard; `--json`
   on read commands; `--root`/scope flags; consent gates.
 - **MCP** (`mcp_server.py`, optional extra): read tools (search, read_note,

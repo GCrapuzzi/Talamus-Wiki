@@ -71,6 +71,7 @@ from talamus.services.brains import (
 from talamus.services.diagnostics import inspect_diagnostics
 from talamus.services.engines import choose_default_engine, list_engines
 from talamus.services.graph import list_graph_neighbors
+from talamus.services.integrations import build_hook_snippet, install_mcp_config
 from talamus.services.jobs import cancel_job, get_job, list_jobs, read_job_log
 from talamus.services.query import read_note, recall_brain, search_brain
 from talamus.services.readiness import ReadinessReport, inspect_readiness
@@ -796,32 +797,21 @@ def _cmd_demo(root: Path) -> int:
 
 
 def _cmd_mcp_install(root: Path) -> int:
-    config_file = root / ".mcp.json"
-    data: dict = {}
-    if config_file.exists():
-        try:
-            data = json.loads(config_file.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            data = {}
-    data.setdefault("mcpServers", {})["talamus"] = {
-        "command": "talamus-mcp",
-        "args": ["--root", str(root)],
-    }
-    config_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    print(f"wrote talamus MCP server to {config_file}")
+    result = install_mcp_config(root)
+    if not result.success:
+        print(result.message, file=sys.stderr)
+        return 1
+    print(result.message)
     return 0
 
 
 def _cmd_hook(root: Path) -> int:
-    snippet = {
-        "hooks": {
-            "SessionEnd": [
-                {"hooks": [{"type": "command", "command": f"talamus hook-run --root {root}"}]}
-            ]
-        }
-    }
+    result = build_hook_snippet(root)
+    if not result.success or result.data is None:
+        print(result.message, file=sys.stderr)
+        return 1
     print("Add to your Claude Code settings (.claude/settings.json):")
-    print(json.dumps(snippet, indent=2))
+    print(json.dumps(result.data.settings, indent=2))
     return 0
 
 
