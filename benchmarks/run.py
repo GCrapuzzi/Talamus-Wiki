@@ -98,12 +98,6 @@ def _run_shootout(
         eval_path = os.environ.get("TALAMUS_BENCH_EVAL", str(Path(brain) / "eval-cases-book.json"))
         print(f"Loading brain corpus from {brain}...", flush=True)
         corpus = _subset_queries(corpus_from_brain(brain, eval_path), n_queries)
-    elif dataset == "miracl":
-        from benchmarks.shootout.corpora.miracl import load_miracl
-
-        cap = n_queries or 300  # rows = queries; their passages form the pool (tractable)
-        print(f"Loading MIRACL es/dev (non-English at scale, cap {cap})...", flush=True)
-        corpus = load_miracl("es", "dev", limit=cap)
     else:
         print(f"Loading BEIR {dataset}...", flush=True)
         corpus = _subset_queries(load_beir(dataset), n_queries)

@@ -36,21 +36,21 @@ The steelman did its job: it moved a marketing claim back to what the data
 supports. We compete on the whole workflow and zero-infra ownership, not on
 beating embeddings at raw ranking.
 
-## MIRACL (large multilingual judged set) — assumption broken
+## MIRACL (large multilingual judged set) — ABANDONED
 
-Planned as the large cross-language set to de-noise the n=4 book claim. Reality:
-**MIRACL has no Italian** (ar bn de en es fa fi fr hi id ja ko ru sw te th yo zh)
-and is multilingual-MONOLINGUAL (query and docs share a language) — it is NOT
-cross-language. So the book remains our cross-language test; MIRACL is repositioned
-as "non-English retrieval at scale." Loader caveats recorded: the MIRACL HF repo
-ships a loading SCRIPT, so it needs `datasets<3` (v3+ removed scripts) +
-`trust_remote_code`; the Spanish corpus download is large and throttled without an
-HF token. Run pending an HF token.
+Planned as the large cross-language set to de-noise the n=4 book claim, but
+abandoned for two reasons. First, **MIRACL has no Italian** and is
+multilingual-MONOLINGUAL (query and docs share a language) — NOT cross-language,
+so it does not serve the original purpose; the book stays the cross-language test.
+Second, it is impractical here: the MIRACL HF repo ships a loading SCRIPT (needs
+`datasets<3`, since v3+ removed scripts) and the per-language corpus download is
+large and throttled without an HF token. The steelman finding above already
+establishes the key result, so MIRACL added no value worth the cost. The loader,
+its test, and the `datasets` dependency were removed.
 
 ## Infrastructure added (bench-only, deps never in product core)
 
 - `MultilingualDenseSystem` (e5 with the required query/passage prefixes).
-- MIRACL loader (`corpora/miracl.py`, pooled positives+hard-negatives).
 - `LLMWikiSystem` (LLM keyword augmentation at ingest, retrieval over augmented
   text; pointed at the local engine for €0; faithful minimal stand-in for the
   hosted-API-locked upstream).
@@ -60,7 +60,6 @@ HF token. Run pending an HF token.
 
 ## Queue
 
-- Run MIRACL Spanish (non-English at scale vs e5/bm25) once an HF token is set.
 - nfcorpus (2nd English BEIR) for parity robustness.
 - agent-memory heavy run (mem0 local vs Talamus recall).
 - The steelman finding should temper README/marketing language about cross-language.
