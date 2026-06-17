@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from talamus.adapters.llm import save_credential
-from talamus.config import TalamusConfig, load_or_default, save_config
+from talamus.config import TalamusConfig, load_config, load_or_default, save_config
 from talamus.paths import TalamusPaths
 from talamus.services.readiness import EngineReadiness, inspect_engines
 from talamus.services.result import ServiceResult
@@ -54,7 +54,9 @@ def update_engine_settings(
     language: str | None = None,
 ) -> ServiceResult[dict[str, str]]:
     paths = TalamusPaths(Path(root))
-    current = load_or_default(paths.config_path)
+    current = (
+        load_config(paths.config_path) if paths.config_path.is_file() else TalamusConfig.default()
+    )
     selected_provider = canonical_provider(current.llm_provider)
     if provider is not None and provider.strip():
         selected_provider = canonical_provider(provider)

@@ -137,6 +137,27 @@ class EngineSetupServiceTests(unittest.TestCase):
         self.assertEqual("gpt-fast", config.llm_model)
         self.assertEqual("codex-cli", result.data["llm_provider"])
 
+    def test_engine_settings_update_does_not_persist_unrelated_env_overrides(self) -> None:
+        from talamus.services.engines import update_engine_settings
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = TalamusPaths(root)
+            original = replace(TalamusConfig.default(), storage_provider="disk-storage")
+            save_config(paths.config_path, original)
+
+            with mock.patch.dict(
+                os.environ, {"TALAMUS_STORAGE_PROVIDER": "env-storage"}, clear=False
+            ):
+                result = update_engine_settings(root, provider="ollama", model="llama3")
+
+            config = load_config(paths.config_path)
+
+        self.assertTrue(result.success)
+        self.assertEqual("disk-storage", config.storage_provider)
+        self.assertEqual("ollama", config.llm_provider)
+        self.assertEqual("llama3", config.llm_model)
+
     def test_save_anthropic_api_key_never_returns_secret(self) -> None:
         from talamus.adapters.llm import stored_credential_present
         from talamus.services.engines import save_anthropic_api_key
