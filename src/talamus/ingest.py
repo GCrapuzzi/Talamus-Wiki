@@ -39,8 +39,8 @@ def _compile_package(
     preamble: str = "",
     reindex: bool = True,
 ) -> int:
-    """Estrae le note dal pacchetto, le scrive e risolve i wikilink a lotto,
-    ricostruisce gli indici."""
+    """Extract the notes from the package, write them, resolve wikilinks in batch,
+    and rebuild the indexes."""
     from talamus.config import load_or_default, resolve_language
 
     paths.normalized.mkdir(parents=True, exist_ok=True)
@@ -51,11 +51,11 @@ def _compile_package(
     notes = extract_notes(
         package, llm, normalized_path=normalized_rel, preamble=preamble, language=language
     )
-    # Fase 1: persisti tutti gli oggetti canonici, così l'intero lotto è noto.
+    # Phase 1: persist every canonical object, so the whole batch is known.
     for note in notes:
         write_note_json(paths, note)
-    # Fase 2: rendi il Markdown con un registro dell'INTERO lotto (+ note esistenti),
-    # così i wikilink tra note dello stesso lotto si risolvono senza link rotti.
+    # Phase 2: render the Markdown with a registry of the WHOLE batch (+ existing
+    # notes), so wikilinks between same-batch notes resolve without broken links.
     registry = NoteRegistry.from_notes(load_notes(paths))
     for note in notes:
         render_note_markdown(paths, note, registry)
@@ -64,7 +64,7 @@ def _compile_package(
     return len(notes)
 
 
-CHUNK_CHARS = 20_000  # ~5k token per chiamata di estrazione: documenti più grandi vanno a chunk
+CHUNK_CHARS = 20_000  # ~5k tokens per extraction call: bigger documents are chunked
 
 
 def split_chunks(text: str, limit: int = CHUNK_CHARS) -> list[str]:
@@ -142,21 +142,21 @@ def ingest_large(paths: TalamusPaths, file_path: Path, llm: LLMProvider, job_rec
     def handle(item: str) -> None:
         nonlocal notes_total
         index = int(item.split("-")[1])
-        # sempre .md: il chunk è testo estratto, mai il binario originale
+        # always .md: the chunk is extracted text, never the original binary
         chunk_raw = paths.raw / f"{file_path.stem}-c{index:03d}.md"
         chunk_raw.write_text(chunks[index], encoding="utf-8")
         package = normalize_text(chunk_raw.as_posix(), chunks[index])
         for attempt in (1, 2):
             try:
-                # niente reindex per chunk: un libro farebbe N rebuild su un brain
-                # che cresce — si ricostruisce UNA volta a fine job (anche su crash)
+                # no reindex per chunk: a book would do N rebuilds on a growing
+                # brain — rebuild ONCE at the end of the job (even on a crash)
                 notes_total += _compile_package(paths, package, llm, reindex=False)
                 return
             except (EngineFailed, EngineNotFound):
-                raise  # motore giù: il job si ferma resumabile, non si bruciano i chunk
-            except Exception as exc:  # errore di contenuto (es. JSON malformato)
-                if attempt == 1:  # il modello è nondeterministico: un retry quasi sempre basta
-                    store.log(record.job_id, f"chunk {index}: retry dopo {exc}")
+                raise  # engine down: the job stops resumably, the chunks are not burned
+            except Exception as exc:  # content error (e.g. malformed JSON)
+                if attempt == 1:  # the model is nondeterministic: one retry almost always works
+                    store.log(record.job_id, f"chunk {index}: retry after {exc}")
                     continue
                 failed.append({"chunk": index, "error": str(exc)})
                 store.log(record.job_id, f"chunk {index}: FAILED {exc}")
@@ -165,7 +165,7 @@ def ingest_large(paths: TalamusPaths, file_path: Path, llm: LLMProvider, job_rec
     try:
         final = run_items(store, record, items, handle, stage="ingest")
     finally:
-        rebuild_indexes(paths)  # le note già scritte restano cercabili anche dopo un crash
+        rebuild_indexes(paths)  # notes already written stay searchable even after a crash
     hashes = _load_hashes(paths)
     hashes[file_path.name] = _content_hash(text)
     _save_hashes(paths, hashes)
@@ -244,13 +244,13 @@ def _log_capture(paths: TalamusPaths, decision: str, detail: str) -> None:
 
 
 def remember_session(paths: TalamusPaths, transcript: str, diff: str, llm: LLMProvider) -> dict:
-    """Una sessione-agente (transcript + diff) diventa note, se supera il gate."""
+    """An agent session (transcript + diff) becomes notes, if it passes the gate."""
     paths.ensure_directories()
     if not session_worth_remembering(transcript, diff):
         _log_capture(
             paths,
             "skip",
-            f"sotto la soglia del gate (transcript {len(transcript)} char, diff {len(diff)} char)",
+            f"below the gate (transcript {len(transcript)} chars, diff {len(diff)} chars)",
         )
         return {"skipped": True, "notes_written": 0, "reason": "below worth-remembering gate"}
     digest = hashlib.sha256((transcript + "\n" + diff).encode("utf-8")).hexdigest()[:8]
@@ -260,7 +260,7 @@ def remember_session(paths: TalamusPaths, transcript: str, diff: str, llm: LLMPr
     )
     package = normalize_session(raw_path.as_posix(), transcript, diff)
     written = _compile_package(paths, package, llm)
-    _log_capture(paths, "capture", f"session-{digest}: {written} schede")
+    _log_capture(paths, "capture", f"session-{digest}: {written} notes")
     return {"skipped": False, "notes_written": written}
 
 
@@ -271,9 +271,9 @@ def ingest_text(
     name: str = "insight",
     preamble: str = "",
 ) -> dict:
-    """Ingerisce un frammento di testo (es. un'intuizione che l'agente vuole
-    ricordare) come scheda. ``preamble`` aggiunge istruzioni all'estrattore
-    (usato dallo scan per il digest di codice)."""
+    """Ingest a snippet of text (e.g. an insight the agent wants to remember) as a
+    note. ``preamble`` adds instructions to the extractor (used by scan for the
+    code digest)."""
     paths.ensure_directories()
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
     raw_path = paths.raw / f"{name}-{digest}.md"
