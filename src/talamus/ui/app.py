@@ -1,15 +1,16 @@
 """Talamus workbench: Flet desktop/web UI, a thin shell over the SDK (M9/F9).
 
-Eleven views (Home, Chat, Search, Notes, Domains, Graph, Timeline, Ingest, Review,
-Ontology, Settings) built from the pure builders in ``talamus.ui.views``;
-the shell only wires navigation, input fields and threading. Run with
-``talamus ui`` (desktop) or ``talamus ui --web --port 8550`` (browser test mode,
-F9.1). No API layer: every action calls the same SDK functions as the CLI.
+The primary chrome is task-first (Home, Ask, Library, Import, Graph, Review,
+Ontology, Brains, System) while the implementation remains a thin wrapper over
+the pure builders in ``talamus.ui.views``. Run with ``talamus ui`` (desktop) or
+``talamus ui --web --port 8550`` (browser test mode, F9.1). No API layer: every
+action calls the same SDK functions as the CLI.
 """
 
 from __future__ import annotations
 
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 
 import flet as ft
@@ -30,8 +31,29 @@ from talamus.services.ingestion import (
 from talamus.services.scan import ScanActionResult, ScanPreview, preview_scan, run_scan
 from talamus.ui import views
 
+
+@dataclass(frozen=True)
+class NavDestination:
+    view: str
+    label: str
+    icon: ft.IconData
+
+
+PRIMARY_NAV_DESTINATIONS = [
+    NavDestination("home", "Home", ft.Icons.HOME),
+    NavDestination("ask", "Ask", ft.Icons.CHAT),
+    NavDestination("library", "Library", ft.Icons.DESCRIPTION),
+    NavDestination("import", "Import", ft.Icons.UPLOAD_FILE),
+    NavDestination("graph", "Graph", ft.Icons.HUB),
+    NavDestination("review", "Review", ft.Icons.CHECKLIST),
+    NavDestination("ontology", "Ontology", ft.Icons.SCHEMA),
+    NavDestination("brains", "Brains", ft.Icons.ACCOUNT_TREE),
+    NavDestination("system", "System", ft.Icons.SETTINGS),
+]
+
 _HOME_ACTION_ALIASES = {
     "ask": "chat",
+    "library": "notes",
     "import": "ingest",
     "system": "settings",
     "demo": "home",
@@ -42,6 +64,16 @@ _HOME_ACTION_ALIASES = {
 
 def _view_name_for_home_action(name: str) -> str:
     return _HOME_ACTION_ALIASES.get(name, name)
+
+
+def _title_for_view(name: str) -> str:
+    for destination in PRIMARY_NAV_DESTINATIONS:
+        if destination.view == name:
+            return destination.label
+    for destination in PRIMARY_NAV_DESTINATIONS:
+        if _view_name_for_home_action(destination.view) == name:
+            return destination.label
+    return name.capitalize()
 
 
 def _provider(paths: TalamusPaths):
@@ -106,26 +138,119 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
 
     page.title = "Talamus"
     theme.apply(page)
-    content = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
-    inspector = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
-    inspector_panel = ft.Container(
-        content=inspector,
-        width=300,
-        bgcolor=theme.SURFACE,
-        border=ft.Border(left=ft.BorderSide(1, theme.BORDER)),
-        padding=theme.PAD,
-        visible=False,
+    content = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=14)
+    main_title = ft.Text("Home", size=18, weight=ft.FontWeight.BOLD, color=theme.TEXT)
+    main_subtitle = ft.Text(str(paths.project_root), size=12, color=theme.MUTED)
+    top_bar = theme.panel(
+        ft.Row(
+            [
+                ft.Column([main_title, main_subtitle], spacing=2, expand=True),
+                theme.status_pill("Local-first", "ready"),
+                theme.status_pill("Token cost visible", "accent"),
+            ],
+            spacing=10,
+            wrap=True,
+        ),
+        padding=12,
     )
-    state = {"note": ""}  # the note the Graph/Timeline/inspector focus on
+    inspector = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
+    inspector_panel = theme.panel(
+        inspector,
+        width=330,
+        bgcolor=theme.SIDEBAR,
+        padding=theme.PAD,
+    )
+    sidebar = theme.panel(
+        ft.Column([], spacing=10),
+        width=236,
+        bgcolor=theme.SIDEBAR,
+        padding=14,
+    )
+    state = {
+        "note": "",  # the note the Graph/Timeline/inspector focus on
+        "view": "home",
+    }
 
     def show(control: ft.Control) -> None:
         content.controls = [control]
         page.update()
 
+    def _nav_item(destination: NavDestination) -> ft.Control:
+        selected = state["view"] == destination.view
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Icon(
+                        destination.icon, size=17, color=theme.TEXT if selected else theme.MUTED
+                    ),
+                    ft.Text(
+                        destination.label,
+                        size=13,
+                        weight=ft.FontWeight.BOLD if selected else ft.FontWeight.NORMAL,
+                        color=theme.TEXT if selected else theme.MUTED,
+                    ),
+                ],
+                spacing=9,
+            ),
+            bgcolor=theme.SURFACE_2 if selected else theme.SURFACE,
+            border=ft.Border.all(1, theme.BORDER),
+            border_radius=8,
+            padding=ft.Padding(10, 9, 10, 9),
+            on_click=lambda e, view=destination.view: show_view(view),
+        )
+
+    def _refresh_sidebar() -> None:
+        sidebar.content = ft.Column(
+            [
+                ft.Column(
+                    [
+                        ft.Text("Talamus", size=19, weight=ft.FontWeight.BOLD, color=theme.TEXT),
+                        theme.muted("Hybrid Brain OS"),
+                        theme.muted(str(paths.project_root), size=11),
+                    ],
+                    spacing=3,
+                ),
+                ft.Divider(height=1, color=theme.BORDER),
+                *[_nav_item(destination) for destination in PRIMARY_NAV_DESTINATIONS],
+                ft.Container(expand=True),
+                theme.panel(
+                    ft.Column(
+                        [
+                            theme.section("Readiness"),
+                            theme.status_pill("No auto-create", "ready"),
+                            theme.status_pill("Services spine", "accent"),
+                        ],
+                        spacing=8,
+                    ),
+                    padding=10,
+                    bgcolor=theme.BG,
+                ),
+            ],
+            spacing=10,
+            expand=True,
+        )
+
+    def _refresh_topbar(canonical_name: str) -> None:
+        main_title.value = _title_for_view(canonical_name)
+        main_subtitle.value = "Task-first UI over the same services used by CLI, SDK, and agents."
+
     def _refresh_inspector() -> None:
         title = state["note"]
         if not title:
-            inspector_panel.visible = False
+            inspector.controls = [
+                theme.section("Inspector"),
+                ft.Text("Context follows selection", size=19, weight=ft.FontWeight.BOLD),
+                theme.muted(
+                    "Select a note, source, job, review item, relation, brain, or engine "
+                    "to see evidence and safe actions here."
+                ),
+                ft.Divider(height=1, color=theme.BORDER),
+                theme.section("Examples"),
+                theme.panel(ft.Text("Sources and citations", size=12), padding=10),
+                theme.panel(ft.Text("Job progress and logs", size=12), padding=10),
+                theme.panel(ft.Text("Review decisions", size=12), padding=10),
+                theme.panel(ft.Text("CLI-equivalent trace", size=12), padding=10),
+            ]
             return
         inspector.controls = [
             ft.Row(
@@ -145,10 +270,10 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             theme.section("Timeline"),
             views.build_timeline(paths, title),
         ]
-        inspector_panel.visible = True
 
     def _close_inspector() -> None:
-        inspector_panel.visible = False
+        state["note"] = ""
+        _refresh_inspector()
         page.update()
 
     def open_note(title: str) -> None:
@@ -356,17 +481,66 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
 
         return build_graph_canvas(paths, state["note"], open_note, page=page)
 
+    home_generation = {"value": 0}
+
+    def home_view() -> ft.Control:
+        home_generation["value"] += 1
+        generation = home_generation["value"]
+        holder = ft.Column(
+            [
+                views.heading("Command Center"),
+                theme.muted("Inspecting local readiness..."),
+                theme.panel(
+                    ft.Column(
+                        [
+                            theme.status_pill("Shell ready", "ready"),
+                            theme.muted("The app chrome stays responsive while local checks run."),
+                        ],
+                        spacing=8,
+                    ),
+                    padding=12,
+                ),
+            ],
+            spacing=12,
+        )
+
+        def work() -> None:
+            try:
+                control = views.build_home(paths, show_view)
+            except Exception as exc:
+                control = theme.panel(
+                    ft.Column(
+                        [
+                            ft.Text("Readiness failed", weight=ft.FontWeight.BOLD),
+                            theme.muted(str(exc)),
+                        ],
+                        spacing=6,
+                    ),
+                    padding=12,
+                )
+            if generation != home_generation["value"]:
+                return
+            holder.controls = [control]
+            page.update()
+
+        threading.Thread(target=work, daemon=True).start()
+        return holder
+
     # ---------------------------------------------------------------- routing
     builders: dict[str, object] = {}
 
     def show_view(name: str) -> None:
-        name = _view_name_for_home_action(name)
-        builder = builders[name]
+        canonical_name = name
+        resolved_name = _view_name_for_home_action(name)
+        builder = builders[resolved_name]
+        state["view"] = canonical_name
+        _refresh_topbar(canonical_name)
+        _refresh_sidebar()
         show(builder())  # type: ignore[operator]
 
     builders.update(
         {
-            "home": lambda: views.build_home(paths, show_view),
+            "home": home_view,
             "chat": chat_view,
             "search": search_view,
             "notes": lambda: views.build_notes(paths, open_note),
@@ -379,35 +553,23 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             "settings": lambda: views.build_settings(paths),
         }
     )
-    order = list(builders)
-    destinations = [
-        ("home", ft.Icons.HOME),
-        ("chat", ft.Icons.CHAT),
-        ("search", ft.Icons.SEARCH),
-        ("notes", ft.Icons.DESCRIPTION),
-        ("domains", ft.Icons.ACCOUNT_TREE),
-        ("graph", ft.Icons.HUB),
-        ("timeline", ft.Icons.HISTORY),
-        ("ingest", ft.Icons.UPLOAD_FILE),
-        ("review", ft.Icons.CHECKLIST),
-        ("ontology", ft.Icons.SCHEMA),
-        ("settings", ft.Icons.SETTINGS),
-    ]
     from talamus.ui import theme as _theme
 
-    rail = ft.NavigationRail(
-        selected_index=0,
-        label_type=ft.NavigationRailLabelType.ALL,
-        bgcolor=_theme.SURFACE,
-        indicator_color=_theme.SURFACE_2,
-        destinations=[
-            ft.NavigationRailDestination(icon=icon, label=name.capitalize())
-            for name, icon in destinations
-        ],
-        on_change=lambda e: show_view(order[e.control.selected_index or 0]),
+    _refresh_sidebar()
+    _refresh_inspector()
+    main_pane = ft.Container(
+        content=ft.Column([top_bar, content], expand=True, spacing=_theme.GAP),
+        expand=True,
+        padding=_theme.PAD,
     )
-    main_pane = ft.Container(content=content, expand=True, padding=_theme.PAD * 1.5)
-    page.add(ft.Row([rail, main_pane, inspector_panel], expand=True, spacing=0))
+    page.add(
+        ft.Row(
+            [sidebar, main_pane, inspector_panel],
+            expand=True,
+            spacing=0,
+            vertical_alignment=ft.CrossAxisAlignment.STRETCH,
+        )
+    )
     show_view("home")
 
 

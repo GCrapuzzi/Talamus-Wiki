@@ -68,28 +68,54 @@ def build_home(paths: TalamusPaths, on_action: Callable[[str], None] | None = No
     from talamus.ui import theme
 
     report = inspect_readiness(root=str(paths.project_root))
+    engine_ready = any(
+        bool(getattr(engine, "configured", False)) and bool(getattr(engine, "available", False))
+        for engine in getattr(report, "engines", [])
+    )
+    setup_state = (
+        "Ready" if getattr(report, "config_exists", False) and engine_ready else "Needs setup"
+    )
+    access_ready = bool(getattr(report, "mcp_installed", False))
+    access_state = "MCP installed" if access_ready else "MCP not installed"
     tiles = ft.Row(
         [
-            theme.stat("notes", str(report.notes)),
-            theme.stat("sources", str(report.sources)),
-            theme.stat(
-                "review",
-                str(report.reviews_pending),
-                color=theme.WARN if report.reviews_pending else theme.TEXT,
+            theme.metric(
+                "Engine", setup_state, "detected on launch", "ready" if engine_ready else "warn"
             ),
-            theme.stat(
-                "job",
-                str(report.jobs_active),
-                color=theme.WARN if report.jobs_active else theme.TEXT,
+            theme.metric(
+                "Brain",
+                f"{getattr(report, 'notes', 0)} notes",
+                "pick or create deliberately",
+                "accent",
             ),
-            theme.stat("index", report.index_backend, color=theme.ACCENT),
+            theme.metric(
+                "Access",
+                access_state,
+                "agent-native co-launch",
+                "ready" if access_ready else "warn",
+            ),
+            theme.metric(
+                "Review",
+                str(getattr(report, "reviews_pending", 0)),
+                "pending decisions",
+                "warn" if getattr(report, "reviews_pending", 0) else "muted",
+            ),
         ],
         wrap=True,
         spacing=theme.GAP,
+        run_spacing=theme.GAP,
     )
     rows: list[ft.Control] = [
-        heading("Talamus"),
-        theme.muted(report.root),
+        ft.Column(
+            [
+                heading("Command Center"),
+                theme.muted(
+                    f"{report.root} - No brain is created automatically. "
+                    "Choose a setup path when you are ready."
+                ),
+            ],
+            spacing=4,
+        ),
         tiles,
         _moat_status_panel(report),
     ]
@@ -103,15 +129,12 @@ def build_home(paths: TalamusPaths, on_action: Callable[[str], None] | None = No
             )
         )
 
-    rows.append(theme.section("System status"))
-    rows.extend(_engine_card(engine) for engine in report.engines)
-
-    rows.append(theme.section("Next steps"))
+    action_rows: list[ft.Control] = [theme.section("Next best actions")]
     if report.next_actions:
-        rows.extend(_next_action_card(action, on_action) for action in report.next_actions)
+        action_rows.extend(_next_action_card(action, on_action) for action in report.next_actions)
     else:
-        rows.append(
-            theme.card(
+        action_rows.append(
+            theme.panel(
                 ft.Column(
                     [
                         ft.Text("Ready", weight=ft.FontWeight.BOLD),
@@ -122,6 +145,39 @@ def build_home(paths: TalamusPaths, on_action: Callable[[str], None] | None = No
                 padding=12,
             )
         )
+
+    system_rows: list[ft.Control] = [theme.section("System status")]
+    system_rows.extend(_engine_card(engine) for engine in report.engines)
+    if not getattr(report, "engines", []):
+        system_rows.append(theme.muted("No engine report available yet."))
+    system_rows.append(
+        theme.panel(
+            ft.Column(
+                [
+                    theme.muted(f"Index: {getattr(report, 'index_backend', 'none')}"),
+                    theme.muted(
+                        f"Active jobs: {getattr(report, 'jobs_active', 0)}; "
+                        f"sources: {getattr(report, 'sources', 0)}"
+                    ),
+                ],
+                spacing=3,
+            ),
+            padding=12,
+        )
+    )
+
+    rows.append(
+        ft.Row(
+            [
+                theme.panel(ft.Column(action_rows, spacing=10), expand=True),
+                _graph_preview_panel(report),
+            ],
+            wrap=True,
+            spacing=theme.GAP,
+            run_spacing=theme.GAP,
+        )
+    )
+    rows.append(theme.panel(ft.Column(system_rows, spacing=10)))
     return ft.Column(rows, spacing=14)
 
 
@@ -138,9 +194,10 @@ def _moat_status_panel(report: object) -> ft.Control:
         ("Time", "as-of ready" if notes else "waiting for notes"),
         ("Meaning", f"{domains} domains, {candidates} candidates"),
         ("Verifiability", f"{sources} sources, {reviews} reviews"),
-        ("Cost", f"{budget} token budget"),
+        ("Language", "Language-native memory"),
+        ("Token cost", f"Cost promise: {budget} token budget"),
     ]
-    return theme.card(
+    return theme.panel(
         ft.Row(
             [
                 ft.Column(
@@ -161,17 +218,110 @@ def _moat_status_panel(report: object) -> ft.Control:
     )
 
 
+def _graph_preview_panel(report: object) -> ft.Control:
+    from talamus.ui import theme
+
+    notes = int(getattr(report, "notes", 0) or 0)
+    domains = int(getattr(report, "overview_domains", 0) or 0)
+    reviews = int(getattr(report, "reviews_pending", 0) or 0)
+    legend = [
+        ("Retrieval", theme.ACCENT_2),
+        ("Ontology", theme.OK),
+        ("Review", theme.DANGER if reviews else theme.WARN),
+    ]
+    return theme.panel(
+        ft.Column(
+            [
+                theme.section("Graph preview"),
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Row(
+                                [
+                                    ft.Container(
+                                        width=28,
+                                        height=28,
+                                        bgcolor="#B7A7FF",
+                                        border_radius=14,
+                                    ),
+                                    ft.Column(
+                                        [
+                                            ft.Text("Local graph", weight=ft.FontWeight.BOLD),
+                                            theme.muted(f"{notes} notes, {domains} domains"),
+                                        ],
+                                        spacing=2,
+                                        tight=True,
+                                    ),
+                                ],
+                                spacing=10,
+                            ),
+                            ft.Row(
+                                [
+                                    ft.Container(
+                                        width=13, height=13, bgcolor=theme.ACCENT_2, border_radius=7
+                                    ),
+                                    ft.Container(
+                                        width=13, height=13, bgcolor=theme.WARN, border_radius=7
+                                    ),
+                                    ft.Container(
+                                        width=13, height=13, bgcolor=theme.OK, border_radius=7
+                                    ),
+                                    ft.Container(
+                                        width=13, height=13, bgcolor=theme.DANGER, border_radius=7
+                                    ),
+                                ],
+                                spacing=24,
+                            ),
+                            ft.Row(
+                                [
+                                    ft.Row(
+                                        [
+                                            ft.Container(
+                                                width=8, height=8, bgcolor=color, border_radius=4
+                                            ),
+                                            ft.Text(label, size=11, color=theme.MUTED),
+                                        ],
+                                        spacing=5,
+                                        tight=True,
+                                    )
+                                    for label, color in legend
+                                ],
+                                wrap=True,
+                                spacing=10,
+                                run_spacing=6,
+                            ),
+                        ],
+                        spacing=14,
+                    ),
+                    bgcolor=theme.CANVAS,
+                    border=ft.Border.all(1, theme.BORDER),
+                    border_radius=8,
+                    padding=14,
+                ),
+                theme.muted(
+                    "Pan, zoom, focus, provenance and typed relations stay in the graph view."
+                ),
+            ],
+            spacing=10,
+        ),
+        expand=True,
+    )
+
+
 def _engine_card(engine: EngineReadiness) -> ft.Control:
     from talamus.ui import theme
 
     marker = "selected" if engine.configured else engine.status
-    return theme.card(
+    tone = "ready" if getattr(engine, "available", False) else "warn"
+    if getattr(engine, "needs_secret", False) or getattr(engine, "status", "") == "not_installed":
+        tone = "warning"
+    return theme.panel(
         ft.Column(
             [
                 ft.Row(
                     [
                         ft.Text(engine.label, weight=ft.FontWeight.BOLD),
-                        theme.muted(marker),
+                        theme.status_pill(marker, tone=tone),
                     ],
                     spacing=8,
                     wrap=True,
@@ -198,7 +348,7 @@ def _next_action_card(
         controls.append(
             ft.TextButton("Open", on_click=lambda e, target=action.target: callback(target))
         )
-    return theme.card(
+    return theme.panel(
         ft.Column(
             controls,
             spacing=4,

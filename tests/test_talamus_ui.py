@@ -212,6 +212,40 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertIn("5 sources", rendered)
         self.assertIn("Cost", rendered)
         self.assertIn("4096 token budget", rendered)
+        self.assertIn("Language", rendered)
+
+    def test_home_matches_hybrid_brain_os_shell_copy(self) -> None:
+        from talamus.paths import TalamusPaths
+        from talamus.ui import views
+
+        report = SimpleNamespace(
+            root="C:/example/project",
+            config_exists=True,
+            notes=7,
+            sources=5,
+            reviews_pending=2,
+            jobs_active=1,
+            index_backend="sqlite",
+            overview_domains=3,
+            ontology_candidates=1,
+            cache_current=True,
+            mcp_installed=False,
+            engines=[],
+            next_actions=[],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            with patch.object(views, "inspect_readiness", return_value=report):
+                control = views.build_home(paths)
+
+        rendered = self._rendered_text(control)
+        self.assertIn("Command Center", rendered)
+        self.assertIn("No brain is created automatically.", rendered)
+        self.assertIn("Next best actions", rendered)
+        self.assertIn("Graph preview", rendered)
+        self.assertIn("Token cost", rendered)
+        self.assertIn("Language-native memory", rendered)
 
     def test_home_next_action_button_calls_callback_with_target(self) -> None:
         import flet as ft
@@ -495,6 +529,54 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
             with self.subTest(target=target):
                 self.assertEqual(_view_name_for_home_action(target), expected)
 
+    def test_primary_navigation_matches_completion_spec(self) -> None:
+        from talamus.ui.app import PRIMARY_NAV_DESTINATIONS, _view_name_for_home_action
+
+        labels = [destination.label for destination in PRIMARY_NAV_DESTINATIONS]
+        self.assertEqual(
+            labels,
+            [
+                "Home",
+                "Ask",
+                "Library",
+                "Import",
+                "Graph",
+                "Review",
+                "Ontology",
+                "Brains",
+                "System",
+            ],
+        )
+
+        builder_keys = {
+            "home",
+            "chat",
+            "notes",
+            "graph",
+            "ingest",
+            "review",
+            "ontology",
+            "settings",
+        }
+        for destination in PRIMARY_NAV_DESTINATIONS:
+            with self.subTest(destination=destination.label):
+                self.assertIn(_view_name_for_home_action(destination.view), builder_keys)
+
+    def test_theme_has_shell_primitives_for_dense_workbench(self) -> None:
+        import flet as ft
+
+        from talamus.ui import theme
+
+        panel = theme.panel(ft.Text("Body"))
+        pill = theme.status_pill("Ready", tone="ready")
+        metric = theme.metric("Engine", "Codex CLI", "selected")
+
+        self.assertIsInstance(panel, ft.Container)
+        self.assertEqual(panel.border_radius, 8)
+        self.assertIsInstance(pill, ft.Container)
+        self.assertIn("Ready", self._rendered_text(pill))
+        self.assertIn("Engine", self._rendered_text(metric))
+
     def test_all_views_build_on_empty_brain(self) -> None:
         import flet as ft
 
@@ -552,6 +634,16 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertNotIn("from talamus.ingest import", source)
         self.assertIn("from talamus.services.scan import", source)
         self.assertIn("from talamus.services.ingestion import", source)
+
+    def test_app_home_route_loads_readiness_without_blocking_shell(self) -> None:
+        import inspect
+
+        import talamus.ui.app as app
+
+        source = inspect.getsource(app)
+        self.assertIn("Inspecting local readiness", source)
+        self.assertIn("home_generation", source)
+        self.assertIn("threading.Thread(target=work", source)
 
 
 if __name__ == "__main__":
