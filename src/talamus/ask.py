@@ -31,10 +31,10 @@ def _note_path(paths: TalamusPaths, label: str):
 
 
 def _expand_with_ontology(seed_titles: list[str], ontology: dict, limit: int) -> list[str]:
-    """Riempie i candidati seguendo le relazioni dell'ontologia (1 salto), oltre alle parole.
+    """Fill the candidates by following the ontology relations (1 hop), beyond words.
 
-    Gli archi TIPIZZATI passano prima di quelli ``related``: un tipo promosso dallo
-    Ontology Lab cambia davvero cosa entra nel contesto quando il limite taglia."""
+    TYPED edges come before ``related`` ones: a type promoted by the Ontology Lab
+    actually changes what enters the context when the limit cuts."""
     ranked = list(seed_titles)
     for title in seed_titles:
         connected = sorted(
@@ -170,24 +170,24 @@ def _route_member_titles(
     return titles
 
 
-GLOBAL_ESCAPE_SEEDS = 2  # hit globali fuori dai domini scelti: scialuppa anti-routing-sbagliato
+GLOBAL_ESCAPE_SEEDS = 2  # global hits outside the chosen domains: an anti-misrouting lifeboat
 
 
 def _select_bundle_titles(
     paths: TalamusPaths, question: str, member_titles: list[str], limit: int
 ) -> list[tuple[str, str]]:
-    """RS2.2: i membri dei domini scelti vanno CLASSIFICATI contro la domanda —
-    prima si prendevano i primi ``limit`` nell'ordine di elenco del dominio, e la
-    nota giusta poteva non essere mai letta pur essendo il primo hit della search
-    globale (caso RLHF/DPO sul libro). Ranking via indice persistente + un paio
-    di seed globali fuori-dominio. Deterministico, zero chiamate LLM."""
+    """RS2.2: the chosen domains' members are RANKED against the question — before,
+    the first ``limit`` were taken in the domain's listing order, and the right note
+    could never be read even though it was the top hit of the global search (the
+    RLHF/DPO case on the book). Ranking via the persistent index + a couple of
+    global out-of-domain seeds. Deterministic, zero LLM calls."""
     from talamus.indexes import search_index
 
     members = list(dict.fromkeys(member_titles))
     hits = search_index(paths, question, limit=max(24, limit * 3))
     order = {h["title"]: i for i, h in enumerate(hits)}
     ranked = sorted((t for t in members if t in order), key=lambda t: order[t])
-    ranked += [t for t in members if t not in order]  # coda: ordine del dominio
+    ranked += [t for t in members if t not in order]  # tail: domain order
     member_set = set(members)
     extras = [h["title"] for h in hits if h["title"] not in member_set][:GLOBAL_ESCAPE_SEEDS]
     keep = max(limit - len(extras), 1)
@@ -204,9 +204,9 @@ def _overview_bundle(
     titles = _route_member_titles(paths, question, llm, trace=trace)
     if not titles:
         return ContextBundle(question=question, items=[])
-    # RS3: l'LLM fa da modello di embedding — traduce la domanda nel vocabolario
-    # del corpus PRIMA della selezione. Misurato sul libro: hit ask 0.861 -> 0.972,
-    # vague 0.50 -> 0.81, cross 0.50 -> 0.88. Costa una chiamata in piu' per ask.
+    # RS3: the LLM acts as the embedding model — it translates the question into the
+    # corpus vocabulary BEFORE selection. Measured on the book: ask hit 0.861 -> 0.972,
+    # vague 0.50 -> 0.81, cross 0.50 -> 0.88. Costs one extra call per ask.
     expanded = _expand_query(question, llm)
     ranking_query = f"{question} {expanded}".strip() if expanded != question else question
     if trace is not None:
@@ -277,14 +277,14 @@ def answer_question(
         trace["route"] = route
         trace["extra_items"] = len(extra_items or [])
     if not all_items:
-        return "Nessun contesto trovato nel brain per questa domanda."
+        return "No context found in the brain for this question."
     return answer_from_items(question, all_items, llm, trace=trace)
 
 
 def answer_from_items(
     question: str, all_items: list[dict], llm: LLMProvider, trace: dict | None = None
 ) -> str:
-    """Budget the items, answer with citations, append the Fonti legend."""
+    """Budget the items, answer with citations, append the Sources legend."""
     items = fit_to_budget(all_items, context_budget())
     if trace is not None:
         trace["items_read"] = [item["path"] for item in items]
@@ -294,8 +294,8 @@ def answer_from_items(
     )
     answer = llm.complete(_ANSWER_PROMPT.format(question=question, context=context)).strip()
     if not answer:
-        return "Il motore non ha prodotto una risposta. Riprova o controlla l'engine."
+        return "The engine produced no answer. Try again or check the engine."
     sources = "\n".join(
         f"[{idx}] {Path(item['path']).name}" for idx, item in enumerate(items, start=1)
     )
-    return f"{answer}\n\n**Fonti:**\n{sources}"
+    return f"{answer}\n\n**Sources:**\n{sources}"

@@ -49,7 +49,7 @@ class QueryServiceTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertIsNotNone(result.data)
-        self.assertIn("Nessun contesto", result.data.context)
+        self.assertIn("No relevant context", result.data.context)
 
 
 if __name__ == "__main__":

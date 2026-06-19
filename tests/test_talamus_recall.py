@@ -79,7 +79,7 @@ class RecallTests(unittest.TestCase):
             paths.ensure_directories()
             rebuild_indexes(paths)
             ctx = recall_context(paths, "qualunque cosa")
-            self.assertIn("Nessun contesto", ctx)
+            self.assertIn("No relevant context", ctx)
 
 
 if __name__ == "__main__":

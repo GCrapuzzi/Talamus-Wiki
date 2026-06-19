@@ -88,7 +88,7 @@ class TalamusAskTests(unittest.TestCase):
             self.assertIn("RAG", answer)
             self.assertIn("Retrieval-Augmented Generation", answering.prompts[0])
             # the answer carries a sources legend mapping [n] -> the cited note file
-            self.assertIn("Fonti:", answer)
+            self.assertIn("Sources:", answer)
             self.assertIn(".md", answer)
 
     def test_answer_question_handles_empty_engine_output(self) -> None:
@@ -104,7 +104,7 @@ class TalamusAskTests(unittest.TestCase):
                 paths, "Come collego il modello a fonti esterne?", FakeLLMProvider([""])
             )
 
-            self.assertIn("motore", answer.lower())
+            self.assertIn("engine", answer.lower())
 
     def test_answer_question_without_context_is_explicit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -116,7 +116,7 @@ class TalamusAskTests(unittest.TestCase):
 
             answer = answer_question(paths, "qualcosa", FakeLLMProvider(["non dovrebbe servire"]))
 
-            self.assertIn("nessun contesto", answer.lower())
+            self.assertIn("no context", answer.lower())
 
     def test_retrieval_expands_via_ontology(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

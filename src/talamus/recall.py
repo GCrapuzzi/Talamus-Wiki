@@ -19,10 +19,10 @@ def _load_graph_and_index(paths: TalamusPaths):
 
 
 def search_notes(paths: TalamusPaths, query: str, limit: int = 5) -> list[dict]:
-    """Candidati pertinenti dall'indice persistito, riordinati (rerank). {title, summary}.
+    """Relevant candidates from the persistent index, reranked. {title, summary}.
 
-    Da M4 la ricerca interroga l'indice persistito (sqlite/FTS5 o posting list) e i
-    metadati che porta con sé — niente più caricamento di tutte le note a ogni query.
+    Since M4 the search queries the persistent index (sqlite/FTS5 or posting list) and
+    the metadata it carries — no more loading every note on each query.
     """
     from talamus.indexes import search_index
 
@@ -38,7 +38,7 @@ def search_notes(paths: TalamusPaths, query: str, limit: int = 5) -> list[dict]:
 
 
 def read_note_text(paths: TalamusPaths, title: str) -> str | None:
-    """Contenuto Markdown di una scheda dato il titolo (fallback case-insensitive)."""
+    """Markdown content of a note given its title (case-insensitive fallback)."""
     path = paths.notes / note_filename(title)
     if path.is_file():
         return path.read_text(encoding="utf-8")
@@ -51,15 +51,15 @@ def read_note_text(paths: TalamusPaths, title: str) -> str | None:
 
 
 def concept_neighbors(paths: TalamusPaths, concept: str) -> list[dict]:
-    """Vicini tipizzati di un concetto nella mappa (ontologia): per navigare le connessioni."""
+    """Typed neighbors of a concept in the map (ontology): to navigate the connections."""
     return neighbors(load_ontology(paths), concept)
 
 
 def recall_context(paths: TalamusPaths, question: str, limit: int = 5) -> str:
-    """Contesto pertinente (schede reali) per una domanda.
-    L'agente è l'LLM: ritorna risorse, non risposte."""
+    """Relevant context (real notes) for a question.
+    The agent is the LLM: it returns resources, not answers."""
     graph, index = _load_graph_and_index(paths)
     bundle = build_context_bundle(paths, graph, index, question, limit=limit)
     if not bundle.items:
-        return "Nessun contesto pertinente trovato nel brain."
+        return "No relevant context found in the brain."
     return bundle.render()
