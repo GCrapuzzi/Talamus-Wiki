@@ -1,4 +1,4 @@
-"""Talamus design system — dark-first, dense, calm (Fase R1, PRD 14.3).
+"""Talamus design system: dark-first, dense, calm (Phase R1, PRD 14.3).
 
 One place for palette, spacing and reusable surfaces (cards, stat tiles, empty
 states), so every view looks like the same product. Principles from the llm_wiki
@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 import flet as ft
 
-# palette — charcoal base, readable text, one cool accent
+# Palette: charcoal base, readable text, one cool accent.
 BG = "#14181C"
 SURFACE = "#1B2127"
 SURFACE_2 = "#222A32"
@@ -21,7 +21,6 @@ TEXT = "#E6EDF3"
 MUTED = "#94A3B0"
 ACCENT = "#4FC3F7"
 WARN = "#FFB74D"
-OK = "#81C784"
 
 PAD = 16
 GAP = 12
@@ -32,10 +31,6 @@ def apply(page: ft.Page) -> None:
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG
     page.padding = 0
-
-
-def title(text: str) -> ft.Control:
-    return ft.Text(text, size=22, weight=ft.FontWeight.BOLD, color=TEXT)
 
 
 def section(text: str) -> ft.Control:
@@ -51,7 +46,7 @@ def card(content: ft.Control, padding: int = PAD) -> ft.Control:
         content=content,
         bgcolor=SURFACE,
         border=ft.Border.all(1, BORDER),
-        border_radius=10,
+        border_radius=8,
         padding=padding,
     )
 

@@ -43,14 +43,14 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         noop = lambda *_args: None  # noqa: E731
         return {
             "home": lambda: views.build_home(paths),
-            "note": lambda: views.build_notes(paths, noop),
-            "domini": lambda: views.build_domains(paths, noop),
-            "grafo_unfocused": lambda: views.build_graph(paths, "", noop),
-            "grafo_focused": lambda: views.build_graph(paths, "Reranking", noop),
+            "notes": lambda: views.build_notes(paths, noop),
+            "domains": lambda: views.build_domains(paths, noop),
+            "graph_unfocused": lambda: views.build_graph(paths, "", noop),
+            "graph_focused": lambda: views.build_graph(paths, "Reranking", noop),
             "timeline": lambda: views.build_timeline(paths, "Reranking"),
             "review": lambda: views.build_review(paths, noop),
-            "ontologia": lambda: views.build_ontology_lab(paths, noop),
-            "impostazioni": lambda: views.build_settings(paths),
+            "ontology": lambda: views.build_ontology_lab(paths, noop),
+            "settings": lambda: views.build_settings(paths),
         }
 
     def _walk_controls(self, control):
@@ -204,7 +204,7 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         buttons = [
             item
             for item in self._walk_controls(control)
-            if isinstance(item, ft.TextButton) and getattr(item, "content", None) == "Apri"
+            if isinstance(item, ft.TextButton) and getattr(item, "content", None) == "Open"
         ]
         self.assertEqual(len(buttons), 1)
 
@@ -218,15 +218,15 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         builder_keys = {
             "home",
             "chat",
-            "cerca",
-            "note",
-            "domini",
-            "grafo",
+            "search",
+            "notes",
+            "domains",
+            "graph",
             "timeline",
             "ingest",
             "review",
-            "ontologia",
-            "impostazioni",
+            "ontology",
+            "settings",
         }
         readiness_targets = {"brains", "demo", "system", "import", "review", "ontology", "ask"}
         for target in readiness_targets:
@@ -236,10 +236,10 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         cases = {
             "ask": "chat",
             "import": "ingest",
-            "system": "impostazioni",
+            "system": "settings",
             "demo": "home",
-            "brains": "impostazioni",
-            "ontology": "ontologia",
+            "brains": "settings",
+            "ontology": "ontology",
             "future": "future",
         }
         for target, expected in cases.items():

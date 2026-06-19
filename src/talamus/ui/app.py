@@ -1,7 +1,7 @@
-"""Talamus workbench — Flet desktop/web UI, a thin shell over the SDK (M9/F9).
+"""Talamus workbench: Flet desktop/web UI, a thin shell over the SDK (M9/F9).
 
-Eleven views (Home, Chat, Cerca, Note, Domini, Grafo, Timeline, Ingest, Review,
-Ontologia, Impostazioni) built from the pure builders in ``talamus.ui.views``;
+Eleven views (Home, Chat, Search, Notes, Domains, Graph, Timeline, Ingest, Review,
+Ontology, Settings) built from the pure builders in ``talamus.ui.views``;
 the shell only wires navigation, input fields and threading. Run with
 ``talamus ui`` (desktop) or ``talamus ui --web --port 8550`` (browser test mode,
 F9.1). No API layer: every action calls the same SDK functions as the CLI.
@@ -23,10 +23,10 @@ from talamus.ui import views
 _HOME_ACTION_ALIASES = {
     "ask": "chat",
     "import": "ingest",
-    "system": "impostazioni",
+    "system": "settings",
     "demo": "home",
-    "brains": "impostazioni",
-    "ontology": "ontologia",
+    "brains": "settings",
+    "ontology": "ontology",
 }
 
 
@@ -54,7 +54,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         padding=theme.PAD,
         visible=False,
     )
-    state = {"note": ""}  # the note the Grafo/Timeline/inspector focus on
+    state = {"note": ""}  # the note the Graph/Timeline/inspector focus on
 
     def show(control: ft.Control) -> None:
         content.controls = [control]
@@ -76,9 +76,9 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                     ),
                 ]
             ),
-            theme.section("Fonti"),
+            theme.section("Sources"),
             views.build_sources_panel(paths, title),
-            theme.section("Relazioni"),
+            theme.section("Relations"),
             views.build_graph(paths, title, open_note),
             theme.section("Timeline"),
             views.build_timeline(paths, title),
@@ -98,7 +98,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                 theme.empty_state(
                     ft.Icons.SEARCH_OFF,
                     title or "?",
-                    "Scheda non trovata nel brain.",
+                    "Note not found in this brain.",
                 )
             )
             return
@@ -110,7 +110,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         )
         actions = ft.Row(
             [
-                ft.TextButton("Grafo", on_click=lambda e: show_view("grafo")),
+                ft.TextButton("Graph", on_click=lambda e: show_view("graph")),
                 ft.TextButton("Timeline", on_click=lambda e: show_view("timeline")),
             ]
         )
@@ -120,14 +120,14 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
     # ---------------------------------------------------------------- chat
     def chat_view() -> ft.Control:
         answer = ft.Markdown("", selectable=True, extension_set=views.MD)
-        box = ft.TextField(label="Chiedi alla tua memoria")
-        as_of = ft.TextField(label="as-of (opzionale: 2026, 2026-01, ...)", width=260)
+        box = ft.TextField(label="Ask your memory")
+        as_of = ft.TextField(label="as-of (optional: 2026, 2026-01, ...)", width=260)
 
         def ask() -> None:
             question = (box.value or "").strip()
             if not question:
                 return
-            answer.value = "…"
+            answer.value = "..."
             page.update()
 
             def work() -> None:
@@ -157,24 +157,24 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                         if items:
                             answer.value = answer_from_items(question, items, _provider(paths))
                         else:
-                            answer.value = f"Nessuna conoscenza nel brain alla data {as_of.value}."
+                            answer.value = f"No knowledge in the brain as of {as_of.value}."
                     else:
                         answer.value = answer_question(paths, question, _provider(paths))
                 except Exception as exc:  # surface engine errors instead of hanging
-                    answer.value = f"**Errore dal motore:** {exc}"
+                    answer.value = f"**Engine error:** {exc}"
                 page.update()
 
             threading.Thread(target=work, daemon=True).start()
 
         box.on_submit = lambda e: ask()
         return ft.Column(
-            [views.heading("Chat sulla memoria"), box, as_of, ft.Divider(), answer], spacing=10
+            [views.heading("Memory chat"), box, as_of, ft.Divider(), answer], spacing=10
         )
 
     # ---------------------------------------------------------------- search
     def search_view() -> ft.Control:
         results_box = ft.Column(spacing=4)
-        query = ft.TextField(label="Cerca nel brain")
+        query = ft.TextField(label="Search the brain")
 
         def run_search() -> None:
             if not (query.value or "").strip():
@@ -187,15 +187,15 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                     on_click=lambda e, t=r["title"]: open_note(t),
                 )
                 for r in results
-            ] or [ft.Text("Nessuna scheda pertinente.")]
+            ] or [ft.Text("No relevant notes.")]
             page.update()
 
         query.on_submit = lambda e: run_search()
-        return ft.Column([views.heading("Cerca"), query, results_box], spacing=10)
+        return ft.Column([views.heading("Search"), query, results_box], spacing=10)
 
     # ---------------------------------------------------------------- ingest
     def ingest_view() -> ft.Control:
-        target = ft.TextField(label="File, cartella o URL (oppure . per la repo)")
+        target = ft.TextField(label="File, folder, or URL (or . for this repo)")
         output = ft.Text("", selectable=True)
 
         def dry_run() -> None:
@@ -205,14 +205,14 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                 plan = build_plan(paths.project_root / (target.value or "."))
                 output.value = format_plan(plan)
             except Exception as exc:
-                output.value = f"Errore: {exc}"
+                output.value = f"Error: {exc}"
             page.update()
 
         def run_ingest() -> None:
             value = (target.value or "").strip()
             if not value:
                 return
-            output.value = "Ingestione in corso…"
+            output.value = "Ingesting..."
             page.update()
 
             def work() -> None:
@@ -220,17 +220,17 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                     from talamus.ingest import ingest_path
 
                     result = ingest_path(paths, value, _provider(paths))
-                    output.value = f"Fatto: {result}"
+                    output.value = f"Done: {result}"
                 except Exception as exc:
-                    output.value = f"Errore: {exc}"
+                    output.value = f"Error: {exc}"
                 page.update()
 
             threading.Thread(target=work, daemon=True).start()
 
         buttons = ft.Row(
             [
-                ft.TextButton("Piano scan (dry-run, gratis)", on_click=lambda e: dry_run()),
-                ft.ElevatedButton("Ingerisci", on_click=lambda e: run_ingest()),
+                ft.TextButton("Scan plan (free dry run)", on_click=lambda e: dry_run()),
+                ft.ElevatedButton("Ingest", on_click=lambda e: run_ingest()),
             ]
         )
         return ft.Column([views.heading("Ingest"), target, buttons, output], spacing=10)
@@ -253,30 +253,30 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         {
             "home": lambda: views.build_home(paths, show_view),
             "chat": chat_view,
-            "cerca": search_view,
-            "note": lambda: views.build_notes(paths, open_note),
-            "domini": lambda: views.build_domains(paths, open_note),
-            "grafo": lambda: _graph(),
+            "search": search_view,
+            "notes": lambda: views.build_notes(paths, open_note),
+            "domains": lambda: views.build_domains(paths, open_note),
+            "graph": lambda: _graph(),
             "timeline": lambda: views.build_timeline(paths, state["note"]),
             "ingest": ingest_view,
             "review": lambda: views.build_review(paths, lambda: show_view("review")),
-            "ontologia": lambda: views.build_ontology_lab(paths, lambda: show_view("ontologia")),
-            "impostazioni": lambda: views.build_settings(paths),
+            "ontology": lambda: views.build_ontology_lab(paths, lambda: show_view("ontology")),
+            "settings": lambda: views.build_settings(paths),
         }
     )
     order = list(builders)
     destinations = [
         ("home", ft.Icons.HOME),
         ("chat", ft.Icons.CHAT),
-        ("cerca", ft.Icons.SEARCH),
-        ("note", ft.Icons.DESCRIPTION),
-        ("domini", ft.Icons.ACCOUNT_TREE),
-        ("grafo", ft.Icons.HUB),
+        ("search", ft.Icons.SEARCH),
+        ("notes", ft.Icons.DESCRIPTION),
+        ("domains", ft.Icons.ACCOUNT_TREE),
+        ("graph", ft.Icons.HUB),
         ("timeline", ft.Icons.HISTORY),
         ("ingest", ft.Icons.UPLOAD_FILE),
         ("review", ft.Icons.CHECKLIST),
-        ("ontologia", ft.Icons.SCHEMA),
-        ("impostazioni", ft.Icons.SETTINGS),
+        ("ontology", ft.Icons.SCHEMA),
+        ("settings", ft.Icons.SETTINGS),
     ]
     from talamus.ui import theme as _theme
 

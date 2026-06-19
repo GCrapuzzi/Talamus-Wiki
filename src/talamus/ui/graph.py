@@ -1,9 +1,9 @@
-"""The living graph view — force-directed canvas, Obsidian-style (Fase R2).
+"""The living graph view: force-directed canvas, Obsidian-style (Phase R2).
 
 Rendering layer over ``talamus.ui.physics``: nodes colored by domain (overview),
 sized by degree, typed edges brighter than ``related`` ones, animated until the
 layout settles. **Tap a node to open its note.** Pure Python on ``flet.canvas``
-— no JS, no extra dependencies.
+- no JS, no extra dependencies.
 """
 
 from __future__ import annotations
@@ -99,15 +99,15 @@ def build_graph_canvas(
     all_nodes = sorted({n for s, d, _ in edges for n in (s, d)})
     if focus and any(focus in (s, d) for s, d, _ in edges):
         node_ids = physics.select_neighborhood(edges, focus)
-        subtitle = f"vicinato di «{focus}» (tocca un nodo per aprirlo)"
+        subtitle = f'neighborhood of "{focus}" (tap a node to open it)'
     else:
         node_ids = physics.select_global(edges, all_nodes)
-        subtitle = "le note più connesse (tocca un nodo per aprirlo)"
+        subtitle = "most connected notes (tap a node to open one)"
     if not node_ids:
         return ft.Column(
             [
-                ft.Text("Grafo", size=22, weight=ft.FontWeight.BOLD),
-                ft.Text("Nessuna connessione ancora: ingerisci qualcosa e torna qui."),
+                ft.Text("Graph", size=22, weight=ft.FontWeight.BOLD),
+                ft.Text("No connections yet: ingest something and come back here."),
             ]
         )
     layout = physics.build_layout(node_ids, edges, width=CANVAS_W, height=CANVAS_H, domains=domains)
@@ -161,7 +161,7 @@ def build_graph_canvas(
             )
         )  # fmt: skip
     header: list[ft.Control] = [
-        ft.Text("Grafo", size=22, weight=ft.FontWeight.BOLD),
+        ft.Text("Graph", size=22, weight=ft.FontWeight.BOLD),
         ft.Text(subtitle, size=12, opacity=0.7),
     ]
     if legend_items:

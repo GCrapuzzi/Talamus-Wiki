@@ -51,8 +51,8 @@ def build_home(paths: TalamusPaths, on_action: Callable[[str], None] | None = No
     report = inspect_readiness(root=str(paths.project_root))
     tiles = ft.Row(
         [
-            theme.stat("note", str(report.notes)),
-            theme.stat("fonti", str(report.sources)),
+            theme.stat("notes", str(report.notes)),
+            theme.stat("sources", str(report.sources)),
             theme.stat(
                 "review",
                 str(report.reviews_pending),
@@ -63,7 +63,7 @@ def build_home(paths: TalamusPaths, on_action: Callable[[str], None] | None = No
                 str(report.jobs_active),
                 color=theme.WARN if report.jobs_active else theme.TEXT,
             ),
-            theme.stat("indice", report.index_backend, color=theme.ACCENT),
+            theme.stat("index", report.index_backend, color=theme.ACCENT),
         ],
         wrap=True,
         spacing=theme.GAP,
@@ -140,7 +140,7 @@ def _next_action_card(
     if on_action is not None:
         callback = on_action
         controls.append(
-            ft.TextButton("Apri", on_click=lambda e, target=action.target: callback(target))
+            ft.TextButton("Open", on_click=lambda e, target=action.target: callback(target))
         )
     return theme.card(
         ft.Column(
@@ -156,12 +156,12 @@ def build_sources_panel(paths: TalamusPaths, title: str) -> ft.Control:
     for note in load_notes(paths):
         if note.title.lower() == title.strip().lower():
             if not note.sources:
-                return subtle("nessuna fonte registrata")
+                return subtle("no registered sources")
             return ft.Column(
                 [subtle(f"{s.normalized_path}\n({s.locator})") for s in note.sources],
                 spacing=6,
             )
-    return subtle("scheda non trovata")
+    return subtle("note not found")
 
 
 # ------------------------------------------------------------------- notes
@@ -170,7 +170,7 @@ def build_sources_panel(paths: TalamusPaths, title: str) -> ft.Control:
 def build_notes(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
     notes = sorted(load_notes(paths), key=lambda n: n.title.lower())
     if not notes:
-        return ft.Column([heading("Note"), ft.Text("Nessuna scheda ancora.")])
+        return ft.Column([heading("Notes"), ft.Text("No notes yet.")])
     tiles: list[ft.Control] = [
         ft.ListTile(
             title=ft.Text(note.title),
@@ -179,7 +179,7 @@ def build_notes(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
         )
         for note in notes
     ]
-    return ft.Column([heading(f"Note ({len(notes)})"), *tiles], spacing=2)
+    return ft.Column([heading(f"Notes ({len(notes)})"), *tiles], spacing=2)
 
 
 # ------------------------------------------------------------------- graph
@@ -188,13 +188,13 @@ def build_notes(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
 def build_graph(paths: TalamusPaths, title: str, open_note: OpenNote) -> ft.Control:
     """Functional graph view: the typed neighborhood of a note, navigable."""
     ontology = load_ontology(paths)
-    rows: list[ft.Control] = [heading(f"Grafo — {title}" if title else "Grafo")]
+    rows: list[ft.Control] = [heading(f"Graph - {title}" if title else "Graph")]
     if not title:
-        rows.append(ft.Text("Apri una nota (da Note o Cerca) per esplorarne le connessioni."))
+        rows.append(ft.Text("Open a note from Notes or Search to explore its connections."))
         return ft.Column(rows, spacing=8)
     connected = neighbors(ontology, title)
     if not connected:
-        rows.append(ft.Text("Nessuna connessione tipizzata per questa nota."))
+        rows.append(ft.Text("No typed connections for this note."))
         return ft.Column(rows, spacing=8)
     by_relation: dict[str, list[dict]] = {}
     for item in connected:
@@ -202,7 +202,7 @@ def build_graph(paths: TalamusPaths, title: str, open_note: OpenNote) -> ft.Cont
     for relation, items in sorted(by_relation.items()):
         rows.append(ft.Text(relation, weight=ft.FontWeight.BOLD))
         for item in items:
-            arrow = "→" if item["direction"] == "out" else "←"
+            arrow = "->" if item["direction"] == "out" else "<-"
             rows.append(
                 ft.TextButton(
                     f"{arrow} {item['title']}",
@@ -216,24 +216,24 @@ def build_graph(paths: TalamusPaths, title: str, open_note: OpenNote) -> ft.Cont
 
 
 def build_timeline(paths: TalamusPaths, title: str) -> ft.Control:
-    rows: list[ft.Control] = [heading(f"Timeline — {title}" if title else "Timeline")]
+    rows: list[ft.Control] = [heading(f"Timeline - {title}" if title else "Timeline")]
     if not title:
-        rows.append(ft.Text("Apri una nota per vedere le sue due linee temporali."))
+        rows.append(ft.Text("Open a note to see its two timelines."))
         return ft.Column(rows, spacing=8)
     data = note_timeline(paths, title)
     rows.append(
-        ft.Text("Transazioni (quando Talamus ha cambiato il record)", weight=ft.FontWeight.BOLD)
+        ft.Text("Transactions (when Talamus changed the record)", weight=ft.FontWeight.BOLD)
     )
     if not data["transaction"]:
-        rows.append(subtle("nessuna versione"))
+        rows.append(subtle("no versions"))
     for event in data["transaction"]:
         rows.append(subtle(f"[{event['at']}] {event['summary']}"))
-    rows.append(ft.Text("Validità dei fatti", weight=ft.FontWeight.BOLD))
+    rows.append(ft.Text("Fact validity", weight=ft.FontWeight.BOLD))
     if not data["valid"]:
-        rows.append(subtle("nessun claim registrato"))
+        rows.append(subtle("no registered claims"))
     for claim in data["valid"]:
-        marker = f" (invalidato da: {claim['invalidated_by']})" if claim["invalidated_by"] else ""
-        rows.append(subtle(f"[{claim['from']} → {claim['to']}] {claim['text']}{marker}"))
+        marker = f" (invalidated by: {claim['invalidated_by']})" if claim["invalidated_by"] else ""
+        rows.append(subtle(f"[{claim['from']} -> {claim['to']}] {claim['text']}{marker}"))
     return ft.Column(rows, spacing=4)
 
 
@@ -242,11 +242,11 @@ def build_timeline(paths: TalamusPaths, title: str) -> ft.Control:
 
 def build_domains(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
     overview = load_overview(paths)
-    rows: list[ft.Control] = [heading("Domini")]
+    rows: list[ft.Control] = [heading("Domains")]
     if not overview:
-        rows.append(ft.Text("Nessun dominio ancora. Esegui `talamus overview`."))
+        rows.append(ft.Text("No domains yet. Run `talamus overview`."))
     for domain in overview:
-        label = f"{domain.get('name', '?')}  ({len(domain.get('members', []))} note)"
+        label = f"{domain.get('name', '?')}  ({len(domain.get('members', []))} notes)"
         rows.append(ft.Text(label, size=16, weight=ft.FontWeight.BOLD))
         if domain.get("description"):
             rows.append(subtle(str(domain["description"])))
@@ -261,9 +261,9 @@ def build_domains(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
 def build_review(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.Control:
     queue = ReviewQueue(paths)
     pending = queue.list(status="pending")
-    rows: list[ft.Control] = [heading(f"Review ({len(pending)} in attesa)")]
+    rows: list[ft.Control] = [heading(f"Review ({len(pending)} pending)")]
     if not pending:
-        rows.append(ft.Text("Coda vuota: nessuna decisione in attesa."))
+        rows.append(ft.Text("Queue is empty: no decisions pending."))
         return ft.Column(rows, spacing=8)
 
     def _apply(item_id: str) -> None:
@@ -287,8 +287,8 @@ def build_review(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.Control
                     subtle(str(item.detail)),
                     ft.Row(
                         [
-                            ft.TextButton("Applica", on_click=lambda e, i=item.item_id: _apply(i)),
-                            ft.TextButton("Rifiuta", on_click=lambda e, i=item.item_id: _reject(i)),
+                            ft.TextButton("Apply", on_click=lambda e, i=item.item_id: _apply(i)),
+                            ft.TextButton("Reject", on_click=lambda e, i=item.item_id: _reject(i)),
                         ]
                     ),
                     ft.Divider(),
@@ -310,10 +310,10 @@ def build_ontology_lab(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.C
         heading("Ontology Lab"),
         ft.Text(f"Schema {status['schema_id']} (v{status['version']})"),
         ft.Text(
-            f"Coverage: {cov['non_related']}/{cov['edges']} archi tipizzati"
+            f"Coverage: {cov['non_related']}/{cov['edges']} typed edges"
             f" ({cov['non_related_share']:.0%})"
             if cov["edges"]
-            else "Coverage: nessun arco ancora"
+            else "Coverage: no edges yet"
         ),
     ]
 
@@ -337,18 +337,16 @@ def build_ontology_lab(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.C
         for rel_type in types:
             detail = [
                 ft.Text(f"{rel_type.name}  (support {rel_type.support})"),
-                subtle(rel_type.definition or "(senza definizione)"),
+                subtle(rel_type.definition or "(no definition)"),
             ]
             for example in rel_type.examples[:2]:
-                detail.append(subtle(f"es. {example}"))
+                detail.append(subtle(f"e.g. {example}"))
             if state == "candidate":
                 detail.append(
                     ft.Row(
                         [
-                            ft.TextButton(
-                                "Promuovi", on_click=lambda e, i=rel_type.id: _promote(i)
-                            ),
-                            ft.TextButton("Rifiuta", on_click=lambda e, i=rel_type.id: _reject(i)),
+                            ft.TextButton("Promote", on_click=lambda e, i=rel_type.id: _promote(i)),
+                            ft.TextButton("Reject", on_click=lambda e, i=rel_type.id: _reject(i)),
                         ]
                     )
                 )
@@ -361,8 +359,8 @@ def build_ontology_lab(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.C
 
 
 def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = None) -> ft.Control:
-    """Everything configurable in-app (Fase R3): engine, model, API key, MCP,
-    brain registry flags. Saves go to talamus.json / TALAMUS_HOME — the same
+    """Everything configurable in-app (Phase R3): engine, model, API key, MCP,
+    brain registry flags. Saves go to talamus.json / TALAMUS_HOME - the same
     files the CLI uses (no duplicated logic, just thin wiring)."""
     import dataclasses
     import os
@@ -384,20 +382,20 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
     if config.llm_provider not in engines:
         engines.insert(0, config.llm_provider)
     engine_dd = ft.Dropdown(
-        label="Motore LLM",
+        label="LLM engine",
         value=config.llm_provider,
         options=[ft.DropdownOption(key=name, text=name) for name in engines],
         width=320,
     )
     model_tf = ft.TextField(
-        label="Modello (opzionale, es. llama3)",
+        label="Model (optional, e.g. llama3)",
         value=config.llm_model,
         width=320,
     )
     language_tf = ft.TextField(
-        label="Lingua delle note (vuoto = auto dal sistema)",
+        label="Note language (empty = system auto-detect)",
         value=config.language,
-        hint_text="es. Italian, English, German",
+        hint_text="e.g. Italian, English, German",
         width=320,
     )
 
@@ -410,22 +408,22 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
             language=language_tf.value or "",
         )
         save_config(paths.config_path, updated)
-        _notify(f"Motore salvato: {updated.llm_provider}")
+        _notify(f"Engine saved: {updated.llm_provider}")
 
     key_set = bool(os.environ.get("ANTHROPIC_API_KEY"))
     key_tf = ft.TextField(
-        label="Chiave API Anthropic (motore anthropic-api)",
+        label="Anthropic API key (anthropic-api engine)",
         password=True,
         can_reveal_password=True,
         width=320,
-        hint_text="già impostata via env" if key_set else "vuota",
+        hint_text="already set via env" if key_set else "empty",
     )
 
     def save_key(_e: object) -> None:
         if key_tf.value:
             save_credential("anthropic_api_key", key_tf.value)
             key_tf.value = ""
-            _notify("Chiave salvata in TALAMUS_HOME/credentials.json (la env var vince sempre)")
+            _notify("Key saved in TALAMUS_HOME/credentials.json (the env var always wins)")
 
     def install_mcp(_e: object) -> None:
         import json as _json
@@ -442,7 +440,7 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
             "args": ["--root", str(paths.project_root)],
         }
         config_file.write_text(_json.dumps(data, indent=2), encoding="utf-8")
-        _notify(f"MCP configurato: {config_file} (riavvia il tuo agent)")
+        _notify(f"MCP configured: {config_file} (restart your agent)")
 
     registry = load_registry()
     brain_rows: list[ft.Control] = []
@@ -464,12 +462,12 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
                         ft.Row(
                             [
                                 ft.Switch(
-                                    label="federato",
+                                    label="federated",
                                     value=brain.federated,
                                     on_change=_toggle(brain.name, "federated"),
                                 ),
                                 ft.Switch(
-                                    label="sensibile",
+                                    label="sensitive",
                                     value=brain.sensitive,
                                     on_change=_toggle(brain.name, "sensitive"),
                                 ),
@@ -482,49 +480,49 @@ def build_settings(paths: TalamusPaths, notify: Callable[[str], None] | None = N
             )
         )
     if not brain_rows:
-        brain_rows.append(theme.muted("nessun brain nel registry (`talamus init` registra)"))
+        brain_rows.append(theme.muted("no brains in the registry (`talamus init` registers one)"))
 
     budget = os.environ.get("TALAMUS_CONTEXT_BUDGET", "6000 (default)")
     return ft.Column(
         [
-            heading("Impostazioni"),
-            theme.section("Motore"),
+            heading("Settings"),
+            theme.section("Engine"),
             theme.card(
                 ft.Column(
                     [
                         engine_dd,
                         model_tf,
                         language_tf,
-                        ft.FilledButton("Salva motore", on_click=save_engine),
+                        ft.FilledButton("Save engine", on_click=save_engine),
                     ],
                     spacing=10,
                 )
             ),
-            theme.section("Chiave API"),
+            theme.section("API key"),
             theme.card(
-                ft.Column([key_tf, ft.FilledButton("Salva chiave", on_click=save_key)], spacing=10)
+                ft.Column([key_tf, ft.FilledButton("Save key", on_click=save_key)], spacing=10)
             ),
-            theme.section("Integrazioni agent"),
+            theme.section("Agent integrations"),
             theme.card(
                 ft.Column(
                     [
-                        ft.FilledButton("Installa MCP in questo progetto", on_click=install_mcp),
+                        ft.FilledButton("Install MCP in this project", on_click=install_mcp),
                         theme.muted(
-                            "Hook di cattura: `talamus hook` stampa lo snippet per "
+                            "Capture hook: `talamus hook` prints the snippet for "
                             ".claude/settings.json"
                         ),
                     ],
                     spacing=10,
                 )
             ),
-            theme.section("Brain registrati"),
+            theme.section("Registered brains"),
             *brain_rows,
-            theme.section("Sistema"),
+            theme.section("System"),
             theme.card(
                 ft.Column(
                     [
-                        theme.muted(f"Indice: {info['backend']} ({info['bytes']:,} byte)"),
-                        theme.muted(f"Budget contesto: {budget} token (TALAMUS_CONTEXT_BUDGET)"),
+                        theme.muted(f"Index: {info['backend']} ({info['bytes']:,} bytes)"),
+                        theme.muted(f"Context budget: {budget} tokens (TALAMUS_CONTEXT_BUDGET)"),
                     ],
                     spacing=4,
                 )
