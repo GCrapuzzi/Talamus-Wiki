@@ -32,23 +32,23 @@ def _demo_notes() -> list[CanonicalNote]:
     return [
         _note(
             "Retrieval-Augmented Generation",
-            "Architettura che fornisce a un LLM del contesto recuperato da una base esterna.",
-            "La RAG recupera i documenti pertinenti e li passa al modello come contesto, "
-            "così la risposta può citare fonti aggiornate senza riaddestrare il modello.",
+            "An architecture that gives an LLM context retrieved from an external knowledge base.",
+            "RAG retrieves the relevant documents and passes them to the model as context, "
+            "so the answer can cite up-to-date sources without retraining the model.",
             [("uses", "Embedding"), ("uses", "Reranking")],
         ),
         _note(
             "Embedding",
-            "Rappresentazione vettoriale del significato di un testo.",
-            "Un embedding mappa il testo in un vettore numerico dove i significati simili "
-            "stanno vicini; è il mattone della ricerca semantica.",
+            "A vector representation of the meaning of a text.",
+            "An embedding maps text into a numeric vector where similar meanings are close "
+            "together; it is the building block of semantic search.",
             [("part-of", "Retrieval-Augmented Generation")],
         ),
         _note(
             "Reranking",
-            "Secondo stadio del recupero che riordina i candidati per pertinenza.",
-            "Il reranking riordina i risultati grezzi del recupero per portare in cima i più "
-            "pertinenti alla domanda, migliorando il contesto passato al modello.",
+            "A second retrieval stage that reorders the candidates by relevance.",
+            "Reranking reorders the raw retrieval results to bring the most relevant to the "
+            "question to the top, improving the context passed to the model.",
             [("part-of", "Retrieval-Augmented Generation")],
         ),
     ]

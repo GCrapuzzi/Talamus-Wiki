@@ -1,5 +1,5 @@
 """Batched domain induction at book scale (found on the real AI Engineering run:
-the single full-partition prompt collapses at 243 notes -> everything in Varie).
+the single full-partition prompt collapses at 243 notes -> everything in Misc).
 
 The batched path uses BOUNDED calls: giant clusters get a dedicated split,
 mid clusters are named echoing only a numeric index, strays are assigned in
@@ -51,13 +51,13 @@ class BatchedDomainsTests(unittest.TestCase):
         by_name = {d["name"]: d for d in domains}
         self.assertEqual(
             set(by_name), {"Prima metà", "Seconda metà", "Greche"}
-        )  # niente Varie: tutto assegnato
+        )  # no Misc: everything assigned
         self.assertIn("Sola", by_name["Greche"]["members"])
         self.assertIn("Persa", by_name["Prima metà"]["members"])
-        # ogni nota esattamente una volta
+        # each note exactly once
         all_members = [m for d in domains for m in d["members"]]
         self.assertEqual(sorted(all_members), sorted(summaries))
-        self.assertEqual(len(llm.prompts), 3)  # 1 split + 1 naming + 1 lotto randagi
+        self.assertEqual(len(llm.prompts), 3)  # 1 split + 1 naming + 1 strays batch
 
     def test_malformed_answers_hurt_only_their_slice(self) -> None:
         """The original failure mode: a broken answer must not sink the brain."""
@@ -66,28 +66,28 @@ class BatchedDomainsTests(unittest.TestCase):
         clusters = [giant, mid, ["Sola"]]
         summaries = _summaries(giant + mid + ["Sola"])
 
-        # split malformato, naming malformato, assegnazione malformata
+        # malformed split, malformed naming, malformed assignment
         llm = FakeLLMProvider(["NON-JSON", "{rotto", "..."])
         domains = _name_domains_batched(clusters, summaries, llm)
 
         by_name = {d["name"]: d for d in domains}
-        # il cluster medio sopravvive col fallback deterministico (primo titolo)
+        # the mid cluster survives with the deterministic fallback (first title)
         self.assertIn("Alfa", by_name)
         self.assertEqual(by_name["Alfa"]["members"], mid)
-        # solo lo slice rotto finisce in Varie, MAI l'intero brain
-        self.assertIn("Varie", by_name)
-        self.assertEqual(sorted(by_name["Varie"]["members"]), sorted([*giant, "Sola"]))
+        # only the broken slice ends in Misc, NEVER the whole brain
+        self.assertIn("Misc", by_name)
+        self.assertEqual(sorted(by_name["Misc"]["members"]), sorted([*giant, "Sola"]))
         all_members = [m for d in domains for m in d["members"]]
         self.assertEqual(sorted(all_members), sorted(summaries))
 
-    def test_no_domains_at_all_falls_back_to_varie(self) -> None:
+    def test_no_domains_at_all_falls_back_to_misc(self) -> None:
         clusters = [["Sola"], ["Persa"]]
         summaries = _summaries(["Sola", "Persa"])
         llm = FakeLLMProvider([])
         domains = _name_domains_batched(clusters, summaries, llm)
         self.assertEqual(len(domains), 1)
-        self.assertEqual(domains[0]["name"], "Varie")
-        self.assertEqual(llm.prompts, [])  # niente domini -> niente lotti da assegnare
+        self.assertEqual(domains[0]["name"], "Misc")
+        self.assertEqual(llm.prompts, [])  # no domains -> no batches to assign
 
 
 if __name__ == "__main__":

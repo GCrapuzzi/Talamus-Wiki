@@ -78,9 +78,9 @@ class TreeBuildTests(unittest.TestCase):
                 ]
             )
             areas = build_overview_tree(paths, FakeLLMProvider([response]))
-            self.assertEqual(len(areas), 2)  # the named area + "Altro" for leftovers
+            self.assertEqual(len(areas), 2)  # the named area + "Other" for leftovers
             self.assertEqual(len(areas[0]["children"]), 6)
-            self.assertEqual(areas[1]["name"], "Altro")
+            self.assertEqual(areas[1]["name"], "Other")
             self.assertEqual(len(areas[1]["children"]), TREE_THRESHOLD - 6)
             self.assertTrue(all(a["id"].startswith("area-") for a in areas))
 

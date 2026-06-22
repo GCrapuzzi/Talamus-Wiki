@@ -106,16 +106,16 @@ def _dedup_links(links: list[ProposedLink]) -> list[ProposedLink]:
 
 
 def merge_notes(existing: CanonicalNote, new: CanonicalNote) -> CanonicalNote:
-    """Fonde due versioni dello stesso concetto: accumula le fonti, unisce i campi
-    strutturati, tiene la prosa della versione con confidenza piu' alta."""
+    """Merge two versions of the same concept: accumulate the sources, union the
+    structured fields, keep the prose of the higher-confidence version."""
     seen_src = {(s.source_hash, s.normalized_path) for s in existing.sources}
     sources = list(existing.sources) + [
         s for s in new.sources if (s.source_hash, s.normalized_path) not in seen_src
     ]
     base = new if new.confidence > existing.confidence else existing
-    # il retrieval_text è un campo di RICERCA, non prosa: si unisce, mai scartare
-    # (la consolidazione del libro buttava i sintomi delle note assorbite e il
-    # recall vago crollava da 0.625 a 0.375 di hit)
+    # retrieval_text is a SEARCH field, not prose: union it, never drop it
+    # (the book consolidation dropped the symptoms of absorbed notes and vague
+    # recall collapsed from 0.625 to 0.375 hit)
     other = existing if base is new else new
     retrieval_text = base.retrieval_text
     if other.retrieval_text and other.retrieval_text not in retrieval_text:
@@ -198,7 +198,7 @@ def rebuild_indexes(paths: TalamusPaths) -> None:
 
 
 def reindex(paths: TalamusPaths) -> dict:
-    """Rilegge i .md (verita' dei campi umani) e aggiorna la cache, preservando la provenienza."""
+    """Re-read the .md (human-field truth) and update the cache, preserving provenance."""
     cached = {note.note_id: note for note in load_notes(paths)}
     merged: list[CanonicalNote] = []
     if paths.notes.exists():

@@ -68,7 +68,7 @@ def _parse_json_array(raw: str) -> list:
     if start == -1 or end == -1 or end <= start:
         return []
     try:
-        # strict=False: tollera i control character letterali dei modelli flash
+        # strict=False: tolerate the literal control characters from flash models
         parsed = json.loads(raw[start : end + 1], strict=False)
     except json.JSONDecodeError:
         return []
@@ -100,7 +100,7 @@ def _domains_from_llm(
         assigned.update(members)
         domains.append(
             {
-                "name": str(entry.get("name", "")).strip() or "Dominio",
+                "name": str(entry.get("name", "")).strip() or "Domain",
                 "description": str(entry.get("description", "")).strip(),
                 "members": members,
             }
@@ -118,16 +118,16 @@ def _name_domains(
     leftover = [title for title in summaries if title not in assigned]
     if leftover:
         domains.append(
-            {"name": "Varie", "description": "Schede non ancora classificate.", "members": leftover}
+            {"name": "Misc", "description": "Notes not yet classified.", "members": leftover}
         )
     return domains
 
 
-# --- scala libro: il prompt unico che ri-echeggia centinaia di titoli esatti si
-# rompe (trovato sul run reale di "AI Engineering", 243 note -> tutto in Varie).
-# Sopra BATCH_NOTES_THRESHOLD l'induzione lavora a chiamate LIMITATE:
-# cluster giganti -> split dedicato; cluster medi -> naming che echeggia solo un
-# indice numerico; randagi -> assegnazione a lotti contro i domini gia' nominati.
+# --- book scale: the single prompt that re-echoes hundreds of exact titles breaks
+# (found on the real "AI Engineering" run, 243 notes -> everything in Misc).
+# Above BATCH_NOTES_THRESHOLD induction works in BOUNDED calls:
+# giant clusters -> dedicated split; mid clusters -> naming that echoes only a
+# numeric index; strays -> batched assignment against the already-named domains.
 
 BATCH_NOTES_THRESHOLD = 60
 SPLIT_CLUSTER_THRESHOLD = 25
@@ -165,14 +165,14 @@ def _name_domains_batched(
     strays = [t for c in clusters if len(c) < MIN_NAMED_CLUSTER for t in c]
     domains: list[dict] = []
 
-    # 1) cluster giganti: partizione tematica dedicata (eco limitato al cluster)
+    # 1) giant clusters: dedicated thematic partition (echo limited to the cluster)
     for cluster in big:
         sub = {t: summaries.get(t, "") for t in cluster}
         split_domains, assigned = _domains_from_llm([cluster], sub, llm, language)
         domains.extend(split_domains)
         strays.extend(t for t in cluster if t not in assigned)
 
-    # 2) cluster medi: una chiamata che echeggia solo l'indice del cluster
+    # 2) mid clusters: one call that echoes only the cluster index
     if mid:
         lines = []
         for i, cluster in enumerate(mid):
@@ -192,14 +192,14 @@ def _name_domains_batched(
             entry = named.get(i, {})
             domains.append(
                 {
-                    # fallback deterministico: il primo titolo fa da nome
+                    # deterministic fallback: the first title becomes the name
                     "name": str(entry.get("name", "")).strip() or cluster[0],
                     "description": str(entry.get("description", "")).strip(),
                     "members": list(cluster),
                 }
             )
 
-    # 3) randagi: assegnazione a lotti contro i domini esistenti
+    # 3) strays: batched assignment against the existing domains
     leftover: list[str] = []
     if strays and domains:
         domain_lines = "\n".join(f"- {d['name']}: {d['description']}" for d in domains)
@@ -227,7 +227,7 @@ def _name_domains_batched(
 
     if leftover:
         domains.append(
-            {"name": "Varie", "description": "Schede non ancora classificate.", "members": leftover}
+            {"name": "Misc", "description": "Notes not yet classified.", "members": leftover}
         )
     return domains
 
@@ -348,16 +348,16 @@ def build_overview_tree(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
         )
     leftover = [str(d["id"]) for d in overview if d.get("id") and d["id"] not in assigned]
     if leftover:
-        altro_id = "area-altro"
+        other_id = "area-other"
         suffix = 2
-        while altro_id in taken:
-            altro_id = f"area-altro-{suffix}"
+        while other_id in taken:
+            other_id = f"area-other-{suffix}"
             suffix += 1
         areas.append(
             {
-                "id": altro_id,
-                "name": "Altro",
-                "description": "Domini non ancora raggruppati.",
+                "id": other_id,
+                "name": "Other",
+                "description": "Domains not yet grouped.",
                 "children": leftover,
             }
         )
