@@ -76,6 +76,49 @@ def _title_for_view(name: str) -> str:
     return name.capitalize()
 
 
+def _build_content_slot() -> ft.Container:
+    from talamus.ui import theme
+
+    return ft.Container(bgcolor=theme.BG, padding=0)
+
+
+def _build_top_bar(main_title: ft.Control, main_subtitle: ft.Control) -> ft.Container:
+    from talamus.ui import theme
+
+    return theme.panel(
+        ft.Column(
+            [
+                ft.Column([main_title, main_subtitle], spacing=2),
+                ft.Row(
+                    [
+                        theme.status_pill("Local-first", "ready"),
+                        theme.status_pill("Token cost visible", "accent"),
+                    ],
+                    spacing=8,
+                    wrap=True,
+                ),
+            ],
+            spacing=8,
+        ),
+        padding=12,
+    )
+
+
+def _build_main_pane(top_bar: ft.Control, content: ft.Control) -> ft.Container:
+    from talamus.ui import theme
+
+    return theme.panel(
+        ft.Column(
+            controls=[top_bar, content],
+            expand=True,
+            spacing=theme.GAP,
+        ),
+        expand=True,
+        bgcolor=theme.BG,
+        padding=theme.PAD,
+    )
+
+
 def _provider(paths: TalamusPaths):
     config = load_or_default(paths.config_path)
     return build_provider(config.llm_provider, config.llm_model)
@@ -138,21 +181,11 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
 
     page.title = "Talamus"
     theme.apply(page)
-    content = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=14)
+    content = _build_content_slot()
     main_title = ft.Text("Home", size=18, weight=ft.FontWeight.BOLD, color=theme.TEXT)
     main_subtitle = ft.Text(str(paths.project_root), size=12, color=theme.MUTED)
-    top_bar = theme.panel(
-        ft.Row(
-            [
-                ft.Column([main_title, main_subtitle], spacing=2, expand=True),
-                theme.status_pill("Local-first", "ready"),
-                theme.status_pill("Token cost visible", "accent"),
-            ],
-            spacing=10,
-            wrap=True,
-        ),
-        padding=12,
-    )
+    top_bar = _build_top_bar(main_title, main_subtitle)
+
     inspector = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
     inspector_panel = theme.panel(
         inspector,
@@ -172,7 +205,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
     }
 
     def show(control: ft.Control) -> None:
-        content.controls = [control]
+        content.content = control
         page.update()
 
     def _nav_item(destination: NavDestination) -> ft.Control:
@@ -481,50 +514,20 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
 
         return build_graph_canvas(paths, state["note"], open_note, page=page)
 
-    home_generation = {"value": 0}
-
     def home_view() -> ft.Control:
-        home_generation["value"] += 1
-        generation = home_generation["value"]
-        holder = ft.Column(
-            [
-                views.heading("Command Center"),
-                theme.muted("Inspecting local readiness..."),
-                theme.panel(
-                    ft.Column(
-                        [
-                            theme.status_pill("Shell ready", "ready"),
-                            theme.muted("The app chrome stays responsive while local checks run."),
-                        ],
-                        spacing=8,
-                    ),
-                    padding=12,
+        try:
+            return views.build_home(paths, show_view)
+        except Exception as exc:
+            return theme.panel(
+                ft.Column(
+                    [
+                        ft.Text("Readiness failed", weight=ft.FontWeight.BOLD),
+                        theme.muted(str(exc)),
+                    ],
+                    spacing=6,
                 ),
-            ],
-            spacing=12,
-        )
-
-        def work() -> None:
-            try:
-                control = views.build_home(paths, show_view)
-            except Exception as exc:
-                control = theme.panel(
-                    ft.Column(
-                        [
-                            ft.Text("Readiness failed", weight=ft.FontWeight.BOLD),
-                            theme.muted(str(exc)),
-                        ],
-                        spacing=6,
-                    ),
-                    padding=12,
-                )
-            if generation != home_generation["value"]:
-                return
-            holder.controls = [control]
-            page.update()
-
-        threading.Thread(target=work, daemon=True).start()
-        return holder
+                padding=12,
+            )
 
     # ---------------------------------------------------------------- routing
     builders: dict[str, object] = {}
@@ -553,21 +556,19 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             "settings": lambda: views.build_settings(paths),
         }
     )
-    from talamus.ui import theme as _theme
-
     _refresh_sidebar()
     _refresh_inspector()
-    main_pane = ft.Container(
-        content=ft.Column([top_bar, content], expand=True, spacing=_theme.GAP),
-        expand=True,
-        padding=_theme.PAD,
-    )
+    main_pane = _build_main_pane(top_bar, content)
     page.add(
-        ft.Row(
-            [sidebar, main_pane, inspector_panel],
+        ft.Container(
+            content=ft.Row(
+                [sidebar, main_pane, inspector_panel],
+                expand=True,
+                spacing=0,
+                vertical_alignment=ft.CrossAxisAlignment.STRETCH,
+            ),
             expand=True,
-            spacing=0,
-            vertical_alignment=ft.CrossAxisAlignment.STRETCH,
+            bgcolor=theme.BG,
         )
     )
     show_view("home")

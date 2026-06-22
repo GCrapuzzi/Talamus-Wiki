@@ -169,7 +169,7 @@ def build_home(paths: TalamusPaths, on_action: Callable[[str], None] | None = No
     rows.append(
         ft.Row(
             [
-                theme.panel(ft.Column(action_rows, spacing=10), expand=True),
+                theme.panel(ft.Column(action_rows, spacing=10), width=300),
                 _graph_preview_panel(report),
             ],
             wrap=True,
@@ -304,7 +304,7 @@ def _graph_preview_panel(report: object) -> ft.Control:
             ],
             spacing=10,
         ),
-        expand=True,
+        width=300,
     )
 
 

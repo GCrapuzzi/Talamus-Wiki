@@ -577,6 +577,65 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertIn("Ready", self._rendered_text(pill))
         self.assertIn("Engine", self._rendered_text(metric))
 
+    def test_app_content_slot_is_a_dark_container_not_a_scroll_viewport(self) -> None:
+        import flet as ft
+
+        from talamus.ui import theme
+        from talamus.ui.app import _build_content_slot
+
+        slot = _build_content_slot()
+
+        self.assertIsInstance(slot, ft.Container)
+        self.assertIsNone(slot.expand)
+        self.assertEqual(slot.bgcolor, theme.BG)
+        self.assertIsNone(slot.content)
+
+    def test_app_top_bar_has_no_expanded_wrapped_children(self) -> None:
+        import flet as ft
+
+        from talamus.ui.app import _build_top_bar
+
+        top_bar = _build_top_bar(ft.Text("Home"), ft.Text("Root"))
+
+        self.assertIn("Token cost visible", self._rendered_text(top_bar))
+        for item in self._walk_controls(top_bar):
+            if isinstance(item, ft.Row) and item.wrap:
+                for child in item.controls:
+                    self.assertIsNone(getattr(child, "expand", None))
+
+    def test_app_main_pane_uses_explicit_dark_background(self) -> None:
+        import flet as ft
+
+        from talamus.ui import theme
+        from talamus.ui.app import _build_main_pane
+
+        content = ft.Column()
+        top_bar = theme.panel(ft.Text("Top"))
+        pane = _build_main_pane(top_bar, content)
+
+        self.assertIsInstance(pane, ft.Container)
+        self.assertEqual(pane.bgcolor, theme.BG)
+        inner = pane.content
+        self.assertIsInstance(inner, ft.Column)
+        self.assertIs(inner.controls[0], top_bar)
+        self.assertIs(inner.controls[1], content)
+
+    def test_home_wrap_rows_do_not_use_expanded_children(self) -> None:
+        import flet as ft
+
+        from talamus.paths import TalamusPaths
+        from talamus.ui import views
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            paths.ensure_directories()
+            control = views.build_home(paths)
+
+        for item in self._walk_controls(control):
+            if isinstance(item, ft.Row) and item.wrap:
+                for child in item.controls:
+                    self.assertIsNone(getattr(child, "expand", None))
+
     def test_all_views_build_on_empty_brain(self) -> None:
         import flet as ft
 
@@ -635,15 +694,15 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertIn("from talamus.services.scan import", source)
         self.assertIn("from talamus.services.ingestion import", source)
 
-    def test_app_home_route_loads_readiness_without_blocking_shell(self) -> None:
+    def test_app_home_route_builds_readiness_on_ui_thread(self) -> None:
         import inspect
 
         import talamus.ui.app as app
 
         source = inspect.getsource(app)
-        self.assertIn("Inspecting local readiness", source)
-        self.assertIn("home_generation", source)
-        self.assertIn("threading.Thread(target=work", source)
+        self.assertIn("return views.build_home(paths, show_view)", source)
+        self.assertNotIn("Inspecting local readiness", source)
+        self.assertNotIn("home_generation", source)
 
 
 if __name__ == "__main__":
