@@ -31,7 +31,7 @@ from talamus.services.integrations import (
     inspect_integrations,
     install_mcp_config,
 )
-from talamus.services.library import get_library_note, list_library_notes
+from talamus.services.library import LibraryNoteSummary, get_library_note, list_library_notes
 from talamus.services.ontology import (
     apply_ontology_candidate,
     get_ontology_status,
@@ -376,21 +376,82 @@ def build_sources_panel(paths: TalamusPaths, title: str) -> ft.Control:
 
 
 def build_notes(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
+    from talamus.ui import theme
+
     result = list_library_notes(paths.project_root)
     if not result.success or result.data is None:
         return ft.Column([heading("Notes"), ft.Text(result.message)])
     notes = result.data.notes
     if not notes:
         return ft.Column([heading("Notes"), ft.Text("No notes yet.")])
-    tiles: list[ft.Control] = [
-        ft.ListTile(
-            title=ft.Text(note.title),
-            subtitle=ft.Text(note.summary),
-            on_click=lambda e, t=note.title: open_note(t),
-        )
-        for note in notes
+    cards = [_note_card(note, open_note) for note in notes]
+    return ft.Column(
+        [
+            ft.Column(
+                [
+                    heading(f"Notes ({len(notes)})"),
+                    theme.muted(
+                        "Browse markdown truth with provenance, relations and review signals."
+                    ),
+                ],
+                spacing=4,
+            ),
+            *cards,
+        ],
+        spacing=8,
+    )
+
+
+def _count_label(count: int, singular: str, plural: str | None = None) -> str:
+    suffix = singular if count == 1 else plural or f"{singular}s"
+    return f"{count} {suffix}"
+
+
+def _note_card(note: LibraryNoteSummary, open_note: OpenNote) -> ft.Control:
+    from talamus.ui import theme
+
+    confidence_tone = "ready" if note.confidence >= 0.75 else "warn"
+    meta: list[ft.Control] = [
+        theme.status_pill(_count_label(note.source_count, "source"), "accent"),
+        theme.status_pill(_count_label(note.relation_count, "relation"), "ready"),
+        theme.status_pill(_count_label(note.proposed_link_count, "proposed link"), "warn"),
+        theme.status_pill(f"confidence {note.confidence:.2f}", confidence_tone),
     ]
-    return ft.Column([heading(f"Notes ({len(notes)})"), *tiles], spacing=2)
+    rows: list[ft.Control] = [
+        ft.Row(
+            [
+                ft.Column(
+                    [
+                        ft.Text(note.title, size=16, weight=ft.FontWeight.BOLD),
+                        theme.muted(note.summary or "No summary yet."),
+                    ],
+                    spacing=3,
+                    expand=True,
+                ),
+                ft.TextButton("Open", on_click=lambda e, title=note.title: open_note(title)),
+            ],
+            spacing=10,
+            wrap=True,
+        ),
+        ft.Row(meta, wrap=True, spacing=8, run_spacing=6),
+    ]
+    if note.tags:
+        rows.append(
+            ft.Row(
+                [theme.status_pill(tag, "muted") for tag in note.tags[:6]],
+                wrap=True,
+                spacing=6,
+                run_spacing=6,
+            )
+        )
+    detail = []
+    if note.updated_at:
+        detail.append(f"updated {note.updated_at}")
+    if note.markdown_path:
+        detail.append(note.markdown_path)
+    if detail:
+        rows.append(theme.muted(" - ".join(detail)))
+    return theme.panel(ft.Column(rows, spacing=8), padding=12)
 
 
 # ------------------------------------------------------------------- graph

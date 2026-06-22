@@ -289,6 +289,8 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertEqual(clicked, ["ask"])
 
     def test_notes_builder_reads_from_library_service(self) -> None:
+        import flet as ft
+
         from talamus.paths import TalamusPaths
         from talamus.services.result import ServiceResult
         from talamus.ui import views
@@ -298,17 +300,18 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
                 SimpleNamespace(
                     title="Alpha",
                     summary="First note",
-                    aliases=[],
-                    tags=[],
-                    confidence=1.0,
-                    updated_at="",
-                    source_count=0,
-                    relation_count=0,
-                    proposed_link_count=0,
-                    markdown_path="",
+                    aliases=["A"],
+                    tags=["retrieval"],
+                    confidence=0.82,
+                    updated_at="2026-06-22T09:00:00+00:00",
+                    source_count=2,
+                    relation_count=1,
+                    proposed_link_count=1,
+                    markdown_path="notes/Alpha.md",
                 )
             ]
         )
+        opened: list[str] = []
 
         with tempfile.TemporaryDirectory() as tmp:
             paths = TalamusPaths(Path(tmp))
@@ -317,10 +320,25 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
                 "list_library_notes",
                 return_value=ServiceResult(True, "loaded", data=report),
             ) as listed:
-                control = views.build_notes(paths, lambda title: None)
+                control = views.build_notes(paths, opened.append)
 
         listed.assert_called_once_with(paths.project_root)
-        self.assertIn("Alpha", self._rendered_text(control))
+        rendered = self._rendered_text(control)
+        self.assertIn("Alpha", rendered)
+        self.assertIn("2 sources", rendered)
+        self.assertIn("1 relation", rendered)
+        self.assertIn("1 proposed link", rendered)
+        self.assertIn("confidence 0.82", rendered)
+        self.assertIn("retrieval", rendered)
+
+        buttons = [
+            item
+            for item in self._walk_controls(control)
+            if isinstance(item, ft.TextButton) and getattr(item, "content", None) == "Open"
+        ]
+        self.assertEqual(len(buttons), 1)
+        buttons[0].on_click(None)
+        self.assertEqual(opened, ["Alpha"])
 
     def test_review_actions_use_review_service(self) -> None:
         import flet as ft
