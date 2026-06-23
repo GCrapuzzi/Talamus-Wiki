@@ -20,8 +20,8 @@ from talamus.ontology import load_ontology
 from talamus.paths import TalamusPaths
 from talamus.ui import physics
 
-CANVAS_W = 880.0
-CANVAS_H = 560.0
+CANVAS_W = 660.0
+CANVAS_H = 430.0
 _EDGE_RELATED = "#3A4148"
 _EDGE_TYPED = "#7E8A96"
 _NODE_DEFAULT = "#90A4AE"

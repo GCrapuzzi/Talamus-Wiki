@@ -1050,6 +1050,12 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
                 control = build_graph_canvas(paths, focus, lambda t: None, animate=False)
                 self.assertIsInstance(control, ft.Control, focus or "global")
 
+    def test_graph_canvas_uses_modest_default_size(self) -> None:
+        from talamus.ui import graph
+
+        self.assertLessEqual(graph.CANVAS_W, 680.0)
+        self.assertLessEqual(graph.CANVAS_H, 460.0)
+
     def test_graph_canvas_exposes_accessible_node_list(self) -> None:
         import flet as ft
 
