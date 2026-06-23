@@ -219,6 +219,11 @@ returning the secret. Mutating service calls return `ServiceResult` from
 
 ## Interfaces
 
+The front ends (CLI, MCP, UI, SDK) route through `services/`: typed
+`ServiceResult` contracts are the one seam between the core and every interface,
+so behaviour stays identical across them. CLI and MCP are fully on the seam; the
+UI is mid-migration onto it.
+
 - **Shared services** (`services/`): UI/CLI/SDK-neutral contracts and probes.
   `readiness.py` reports brain/engine/cache/job state for dashboards; the
   engine setup slice handles settings parity without duplicating adapter logic;
@@ -250,12 +255,15 @@ returning the secret. Mutating service calls return `ServiceResult` from
   explicit path-traversal rejection for UI/CLI portability flows; `ontology.py`
   exposes typed status/candidate review/apply/reject/deprecate/history/export
   operations while LLM-backed induction and eval remain separate contracts.
-- **CLI** (`cli.py`): the full surface; bare `talamus` = dashboard; `--json`
-  on read commands; `--root`/scope flags; consent gates.
+- **CLI** (`cli/` package — `app.py` dispatch + `parser.py` + command groups
+  `dashboard`/`lifecycle`/`pipeline`/`query`/`groups` over `_common.py`): the
+  full surface; bare `talamus` = dashboard; `--json` on read commands;
+  `--root`/scope flags; consent gates.
 - **MCP** (`mcp_server.py`, optional extra): read tools (search, read_note,
   recall, neighbors, overview, history, sources, ontology_status) + write
   tools (remember, ingest_text with scope, propose_note → review,
-  review_list/apply/reject). Local stdio; optional localhost HTTP.
+  review_list/apply/reject), all routed through `services/`. Local stdio;
+  optional localhost HTTP.
 - **SDK** (`recall.py`): read-side functions for embedding in agent code.
 - **UI** (`ui/`, optional extra): Flet workbench — `app.py` shell (3 zones +
   inspector), `views.py` headless-testable builders, `graph.py` physics

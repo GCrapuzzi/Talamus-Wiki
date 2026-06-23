@@ -165,20 +165,22 @@ capabilities that do not exist.
 
 **Work items:**
 - **Finish the services seam:** make it a rule — **interfaces (CLI/UI/MCP) call ONLY
-  `services/`, never the core directly.** Today: CLI is fully migrated, **UI is ~10%**
-  (only the readiness Home), **MCP is 0%**. Migrate the UI's action views
-  (settings, ingest with the cost-estimate/consent/jobs, review) and the MCP tools
-  onto the services. Resolve `services/library.py` (wire it or remove it — decided in
-  P0's dead-code sweep, executed here if it stays).
-- **Honesty fix:** `config.py` advertises `pdf_converter="docling"` and
-  `ocr_provider="ollama/glm-ocr"` and `doctor` prints them, but **neither is wired**
-  (PDF = pypdf, no OCR). Either stop advertising them now (mark "planned") — the
-  actual wiring is P3.
-- **Canon alignment:** confirm `ARCHITECTURE.md`/`STATE.md` describe the services
-  layer (they do — verify and complete); fix any doc that contradicts the code.
+  `services/`, never the core directly.** CLI was fully migrated; **MCP is now fully
+  migrated too** (all read+write tools route through `services/`, incl. four new
+  service ops: `query.brain_overview`/`note_history_view`, `ingestion.ingest_raw_text`,
+  `review.propose_review_note`). `services/library.py` is now **wired** (the MCP
+  `sources` tool reads via `get_library_note`). **Remaining: UI is ~10%** (only the
+  readiness Home) — migrate its action views (settings, ingest with the
+  cost-estimate/consent/jobs, review) onto the services. *(UI = codex's track.)*
+- **Honesty fix (done):** `config.py`/`doctor` advertised `pdf_converter="docling"`
+  and `ocr=ollama/glm-ocr` but neither is wired (PDF = pypdf, no OCR). Honest
+  defaults now ship (`pypdf`/`none`/`none`), `doctor` shows `ocr: none (planned)`,
+  and `docs/configuration.md` is corrected. Real wiring stays P3.
+- **Canon alignment (done for CLI/MCP):** `ARCHITECTURE.md` now states the seam rule,
+  the `cli/` package split, and MCP-on-services; revisit when the UI migration lands.
 
 **Modules touched:** `services/*`, `ui/app.py`, `ui/views.py`, `mcp_server.py`,
-`cli.py`, `config.py`, `services/diagnostics.py`.
+`cli/lifecycle.py`, `config.py`, `services/diagnostics.py`.
 
 **Exit criteria:** every CLI/UI/MCP action goes through a service; no interface
 imports a core module directly for business logic; `doctor`/`config` claim only what
