@@ -120,6 +120,25 @@ def _accessible_node_list(
     return theme.panel(ft.Column(rows, spacing=8), padding=12)
 
 
+def _relation_legend(layout: physics.Layout) -> ft.Control:
+    from talamus.ui import theme
+
+    typed = sum(1 for _src, _dst, edge_type in layout.edges if edge_type != "related")
+    related = len(layout.edges) - typed
+    return theme.panel(
+        ft.Row(
+            [
+                ft.Text("Relation legend", weight=ft.FontWeight.BOLD),
+                theme.muted(f"Typed relations: {typed}"),
+                theme.muted(f"Related links: {related}"),
+            ],
+            spacing=12,
+            wrap=True,
+        ),
+        padding=10,
+    )
+
+
 def build_graph_canvas(
     paths: TalamusPaths,
     focus: str,
@@ -210,6 +229,7 @@ def build_graph_canvas(
     return ft.Column(
         [
             *header,
+            _relation_legend(layout),
             ft.Container(surface, border_radius=8),
             _accessible_node_list(layout, open_note),
         ],
