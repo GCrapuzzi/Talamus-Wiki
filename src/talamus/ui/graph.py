@@ -140,7 +140,10 @@ def build_graph_canvas(
         subtitle = f'neighborhood of "{focus}" (tap a node to open it)'
     else:
         node_ids = physics.select_global(edges, all_nodes)
-        subtitle = "most connected notes (tap a node to open one)"
+        if focus:
+            subtitle = f'"{focus}" is not connected yet; showing global graph instead.'
+        else:
+            subtitle = "most connected notes (tap a node to open one)"
     if not node_ids:
         return ft.Column(
             [

@@ -1068,6 +1068,20 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         buttons[0].on_click(None)
         self.assertEqual(opened, ["Reranking"])
 
+    def test_graph_canvas_explains_missing_focus_fallback(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+        from talamus.ui.graph import build_graph_canvas
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            create_demo_brain(paths)
+            control = build_graph_canvas(paths, "Missing Note", lambda t: None, animate=False)
+
+        rendered = self._rendered_text(control)
+        self.assertIn("Missing Note", rendered)
+        self.assertIn("showing global graph instead", rendered)
+
     def test_graph_canvas_on_empty_brain_shows_empty_state(self) -> None:
         import flet as ft
 
