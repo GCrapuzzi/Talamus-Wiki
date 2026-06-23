@@ -9,9 +9,6 @@ from talamus.adapters.llm import LLMProvider, build_provider
 from talamus.config import load_or_default
 from talamus.jobs import JobRecord
 from talamus.paths import TalamusPaths
-from talamus.registry import (
-    talamus_home,
-)
 from talamus.scope import (
     resolve_brain,
 )
@@ -21,11 +18,6 @@ from talamus.services.engines import choose_default_engine
 def _detect_engine() -> str:
     """Pick an LLM engine that is actually installed; fall back to claude-cli."""
     return choose_default_engine()
-
-
-def _global_home() -> Path:
-    """Container for global (named) brains; override with TALAMUS_HOME."""
-    return talamus_home()
 
 
 def _resolve_root(root: str | None, brain: str | None, use_global: bool) -> Path:
