@@ -19,9 +19,9 @@ def _split_frontmatter(text: str) -> tuple[list[str], str]:
 
 
 def parse_note_markdown(text: str) -> dict:
-    """Estrae dai .md i campi che l'umano puo' modificare a mano.
+    """Extract from the .md the fields a human can edit by hand.
 
-    Ignora di proposito provenienza/confidenza (campi 'macchina' tenuti nella cache).
+    Deliberately ignores provenance/confidence ('machine' fields kept in the cache).
     """
     fm_lines, body = _split_frontmatter(text)
     scalars: dict[str, str] = {}

@@ -212,9 +212,9 @@ def run_ablations(paths: TalamusPaths, cases_file, k: int = 5) -> dict[str, dict
     return results
 
 
-# --- RS2.1: il bundle dell'ask espande 1 salto via ontologia, ma a limit pieno
-# l'espansione è un no-op (i seed riempiono già il taglio). Domanda misurabile:
-# "espandere via archi tipizzati batte semplicemente prendere più hit di ricerca?"
+# --- RS2.1: the ask bundle expands 1 hop via the ontology, but at full limit the
+# expansion is a no-op (the seeds already fill the cut). Measurable question:
+# "does expanding via typed edges beat simply taking more search hits?"
 
 
 def make_bundle_variant(
@@ -224,8 +224,8 @@ def make_bundle_variant(
     typed_only: bool = False,
     typed_first: bool = True,
 ) -> Retriever:
-    """Variante del percorso-bundle: seed dall'indice persistente, poi espansione
-    1 salto sull'ontologia fino a k. Tutto deterministico, zero LLM."""
+    """Bundle-path variant: seeds from the persistent index, then 1-hop ontology
+    expansion up to k. All deterministic, zero LLM."""
     from talamus.indexes import search_index
     from talamus.ontology import neighbors as onto_neighbors
 
@@ -252,7 +252,7 @@ def make_bundle_variant(
 
 
 BUNDLE_VARIANTS: dict[str, dict] = {
-    "B-seeds-only": {"seed_k": 99},  # solo ricerca: i primi k hit
+    "B-seeds-only": {"seed_k": 99},  # search only: the first k hits
     "B-seeds3+exp": {"seed_k": 3, "expand": True},
     "B-seeds3+exp-typed": {"seed_k": 3, "expand": True, "typed_only": True},
     "B-seeds3+exp-flat": {"seed_k": 3, "expand": True, "typed_first": False},
@@ -261,7 +261,7 @@ BUNDLE_VARIANTS: dict[str, dict] = {
 
 
 def run_bundle_ablations(paths: TalamusPaths, cases_file, k: int = 5) -> dict[str, dict]:
-    """RS2.1: confronta le varianti bundle sullo stesso harness dei retriever."""
+    """RS2.1: compare the bundle variants on the same retriever harness."""
     from talamus.eval import evaluate, load_cases
 
     cases = load_cases(cases_file)
@@ -278,11 +278,11 @@ def run_bundle_ablations(paths: TalamusPaths, cases_file, k: int = 5) -> dict[st
     return results
 
 
-# --- RS2 mossa 2: TRIANGOLAZIONE. Le bocciature precedenti (propagazione V4,
-# espansione 1-salto) spingevano i vicini del singolo top hit -> hub pollution.
-# Qui un nodo emerge solo se PIU' hit deboli e indipendenti convergono su di lui
-# via archi: la domanda vaga descrive una situazione TRA concetti, e l'accordo
-# di piu' segnali e' il filtro contro gli hub.
+# --- RS2 move 2: TRIANGULATION. The previous rejects (V4 propagation, 1-hop
+# expansion) pushed the neighbors of the single top hit -> hub pollution. Here a
+# node emerges only if SEVERAL weak, independent hits converge on it via edges:
+# the vague question describes a situation BETWEEN concepts, and the agreement of
+# multiple signals is the filter against hubs.
 
 
 def make_triangulation_variant(
@@ -309,12 +309,12 @@ def make_triangulation_variant(
         hits = dict(ranked)
         votes: dict[str, list[float]] = {}
         for title, score in hits.items():
-            for neighbor in adjacency.get(title, ()):  # i voti arrivano dagli hit
+            for neighbor in adjacency.get(title, ()):  # the votes come from the hits
                 votes.setdefault(neighbor, []).append(score)
         final = dict(hits)
         for node, supporters in votes.items():
             if len(supporters) < min_converge:
-                continue  # un solo segnale = propagazione, gia' bocciata
+                continue  # a single signal = propagation, already rejected
             final[node] = final.get(node, 0.0) + boost * sum(supporters) / len(supporters) * len(
                 supporters
             )
@@ -325,7 +325,7 @@ def make_triangulation_variant(
 
 
 TRIANGULATION_VARIANTS: dict[str, dict] = {
-    "T-base": {"boost": 0.0},  # riferimento: stesso scorer, nessuna triangolazione
+    "T-base": {"boost": 0.0},  # reference: same scorer, no triangulation
     "T-all-0.3": {"boost": 0.3},
     "T-all-0.5": {"boost": 0.5},
     "T-typed-0.3": {"boost": 0.3, "typed_only": True},
@@ -350,14 +350,14 @@ def run_triangulation_ablations(paths: TalamusPaths, cases_file, k: int = 5) -> 
     return results
 
 
-# --- RS2.6: rifiuto dei negativi. Gli score blended sono normalizzati per query
-# (l'assoluto non separa), ma QUALI canali si accendono sì: una query fuori
-# dominio non accende il canale lessicale stemmato, solo rumore trigram.
+# --- RS2.6: rejecting negatives. The blended scores are normalized per query
+# (the absolute does not separate), but WHICH channels light up does: an
+# out-of-domain query does not light the stemmed lexical channel, only trigram noise.
 
 
-# parole funzionali IT+EN (stems post-tokenizer): NON semantica, pura grammatica.
-# Servono perché in un corpus a prosa italiana "what/is/of" risultano fuori
-# vocabolario e affondano la copertura delle domande inglesi legittime (it. 2).
+# IT+EN function words (post-tokenizer stems): NOT semantics, pure grammar.
+# Needed because in an Italian-prose corpus "what/is/of" are out of vocabulary
+# and sink the coverage of legitimate English questions (failure class 2).
 _FUNCTION_STEMS = frozenset(
     """come cosa cos qual quale quali quando dove perche chi che con per tra fra
     una uno della dello delle degli nella nelle sono stato fare faccio puo posso
@@ -371,16 +371,16 @@ _FUNCTION_STEMS = frozenset(
 
 
 def rejection_report(paths: TalamusPaths, cases_file) -> dict:
-    """RS2.6, iterazione 3. Il top lessicale non separa (overlap di vocabolario);
-    la copertura su TUTTI i token informativi nemmeno (le function words inglesi
-    sono OOV in un corpus italiano). Candidato: copertura dei soli termini di
-    CONTENUTO — 'carbonara' df=0 vs 'mixture' df>0."""
+    """RS2.6, iteration 3. The top lexical hit does not separate (vocabulary
+    overlap); coverage over ALL informative tokens does not either (English
+    function words are OOV in an Italian corpus). Candidate: coverage of CONTENT
+    terms only — 'carbonara' df=0 vs 'mixture' df>0."""
     from talamus.eval import load_cases
 
     notes = load_notes(paths)
     index = MemoryIndex(notes, tokens_bilingual, title_weight=3, alias_weight=2)
     n_docs = max(len(index.docs), 1)
-    ubiquity_cap = 0.3 * n_docs  # token in piu' del 30% dei doc = di fatto funzionale
+    ubiquity_cap = 0.3 * n_docs  # a token in >30% of docs = effectively functional
 
     rows: list[dict] = []
     for case in load_cases(cases_file):

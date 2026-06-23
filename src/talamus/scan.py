@@ -316,7 +316,7 @@ def execute_plan(
                 text = code_digest(full, rel_path)
                 preamble = CODE_PREAMBLE
             else:
-                header = f"[fonte: {rel_path} @ {commit}]\n\n"
+                header = f"[source: {rel_path} @ {commit}]\n\n"
                 text = header + full.read_text(encoding="utf-8", errors="replace")
                 preamble = ""
             redacted, n_secrets = redact(text)

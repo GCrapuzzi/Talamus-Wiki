@@ -156,8 +156,8 @@ def run_items(
     """
     done: set[str] = set(record.progress.get("done_items", []))
     if record.state == "running":
-        # record orfano di un processo morto di colpo (crash/kill): si adotta
-        # e si riparte dai done_items, senza transizione illegale running->running
+        # orphan record from a process that died abruptly (crash/kill): adopt it
+        # and resume from done_items, without an illegal running->running transition
         store.save(record)
         store.log(record.job_id, "adopted a stale running record (previous process died)")
     else:
