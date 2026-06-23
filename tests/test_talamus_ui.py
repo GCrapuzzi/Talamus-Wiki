@@ -1001,6 +1001,13 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertTrue(_show_inspector_for_width(1200))
         self.assertTrue(_show_inspector_for_width(None))
 
+    def test_sidebar_collapses_on_mobile_shell_widths(self) -> None:
+        from talamus.ui.app import _show_sidebar_for_width
+
+        self.assertFalse(_show_sidebar_for_width(390))
+        self.assertTrue(_show_sidebar_for_width(900))
+        self.assertTrue(_show_sidebar_for_width(None))
+
     def test_home_wrap_rows_do_not_use_expanded_children(self) -> None:
         import flet as ft
 

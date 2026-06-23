@@ -82,22 +82,29 @@ def _build_content_slot() -> ft.Container:
     return ft.Container(bgcolor=theme.BG, padding=0)
 
 
-def _build_top_bar(main_title: ft.Control, main_subtitle: ft.Control) -> ft.Container:
+def _build_top_bar(
+    main_title: ft.Control,
+    main_subtitle: ft.Control,
+    mobile_nav: ft.Control | None = None,
+) -> ft.Container:
     from talamus.ui import theme
 
+    controls: list[ft.Control] = [
+        ft.Column([main_title, main_subtitle], spacing=2),
+        ft.Row(
+            [
+                theme.status_pill("Local-first", "ready"),
+                theme.status_pill("Token cost visible", "accent"),
+            ],
+            spacing=8,
+            wrap=True,
+        ),
+    ]
+    if mobile_nav is not None:
+        controls.append(mobile_nav)
     return theme.panel(
         ft.Column(
-            [
-                ft.Column([main_title, main_subtitle], spacing=2),
-                ft.Row(
-                    [
-                        theme.status_pill("Local-first", "ready"),
-                        theme.status_pill("Token cost visible", "accent"),
-                    ],
-                    spacing=8,
-                    wrap=True,
-                ),
-            ],
+            controls,
             spacing=8,
         ),
         padding=12,
@@ -120,6 +127,7 @@ def _build_main_pane(top_bar: ft.Control, content: ft.Control) -> ft.Container:
 
 
 INSPECTOR_COLLAPSE_WIDTH = 1040
+SIDEBAR_COLLAPSE_WIDTH = 720
 
 
 def _show_inspector_for_width(width: int | float | str | None) -> bool:
@@ -132,6 +140,18 @@ def _show_inspector_for_width(width: int | float | str | None) -> bool:
     except ValueError:
         return True
     return width_value >= INSPECTOR_COLLAPSE_WIDTH
+
+
+def _show_sidebar_for_width(width: int | float | str | None) -> bool:
+    if width is None:
+        return True
+    if not isinstance(width, (int, float, str)):
+        return True
+    try:
+        width_value = float(width)
+    except ValueError:
+        return True
+    return width_value >= SIDEBAR_COLLAPSE_WIDTH
 
 
 def _provider(paths: TalamusPaths):
@@ -271,7 +291,8 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
     content = _build_content_slot()
     main_title = ft.Text("Home", size=18, weight=ft.FontWeight.BOLD, color=theme.TEXT)
     main_subtitle = ft.Text(str(paths.project_root), size=12, color=theme.MUTED)
-    top_bar = _build_top_bar(main_title, main_subtitle)
+    mobile_nav = ft.Row([], wrap=True, spacing=6, run_spacing=6, visible=False)
+    top_bar = _build_top_bar(main_title, main_subtitle, mobile_nav)
 
     inspector = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
     inspector_panel = theme.panel(
@@ -292,6 +313,9 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
     }
 
     def _sync_shell_width() -> None:
+        sidebar_visible = _show_sidebar_for_width(page.width)
+        sidebar.visible = sidebar_visible
+        mobile_nav.visible = not sidebar_visible
         inspector_panel.visible = _show_inspector_for_width(page.width)
 
     def _on_resize(e) -> None:
@@ -329,7 +353,35 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             on_click=lambda e, view=destination.view: show_view(view),
         )
 
+    def _mobile_nav_item(destination: NavDestination) -> ft.Control:
+        selected = state["view"] == destination.view
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Icon(
+                        destination.icon, size=15, color=theme.TEXT if selected else theme.MUTED
+                    ),
+                    ft.Text(
+                        destination.label,
+                        size=12,
+                        weight=ft.FontWeight.BOLD if selected else ft.FontWeight.NORMAL,
+                        color=theme.TEXT if selected else theme.MUTED,
+                    ),
+                ],
+                spacing=5,
+                tight=True,
+            ),
+            bgcolor=theme.SURFACE_2 if selected else theme.BG,
+            border=ft.Border.all(1, theme.BORDER),
+            border_radius=8,
+            padding=ft.Padding(8, 7, 8, 7),
+            on_click=lambda e, view=destination.view: show_view(view),
+        )
+
     def _refresh_sidebar() -> None:
+        mobile_nav.controls = [
+            _mobile_nav_item(destination) for destination in PRIMARY_NAV_DESTINATIONS
+        ]
         sidebar.content = ft.Column(
             [
                 ft.Column(
