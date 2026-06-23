@@ -40,8 +40,8 @@ class TalamusPathsConfigTests(unittest.TestCase):
         config = TalamusConfig.default()
 
         self.assertEqual("obsidian", config.storage_provider)
-        self.assertEqual("docling", config.pdf_converter)
-        self.assertEqual("ollama", config.ocr_provider)
+        self.assertEqual("pypdf", config.pdf_converter)
+        self.assertEqual("none", config.ocr_provider)
         self.assertEqual("deterministic-json", config.graph_provider)
         self.assertEqual("builtin-bm25", config.search_provider)
 

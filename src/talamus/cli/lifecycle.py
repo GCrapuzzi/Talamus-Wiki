@@ -218,7 +218,12 @@ def _cmd_doctor(root: Path) -> int:
     print(f"brain: {report.root}")
     print(f"storage: {report.storage_provider}")
     print(f"pdf converter: {report.pdf_converter}")
-    print(f"ocr: {report.ocr_provider}/{report.ocr_model}")
+    ocr = (
+        "none (planned)"
+        if report.ocr_provider in ("", "none")
+        else f"{report.ocr_provider}/{report.ocr_model}"
+    )
+    print(f"ocr: {ocr}")
     print(f"llm: {report.llm_provider} [{report.llm_status}]")
     print(f"graph: {report.graph_provider}")
     print(f"search: {report.search_provider}")

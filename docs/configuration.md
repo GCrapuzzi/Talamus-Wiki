@@ -12,7 +12,7 @@ Created by `talamus init` in the brain directory. Fields:
 | `storage_provider` | Notes rendering | `obsidian` |
 | `graph_provider` | Graph index | `deterministic-json` |
 | `search_provider` | Lexical search | `builtin-bm25` |
-| `pdf_converter` / `ocr_provider` / `ocr_model` | Sources (roadmap) | docling / ollama / glm-ocr |
+| `pdf_converter` / `ocr_provider` / `ocr_model` | Source conversion. Today only `pypdf` (PDFs) is wired; OCR is not. A real converter (docling) and OCR are planned (roadmap P3). | `pypdf` / `none` / `none` |
 
 ### Engines (`llm_provider`)
 

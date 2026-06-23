@@ -28,9 +28,11 @@ class TalamusConfig:
     def default(cls) -> TalamusConfig:
         return cls(
             storage_provider="obsidian",
-            pdf_converter="docling",
-            ocr_provider="ollama",
-            ocr_model="glm-ocr",
+            # What is actually wired today: pypdf for PDFs, no OCR. P3 will wire a
+            # real converter (e.g. docling) and OCR and flip these defaults.
+            pdf_converter="pypdf",
+            ocr_provider="none",
+            ocr_model="none",
             llm_provider="claude-cli",
             graph_provider="deterministic-json",
             search_provider="builtin-bm25",
