@@ -214,6 +214,39 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertIn("4096 token budget", rendered)
         self.assertIn("Language", rendered)
 
+    def test_timeline_surfaces_as_of_moat(self) -> None:
+        from talamus.paths import TalamusPaths
+        from talamus.ui import views
+
+        timeline = {
+            "transaction": [
+                {"at": "2026-01-01T00:00:00+00:00", "summary": "First version."},
+                {"at": "2026-02-01T00:00:00+00:00", "summary": "Updated source."},
+            ],
+            "valid": [
+                {
+                    "from": "2026-01-01",
+                    "to": "2026-02-01",
+                    "text": "Claim that was true for a window.",
+                    "invalidated_by": "new evidence",
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            with patch.object(views, "note_timeline", return_value=timeline):
+                control = views.build_timeline(paths, "Memory")
+
+        rendered = self._rendered_text(control)
+        self.assertIn("As-of moat", rendered)
+        self.assertIn("Ask can replay this note as it looked at a past date.", rendered)
+        self.assertIn("Transaction history", rendered)
+        self.assertIn("2 versions", rendered)
+        self.assertIn("Fact validity", rendered)
+        self.assertIn("1 claim", rendered)
+        self.assertIn("invalidated by: new evidence", rendered)
+
     def test_home_matches_hybrid_brain_os_shell_copy(self) -> None:
         from talamus.paths import TalamusPaths
         from talamus.ui import views

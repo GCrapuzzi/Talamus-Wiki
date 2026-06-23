@@ -491,25 +491,66 @@ def build_graph(paths: TalamusPaths, title: str, open_note: OpenNote) -> ft.Cont
 
 
 def build_timeline(paths: TalamusPaths, title: str) -> ft.Control:
+    from talamus.ui import theme
+
     rows: list[ft.Control] = [heading(f"Timeline - {title}" if title else "Timeline")]
     if not title:
         rows.append(ft.Text("Open a note to see its two timelines."))
         return ft.Column(rows, spacing=8)
     data = note_timeline(paths, title)
+    transactions = data["transaction"]
+    claims = data["valid"]
+    transaction_count = len(transactions)
+    claim_count = len(claims)
     rows.append(
-        ft.Text("Transactions (when Talamus changed the record)", weight=ft.FontWeight.BOLD)
+        theme.panel(
+            ft.Column(
+                [
+                    theme.section("As-of moat"),
+                    ft.Text(
+                        "Ask can replay this note as it looked at a past date.",
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    theme.muted(
+                        f"History: {transaction_count} "
+                        f"{'version' if transaction_count == 1 else 'versions'}; "
+                        f"validity: {claim_count} {'claim' if claim_count == 1 else 'claims'}."
+                    ),
+                ],
+                spacing=5,
+                tight=True,
+            ),
+            padding=12,
+        )
     )
-    if not data["transaction"]:
-        rows.append(subtle("no versions"))
-    for event in data["transaction"]:
-        rows.append(subtle(f"[{event['at']}] {event['summary']}"))
-    rows.append(ft.Text("Fact validity", weight=ft.FontWeight.BOLD))
-    if not data["valid"]:
-        rows.append(subtle("no registered claims"))
-    for claim in data["valid"]:
+    transaction_rows: list[ft.Control] = [
+        theme.section("Transaction history"),
+        ft.Text(
+            f"{transaction_count} {'version' if transaction_count == 1 else 'versions'}",
+            weight=ft.FontWeight.BOLD,
+        ),
+    ]
+    if not transactions:
+        transaction_rows.append(theme.muted("No versions"))
+    for event in transactions:
+        transaction_rows.append(theme.muted(f"[{event['at']}] {event['summary']}"))
+    rows.append(theme.panel(ft.Column(transaction_rows, spacing=5, tight=True), padding=12))
+
+    validity_rows: list[ft.Control] = [
+        theme.section("Fact validity"),
+        ft.Text(
+            f"{claim_count} {'claim' if claim_count == 1 else 'claims'}", weight=ft.FontWeight.BOLD
+        ),
+    ]
+    if not claims:
+        validity_rows.append(theme.muted("No registered claims"))
+    for claim in claims:
         marker = f" (invalidated by: {claim['invalidated_by']})" if claim["invalidated_by"] else ""
-        rows.append(subtle(f"[{claim['from']} -> {claim['to']}] {claim['text']}{marker}"))
-    return ft.Column(rows, spacing=4)
+        validity_rows.append(
+            theme.muted(f"[{claim['from']} -> {claim['to']}] {claim['text']}{marker}")
+        )
+    rows.append(theme.panel(ft.Column(validity_rows, spacing=5, tight=True), padding=12))
+    return ft.Column(rows, spacing=8)
 
 
 # ------------------------------------------------------------------- domains
