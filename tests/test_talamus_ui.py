@@ -871,6 +871,20 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertIn("No bulk LLM action before consent", text)
         self.assertIn("Jobs and partial failures stay visible", text)
 
+    def test_app_formats_import_consent_status(self) -> None:
+        from talamus.ui.app import _format_import_consent_status
+
+        missing = _format_import_consent_status(".", {"target": "", "kind": ""})
+        ready = _format_import_consent_status(".", {"target": ".", "kind": "scan"})
+        changed = _format_import_consent_status("notes.md", {"target": ".", "kind": "scan"})
+
+        self.assertIn("Preview required", missing)
+        self.assertIn("Run with consent is blocked", missing)
+        self.assertIn("Consent ready", ready)
+        self.assertIn("scan preview", ready)
+        self.assertIn("Target changed", changed)
+        self.assertIn("Preview cost again", changed)
+
     def test_theme_has_shell_primitives_for_dense_workbench(self) -> None:
         import flet as ft
 

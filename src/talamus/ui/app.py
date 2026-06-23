@@ -147,6 +147,18 @@ def _format_import_guardrail() -> str:
     )
 
 
+def _format_import_consent_status(target: str, confirmed: dict[str, str]) -> str:
+    current = target.strip() or "."
+    confirmed_target = confirmed.get("target", "")
+    confirmed_kind = confirmed.get("kind", "")
+    if not confirmed_target:
+        return "Preview required. Run with consent is blocked until Preview cost succeeds."
+    if confirmed_target != current:
+        return "Target changed. Preview cost again before running."
+    preview = "scan preview" if confirmed_kind == "scan" else "ingest preview"
+    return f"Consent ready from {preview}. Run with consent will use this target."
+
+
 def _format_ingest_preview(preview: IngestPreview) -> str:
     lines = [
         f"Target: {preview.target}",
@@ -592,9 +604,18 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
         target = ft.TextField(label="File, folder, or URL (or . for this repo)")
         output = ft.Text("", selectable=True)
         confirmed = {"target": "", "kind": ""}
+        consent_status = ft.Text(
+            _format_import_consent_status(".", confirmed),
+            size=12,
+            color=theme.MUTED,
+            selectable=True,
+        )
 
         def _target_value() -> str:
             return (target.value or ".").strip() or "."
+
+        def _refresh_consent_status() -> None:
+            consent_status.value = _format_import_consent_status(_target_value(), confirmed)
 
         def _local_or_url(value: str) -> str:
             if "://" in value:
@@ -604,6 +625,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
 
         def dry_run() -> None:
             value = _target_value()
+            confirmed.update({"target": "", "kind": ""})
             try:
                 if value == ".":
                     scan_preview = preview_scan(paths.project_root, paths.project_root)
@@ -622,6 +644,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                         output.value = ingest_preview.message
             except Exception as exc:
                 output.value = f"Error: {exc}"
+            _refresh_consent_status()
             page.update()
 
         def run_ingest() -> None:
@@ -629,6 +652,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             if not value:
                 return
             output.value = "Ingesting..."
+            _refresh_consent_status()
             page.update()
 
             def work() -> None:
@@ -643,6 +667,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                         if scan_result.data is not None and isinstance(
                             scan_result.data, ScanPreview
                         ):
+                            confirmed.update({"target": value, "kind": "scan"})
                             output.value = _format_scan_preview(scan_result.data)
                         elif scan_result.data is not None and isinstance(
                             scan_result.data, ScanActionResult
@@ -661,6 +686,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                         if ingest_result.data is not None and isinstance(
                             ingest_result.data, IngestPreview
                         ):
+                            confirmed.update({"target": value, "kind": "ingest"})
                             output.value = _format_ingest_preview(ingest_result.data)
                         elif ingest_result.data is not None and isinstance(
                             ingest_result.data, IngestRunResult
@@ -670,6 +696,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                             output.value = ingest_result.message
                 except Exception as exc:
                     output.value = f"Error: {exc}"
+                _refresh_consent_status()
                 page.update()
 
             threading.Thread(target=work, daemon=True).start()
@@ -691,8 +718,18 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             ),
             padding=12,
         )
+        status_panel = theme.panel(
+            ft.Column([theme.section("Consent status"), consent_status], spacing=6),
+            padding=12,
+        )
+
+        def refresh_consent_and_update(e) -> None:
+            _refresh_consent_status()
+            page.update()
+
+        target.on_change = refresh_consent_and_update
         return ft.Column(
-            [views.heading("Ingest"), guardrail, target, buttons, output],
+            [views.heading("Ingest"), guardrail, status_panel, target, buttons, output],
             spacing=10,
         )
 
