@@ -930,6 +930,15 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertIn("Italian", text)
         self.assertIn("citations stay traceable", text)
 
+    def test_app_formats_search_trace(self) -> None:
+        from talamus.ui.app import _format_search_trace
+
+        text = _format_search_trace("retrieval", 3)
+
+        self.assertIn("Local search", text)
+        self.assertIn("No LLM call", text)
+        self.assertIn("3 results", text)
+
     def test_app_formats_answer_trace(self) -> None:
         from talamus.ui.app import _format_answer_trace
 

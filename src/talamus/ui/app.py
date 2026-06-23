@@ -219,6 +219,12 @@ def _format_ask_language_promise(language: str) -> str:
     )
 
 
+def _format_search_trace(query: str, result_count: int) -> str:
+    if not query.strip():
+        return "Local search trace appears after a query. No LLM call."
+    return f"Local search: {result_count} results for {query.strip()!r}. No LLM call."
+
+
 def _format_answer_trace(trace: dict) -> str:
     if not trace:
         return "Trace appears after an answer."
@@ -546,11 +552,18 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
     def search_view() -> ft.Control:
         results_box = ft.Column(spacing=4)
         query = ft.TextField(label="Search the brain")
+        trace = ft.Text(
+            _format_search_trace("", 0),
+            size=12,
+            color=theme.MUTED,
+            selectable=True,
+        )
 
         def run_search() -> None:
             if not (query.value or "").strip():
                 return
             results = search_notes(paths, query.value or "")
+            trace.value = _format_search_trace(query.value or "", len(results))
             results_box.controls = [
                 ft.ListTile(
                     title=ft.Text(r["title"]),
@@ -562,7 +575,15 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
             page.update()
 
         query.on_submit = lambda e: run_search()
-        return ft.Column([views.heading("Search"), query, results_box], spacing=10)
+        return ft.Column(
+            [
+                views.heading("Search"),
+                theme.panel(ft.Column([theme.section("Retrieval trace"), trace], spacing=6)),
+                query,
+                results_box,
+            ],
+            spacing=10,
+        )
 
     # ---------------------------------------------------------------- ingest
     def ingest_view() -> ft.Control:
