@@ -489,6 +489,56 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         rejected.assert_called_once_with(paths.project_root, "review-1")
         self.assertEqual(refreshed, ["refresh", "refresh"])
 
+    def test_review_surfaces_decision_summary(self) -> None:
+        from talamus.paths import TalamusPaths
+        from talamus.services.result import ServiceResult
+        from talamus.ui import views
+
+        items = [
+            SimpleNamespace(
+                item_id="review-1",
+                kind="correction",
+                title="Fix source",
+                status="pending",
+                created_at="2026-06-22T09:00:00+00:00",
+                detail={"why": "source mismatch"},
+            ),
+            SimpleNamespace(
+                item_id="review-2",
+                kind="stale_source",
+                title="Refresh source",
+                status="pending",
+                created_at="2026-06-22T09:05:00+00:00",
+                detail={"why": "source hash changed"},
+            ),
+            SimpleNamespace(
+                item_id="review-3",
+                kind="low_confidence_note",
+                title="Check confidence",
+                status="pending",
+                created_at="2026-06-22T09:10:00+00:00",
+                detail={"why": "confidence 0.3"},
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            with patch.object(
+                views,
+                "list_review_items",
+                return_value=ServiceResult(True, "loaded", data=items),
+            ):
+                control = views.build_review(paths, lambda: None)
+
+        rendered = self._rendered_text(control)
+        self.assertIn("Decision queue", rendered)
+        self.assertIn("1 correction", rendered)
+        self.assertIn("1 stale source", rendered)
+        self.assertIn("1 low confidence note", rendered)
+        self.assertIn("Source fidelity", rendered)
+        self.assertIn("Source freshness", rendered)
+        self.assertIn("Confidence", rendered)
+
     def test_ontology_builder_uses_ontology_service(self) -> None:
         import flet as ft
 

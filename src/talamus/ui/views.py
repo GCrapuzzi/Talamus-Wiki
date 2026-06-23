@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import flet as ft
 
@@ -654,6 +654,7 @@ def build_review(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.Control
     if not pending:
         rows.append(ft.Text("Queue is empty: no decisions pending."))
         return ft.Column(rows, spacing=8)
+    rows.append(_review_decision_summary_panel(pending))
 
     def _apply(item_id: str) -> None:
         apply_review_item(paths.project_root, item_id)
@@ -704,6 +705,53 @@ def build_review(paths: TalamusPaths, refresh: Callable[[], None]) -> ft.Control
             )
         )
     return ft.Column(rows, spacing=8)
+
+
+def _review_decision_summary_panel(items: Sequence[object]) -> ft.Control:
+    from talamus.ui import theme
+
+    counts: dict[str, int] = {}
+    lanes: list[str] = []
+    for item in items:
+        kind = str(getattr(item, "kind", "review"))
+        label = _review_kind_label(kind)
+        counts[label] = counts.get(label, 0) + 1
+        lane = _review_decision_lane(kind)
+        if lane not in lanes:
+            lanes.append(lane)
+    return theme.panel(
+        ft.Column(
+            [
+                theme.section("Decision queue"),
+                ft.Row(
+                    [
+                        theme.status_pill(_count_label(count, label), "warn")
+                        for label, count in sorted(counts.items())
+                    ],
+                    wrap=True,
+                    spacing=8,
+                    run_spacing=6,
+                ),
+                theme.muted(", ".join(lanes)),
+            ],
+            spacing=6,
+            tight=True,
+        ),
+        padding=12,
+    )
+
+
+def _review_kind_label(kind: str) -> str:
+    return kind.replace("_", " ").replace("-", " ")
+
+
+def _review_decision_lane(kind: str) -> str:
+    return {
+        "correction": "Source fidelity",
+        "stale_source": "Source freshness",
+        "low_confidence_note": "Confidence",
+        "ontology_candidate": "Ontology",
+    }.get(kind, "Manual decision")
 
 
 def _review_detail_controls(detail: object) -> list[ft.Control]:
