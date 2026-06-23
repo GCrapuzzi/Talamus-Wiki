@@ -970,6 +970,9 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
         self.assertIn("Route: overview", text)
         self.assertIn("Context: 412 tokens", text)
         self.assertIn("Notes read: 2", text)
+        self.assertIn("Traceable notes", text)
+        self.assertIn("Reranking", text)
+        self.assertIn("Embedding", text)
         self.assertIn("dom-retrieval", text)
 
     def test_app_main_pane_uses_explicit_dark_background(self) -> None:

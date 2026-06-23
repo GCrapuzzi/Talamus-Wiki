@@ -247,6 +247,10 @@ def _format_answer_trace(trace: dict) -> str:
         lines.append(f"Context: {trace['context_tokens']} tokens")
     items = trace.get("items_read") or []
     lines.append(f"Notes read: {len(items)}")
+    if items:
+        note_names = [Path(str(item)).stem or str(item) for item in items[:4]]
+        suffix = f" (+{len(items) - 4} more)" if len(items) > 4 else ""
+        lines.append(f"Traceable notes: {', '.join(note_names)}{suffix}")
     domains = trace.get("domains_chosen") or []
     if domains:
         lines.append(f"Domains: {', '.join(str(domain) for domain in domains)}")
