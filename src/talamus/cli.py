@@ -120,7 +120,7 @@ def _provider_for(root: Path) -> LLMProvider:
 
 
 def _ensure_utf8_output() -> None:
-    """Forza l'output UTF-8 dove possibile (la console Windows altrimenti storpia gli accenti)."""
+    """Force UTF-8 output where possible (the Windows console otherwise mangles accents)."""
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
@@ -174,7 +174,7 @@ def _dashboard_next(data: dict) -> list[str]:
     if not data["config_exists"]:
         return ["talamus init", "talamus demo   (example brain, no LLM needed)"]
     if data["notes"] == 0:
-        suggestions.append("talamus ingest <file>   o   talamus scan . --dry-run")
+        suggestions.append("talamus ingest <file>   or   talamus scan . --dry-run")
     if data["jobs_running"]:
         suggestions.append("talamus jobs list")
     if data["reviews"]:
@@ -198,7 +198,7 @@ def _cmd_panel(resolved: ResolvedBrain, json_out: bool = False) -> int:
     if data["central"] and data["central"] != data["brain"]:
         print(f"Central    {data['central']}")
     if not data["config_exists"]:
-        print("Stato      nessun brain qui (talamus init per crearlo)")
+        print("Status     no brain here (run talamus init to create one)")
     else:
         print(
             f"Notes      {data['notes']}      Sources  {data['sources']}"
@@ -259,26 +259,26 @@ def _cmd_setup(root: Path, engine: str | None) -> int:
     engines = list_engines()
     engine_ids = [item.provider for item in engines if item.available or item.needs_secret]
     chosen = engine or choose_default_engine()
-    print(f"1/4  Motori rilevati: {', '.join(engine_ids)}")
-    print(f"     Uso: {chosen} (cambialo con --engine o dalle Impostazioni)\n")
+    print(f"1/4  Engines detected: {', '.join(engine_ids)}")
+    print(f"     Using: {chosen} (change it with --engine or from Settings)\n")
     code = _cmd_init(root, chosen, "project")
     if code != 0:
         return code
     print()
-    print("2/4  Collego il tuo agent (MCP)...")
+    print("2/4  Connecting your agent (MCP)...")
     _cmd_mcp_install(root)
     print()
-    print("3/4  Hook di cattura sessione (per ricordare il lavoro dell'agent):")
+    print("3/4  Session capture hook (to remember the agent's work):")
     _cmd_hook(root)
     print()
-    print("4/4  Cosa c'è da imparare in questa cartella (piano, costo zero):")
+    print("4/4  What there is to learn in this folder (plan, zero cost):")
     plan = build_plan(root, profile="all")
     print(format_plan(plan))
     print()
-    print("Fatto. La tua memoria è viva:")
-    print('  talamus ask "..."        domanda con risposta citata')
-    print("  talamus scan . --yes     compila la repo nel brain (dopo il piano qui sopra)")
-    print("  talamus ui               il workbench grafico")
+    print("Done. Your memory is alive:")
+    print('  talamus ask "..."        a question with a cited answer')
+    print("  talamus scan . --yes     compile the repo into the brain (after the plan above)")
+    print("  talamus ui               the graphical workbench")
     return 0
 
 
@@ -349,8 +349,8 @@ def _cmd_scan(
         _print_json(report)
         return 0
     print(
-        f"scan {report['state']}: {report['notes_written']} schede da "
-        f"{report['files']} file (job {report['job_id']})"
+        f"scan {report['state']}: {report['notes_written']} notes from "
+        f"{report['files']} files (job {report['job_id']})"
     )
     for failure in report["failed"]:
         print(f"  ! {failure['path']}: {failure['error']}")
@@ -363,8 +363,8 @@ def _run_scan_job(root: Path, record: JobRecord) -> int:
     plan = plan_from_record(record)
     report = execute_plan(paths, plan, _provider_for(root), job_record=record)
     print(
-        f"scan {report['state']}: {report['notes_written']} schede da "
-        f"{report['files']} file (job {report['job_id']})"
+        f"scan {report['state']}: {report['notes_written']} notes from "
+        f"{report['files']} files (job {report['job_id']})"
     )
     return 0
 
@@ -382,8 +382,8 @@ def _run_ingest_job(root: Path, record: JobRecord) -> int:
         return 1
     report = ingest_large(TalamusPaths(root), file_path, _provider_for(root), job_record=record)
     print(
-        f"ingest {report['state']}: {report['notes_written']} schede da "
-        f"{report['chunks']} chunk (job {report['job_id']})"
+        f"ingest {report['state']}: {report['notes_written']} notes from "
+        f"{report['chunks']} chunks (job {report['job_id']})"
     )
     return 0
 
@@ -411,7 +411,7 @@ def _cmd_ontology_group(
             print(f"  {state}: {count}")
         cov = status["coverage"]
         print(
-            f"coverage: {cov['non_related']}/{cov['edges']} archi tipizzati "
+            f"coverage: {cov['non_related']}/{cov['edges']} typed edges "
             f"({cov['non_related_share']:.0%})"
         )
         return 0
@@ -421,12 +421,12 @@ def _cmd_ontology_group(
             _print_json([c.to_dict() for c in created])
             return 0
         if not created:
-            print("nessun nuovo candidato (superfici già spiegate o supporto insufficiente)")
+            print("no new candidate (surfaces already explained or insufficient support)")
             return 0
-        print(f"{len(created)} tipi candidati indotti:")
+        print(f"{len(created)} candidate types induced:")
         for candidate in created:
             print(f"  - {candidate.id}  support={candidate.support}  «{candidate.definition}»")
-        print("rivedi con `talamus ontology review`, promuovi con `talamus ontology apply ID`")
+        print("review with `talamus ontology review`, promote with `talamus ontology apply ID`")
         return 0
     if cmd == "review":
         pending_result = list_ontology_candidates(root)
@@ -438,13 +438,13 @@ def _cmd_ontology_group(
             _print_json([rel_type.to_dict() for rel_type in pending])
             return 0
         if not pending:
-            print("nessun candidato in attesa")
+            print("no candidates pending")
         for rel_type in pending:
             print(f"- {rel_type.id}  support={rel_type.support} note={rel_type.distinct_notes}")
             if rel_type.definition:
                 print(f"    {rel_type.definition}")
             for example in rel_type.examples[:2]:
-                print(f"    es. {example}")
+                print(f"    e.g. {example}")
         return 0
     if cmd == "apply":
         decision_result = apply_ontology_candidate(root, args.type_id, force=args.force)
@@ -485,12 +485,12 @@ def _cmd_ontology_group(
             f"  MRR {report['baseline']['mrr']}"
         )
         print(
-            f"emergente: recall@{report['k']} {report['emergent']['recall_at_k']}"
+            f"emergent : recall@{report['k']} {report['emergent']['recall_at_k']}"
             f"  MRR {report['emergent']['mrr']}"
         )
         print(f"lift     : recall {report['lift']['recall_at_k']:+}  MRR {report['lift']['mrr']:+}")
         cov = report["coverage"]
-        print(f"coverage : {cov['non_related_share']:.0%} archi tipizzati")
+        print(f"coverage : {cov['non_related_share']:.0%} typed edges")
         return 0
     if cmd == "stability":
         stability_result = stability(paths, runs=args.runs)
@@ -508,7 +508,7 @@ def _cmd_ontology_group(
             _print_json(events)
             return 0
         if not events:
-            print("nessun evento di schema")
+            print("no schema events")
         for event in events:
             print(f"- {event.get('at', '?')}  {event.get('event', '?')}  {event.get('type', '')}")
         return 0
@@ -677,7 +677,7 @@ def _cmd_brains_list(json_out: bool) -> int:
             if d.is_dir() and (d / "talamus.json").exists() and load_registry().by_path(d) is None
         ]
         for name in unregistered:
-            print(f"- {name}  (non registrato — `talamus brains register {home / name}`)")
+            print(f"- {name}  (not registered — `talamus brains register {home / name}`)")
     return 0
 
 
@@ -711,10 +711,10 @@ def _cmd_brains_index(rebuild: bool, status_only: bool, json_out: bool) -> int:
     if json_out:
         _print_json(report)
         return 0
-    print(f"federated index built: {report['rows']} note da {len(report['brains'])} brain")
+    print(f"federated index built: {report['rows']} notes from {len(report['brains'])} brains")
     for entry in report["brains"]:
         skipped = f" ({entry['skipped']})" if "skipped" in entry else ""
-        print(f"  - {entry['brain']}: {entry['notes']} note{skipped}")
+        print(f"  - {entry['brain']}: {entry['notes']} notes{skipped}")
     for warning in report["warnings"]:
         print(f"  ! {warning}")
     return 0
@@ -955,7 +955,7 @@ def _cmd_doctor(root: Path) -> int:
     print(f"notes: {report.notes}")
     print(f"index backend: {report.index_backend} ({report.index_bytes:,} bytes)")
     if report.overview_built:
-        print(f"overview: built ({report.overview_domains} domini)")
+        print(f"overview: built ({report.overview_domains} domains)")
     else:
         print("overview: not built — run `talamus overview`")
     print("cache: ok" if report.cache_current else "cache: stale — run `talamus reindex`")
@@ -967,7 +967,7 @@ def _cmd_reindex(root: Path, json_out: bool) -> int:
     if json_out:
         _print_json(result)
     else:
-        print(f"reindicizzate {result['reindexed']} schede")
+        print(f"reindexed {result['reindexed']} notes")
     return 0
 
 
@@ -979,14 +979,14 @@ def _cmd_ingest(
         service_result.data, IngestPreview
     ):
         estimate = service_result.data
-        print(f"Documento grande: {estimate.source}")
+        print(f"Large document: {estimate.source}")
         print(
-            f"  {estimate.chars:,} caratteri -> {estimate.chunks} chunk = "
-            f"{estimate.est_llm_calls} chiamate LLM "
-            f"(~{estimate.est_input_tokens:,} token input)"
+            f"  {estimate.chars:,} characters -> {estimate.chunks} chunks = "
+            f"{estimate.est_llm_calls} LLM calls "
+            f"(~{estimate.est_input_tokens:,} input tokens)"
         )
-        print("  Il lavoro gira come job resumabile (talamus jobs).")
-        print(f'  Conferma con:  talamus ingest "{target}" --yes')
+        print("  The work runs as a resumable job (talamus jobs).")
+        print(f'  Confirm with:  talamus ingest "{target}" --yes')
         return 0
     if not service_result.success or not isinstance(service_result.data, IngestRunResult):
         print(service_result.message, file=sys.stderr)
@@ -996,16 +996,16 @@ def _cmd_ingest(
         _print_json(result)
     elif "files" in result:
         print(
-            f"ingerite {result['notes_written']} schede da {result['files']} file "
-            f"({result['skipped']} invariati saltati)"
+            f"ingested {result['notes_written']} notes from {result['files']} files "
+            f"({result['skipped']} unchanged skipped)"
         )
         for failure in result.get("failed", []):
-            print(f"  ! saltato {failure['file']}: {failure['error']}")
+            print(f"  ! skipped {failure['file']}: {failure['error']}")
     else:
         suffix = ""
         if "chunks" in result:
-            suffix = f" ({result['chunks']} chunk, job {result.get('job_id', '?')})"
-        print(f"ingerite {result['notes_written']} schede da {result['source']}{suffix}")
+            suffix = f" ({result['chunks']} chunks, job {result.get('job_id', '?')})"
+        print(f"ingested {result['notes_written']} notes from {result['source']}{suffix}")
         for failure in result.get("failed", []):
             print(f"  ! chunk {failure['chunk']}: {failure['error']}")
     return 0
@@ -1042,10 +1042,10 @@ def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: boo
 
 
 def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
-    """Arricchimento sintomi (RS2.4-bis): stima prima, lotti solo con --yes."""
+    """Symptom enrichment (RS2.4-bis): estimate first, batches only with --yes."""
     service_result = run_enrich(root, llm, confirmed=yes)
     if service_result.code == "enrich_nothing_to_do":
-        print("tutte le note hanno già il vocabolario dei sintomi")
+        print("all notes already have the symptom vocabulary")
         return 0
     if service_result.code == "enrich_confirmation_required" and isinstance(
         service_result.data, EnrichPreview
@@ -1054,9 +1054,9 @@ def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
         if json_out:
             _print_json(estimate.estimate_dict())
         else:
-            print(f"Da arricchire: {estimate.notes} note in {estimate.batches} lotti")
-            print(f"  = {estimate.est_llm_calls} chiamate LLM")
-            print("  Conferma con:  talamus enrich --yes")
+            print(f"To enrich: {estimate.notes} notes in {estimate.batches} batches")
+            print(f"  = {estimate.est_llm_calls} LLM calls")
+            print("  Confirm with:  talamus enrich --yes")
         return 0
     if not service_result.success or not isinstance(service_result.data, EnrichRunResult):
         print(service_result.message, file=sys.stderr)
@@ -1066,8 +1066,8 @@ def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
         _print_json(report)
     else:
         print(
-            f"arricchite {report['enriched']} note "
-            f"({report['failed_batches']} lotti falliti, {report['skipped']} saltate)"
+            f"enriched {report['enriched']} notes "
+            f"({report['failed_batches']} batches failed, {report['skipped']} skipped)"
         )
     return 0
 
@@ -1084,12 +1084,12 @@ def _cmd_verify_batch(
         _print_json(report)
         return 0
     print(
-        f"verificate {report['checked']} schede: {report['ok']} ok, "
-        f"{report['corrections_proposed']} correzioni proposte, "
-        f"{report['stale']} fonti stantie, {report['skipped']} saltate"
+        f"checked {report['checked']} notes: {report['ok']} ok, "
+        f"{report['corrections_proposed']} corrections proposed, "
+        f"{report['stale']} stale sources, {report['skipped']} skipped"
     )
     if report["corrections_proposed"] or report["stale"]:
-        print("rivedi con `talamus review list`")
+        print("review with `talamus review list`")
     return 0
 
 
@@ -1114,7 +1114,7 @@ def _cmd_verify(root: Path, title: str, do_apply: bool, llm: LLMProvider, json_o
         _print_json(result)
         return 0
     if not result.get("found"):
-        print(f"scheda non trovata: {title}", file=sys.stderr)
+        print(f"note not found: {title}", file=sys.stderr)
         return 1
     if not result.get("checked"):
         print(f"no source on disk to check for '{title}'")
@@ -1144,7 +1144,7 @@ def _cmd_overview(
         for name, brain_domains in collected:
             print(f"=== {name} ===")
             for domain in brain_domains:
-                print(f"## {domain['name']}  ({len(domain.get('members', []))} note)")
+                print(f"## {domain['name']}  ({len(domain.get('members', []))} notes)")
         return 0
     paths = TalamusPaths(root)
     if rebuild or not paths.overview_file.exists():
@@ -1154,7 +1154,7 @@ def _cmd_overview(
         if len(domains) >= TREE_THRESHOLD:
             areas = build_overview_tree(paths, llm)
             if areas and not json_out:
-                print(f"(mappa gerarchica: {len(areas)} macro-aree su {len(domains)} domini)")
+                print(f"(hierarchical map: {len(areas)} macro-areas over {len(domains)} domains)")
     else:
         domains = load_overview(paths)
     if json_out:
@@ -1164,7 +1164,7 @@ def _cmd_overview(
         print("no notes yet (ingest something first)")
         return 0
     for domain in domains:
-        print(f"## {domain['name']}  ({len(domain['members'])} note)")
+        print(f"## {domain['name']}  ({len(domain['members'])} notes)")
         if domain.get("description"):
             print(f"   {domain['description']}")
     return 0
@@ -1201,7 +1201,7 @@ def _cmd_ask(
                 }
             )
         if not items:
-            print(f"nessuna conoscenza nel brain alla data {as_of}")
+            print(f"no knowledge in the brain as of {as_of}")
             return 0
         answer = answer_from_items(question, items, llm, trace=trace)
         if json_out:
@@ -1252,7 +1252,7 @@ def _cmd_eval_scale(sizes_arg: str | None, json_out: bool) -> int:
     if json_out:
         _print_json(rows)
         return 0
-    print("| note | search p50 (ms) | search p95 (ms) | backend | bytes |")
+    print("| notes | search p50 (ms) | search p95 (ms) | backend | bytes |")
     for row in rows:
         print(
             f"| {row['n_notes']} | {row['search']['p50_ms']} | {row['search']['p95_ms']}"
@@ -1290,9 +1290,9 @@ def _cmd_remember(
         _print_json(result)
         return 0
     if result["skipped"]:
-        print("sessione saltata (sotto la soglia del gate)")
+        print("session skipped (below the gate threshold)")
     else:
-        print(f"ricordate {result['notes_written']} schede dalla sessione")
+        print(f"remembered {result['notes_written']} notes from the session")
     return 0
 
 
@@ -1321,7 +1321,7 @@ def _cmd_search(
         _print_json(results)
         return 0
     if not results:
-        print("nessuna scheda pertinente")
+        print("no relevant notes")
     for item in results:
         marker = "" if item.get("scope") == "[project]" else f"{item.get('scope', '')} "
         print(f"- {marker}{item['title']}: {item['summary']}")
@@ -1357,7 +1357,7 @@ def _cmd_read(root: Path, title: str, json_out: bool, as_of: str | None = None) 
         _print_json({"title": title, "found": data.found, "markdown": data.markdown})
         return 0 if read_result.success else 1
     if not read_result.success:
-        print(f"scheda non trovata: {title}", file=sys.stderr)
+        print(f"note not found: {title}", file=sys.stderr)
         return 1
     print(data.markdown)
     return 0
@@ -1368,18 +1368,18 @@ def _cmd_timeline(root: Path, title: str, json_out: bool) -> int:
     if json_out:
         _print_json(data)
         return 0
-    print(f"Timeline di '{title}'")
-    print("- storia delle transazioni (quando Talamus ha cambiato il record):")
+    print(f"Timeline of '{title}'")
+    print("- transaction history (when Talamus changed the record):")
     if not data["transaction"]:
-        print("  (nessuna versione)")
+        print("  (no versions)")
     for event in data["transaction"]:
         print(f"  [{event['at']}] {event['summary']}")
-    print("- validita' dei fatti (quando erano veri nel mondo rappresentato):")
+    print("- fact validity (when they were true in the represented world):")
     if not data["valid"]:
-        print("  (nessun claim registrato)")
+        print("  (no claims recorded)")
     for claim in data["valid"]:
         closed = f" -> {claim['to']}" if claim["to"] else ""
-        marker = f"  (invalidato da: {claim['invalidated_by']})" if claim["invalidated_by"] else ""
+        marker = f"  (invalidated by: {claim['invalidated_by']})" if claim["invalidated_by"] else ""
         print(f"  [{claim['from']}{closed}] {claim['text']}{marker}")
     return 0
 
@@ -1400,7 +1400,7 @@ def _cmd_history(root: Path, title: str, as_of: str | None, json_out: bool) -> i
         _print_json(versions)
         return 0
     if not versions:
-        print(f"scheda non trovata: {title}", file=sys.stderr)
+        print(f"note not found: {title}", file=sys.stderr)
         return 1
     for version in versions:
         print(f"[{version.get('updated_at', '?')}] {version.get('summary', '')}")
@@ -1440,7 +1440,7 @@ def _cmd_neighbors(root: Path, concept: str, json_out: bool) -> int:
         _print_json(items)
         return 0
     if not items:
-        print("nessun concetto collegato")
+        print("no connected concept")
         return 0
     for item in items:
         arrow = "->" if item["direction"] == "out" else "<-"
@@ -1494,8 +1494,8 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "examples:\n"
             "  talamus init --scan             brain here + repo scan plan (dry-run)\n"
-            '  talamus ask "come funziona X?"  cited answer from your notes\n'
-            "  talamus search ontologia --all-brains\n"
+            '  talamus ask "how does X work?"  cited answer from your notes\n'
+            "  talamus search ontology --all-brains\n"
             '  talamus ask "..." --as-of 2026-01 --trace\n'
             "  talamus ontology induce         grow the emergent type system"
         ),

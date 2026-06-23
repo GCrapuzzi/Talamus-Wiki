@@ -177,7 +177,7 @@ class CliVerifyBatchTests(unittest.TestCase):
             with redirect_stdout(out):
                 code = main(["verify", "--stale", "--root", tmp], llm=FakeLLMProvider([]))
             self.assertEqual(0, code)
-            self.assertIn("stantie", out.getvalue())
+            self.assertIn("stale sources", out.getvalue())
 
     def test_cli_verify_without_args_is_actionable(self) -> None:
         from contextlib import redirect_stderr

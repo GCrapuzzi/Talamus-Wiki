@@ -174,7 +174,7 @@ class TalamusCliTests(unittest.TestCase):
                 self.assertEqual(
                     0, main(["remember", "--transcript", str(transcript), "--root", tmp], llm=llm)
                 )
-            self.assertIn("ricordate", out.getvalue())
+            self.assertIn("remembered", out.getvalue())
 
     def test_neighbors_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -469,9 +469,9 @@ class CliSetupTests(unittest.TestCase):
                 self.assertTrue((Path(root) / "talamus.json").exists())
                 self.assertTrue((Path(root) / ".mcp.json").exists())
                 text = out.getvalue()
-                self.assertIn("Motori rilevati", text)
+                self.assertIn("Engines detected", text)
                 self.assertIn("Scan plan", text)
-                self.assertIn("memoria è viva", text)
+                self.assertIn("memory is alive", text)
                 # registered in the registry too
                 out2 = io.StringIO()
                 with redirect_stdout(out2):

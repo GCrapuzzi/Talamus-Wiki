@@ -105,7 +105,7 @@ class EnrichTests(unittest.TestCase):
             with redirect_stdout(out):
                 code = main(["enrich", "--yes", "--root", tmp], llm=FakeLLMProvider([answer]))
             self.assertEqual(0, code)
-            self.assertIn("arricchite 1", out.getvalue())
+            self.assertIn("enriched 1", out.getvalue())
 
 
 if __name__ == "__main__":
