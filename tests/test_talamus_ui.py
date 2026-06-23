@@ -357,6 +357,8 @@ class WorkbenchBuildersSmokeTests(unittest.TestCase):
 
         listed.assert_called_once_with(paths.project_root)
         rendered = self._rendered_text(control)
+        self.assertIn("Library summary", rendered)
+        self.assertIn("1 note", rendered)
         self.assertIn("Alpha", rendered)
         self.assertIn("2 sources", rendered)
         self.assertIn("1 relation", rendered)

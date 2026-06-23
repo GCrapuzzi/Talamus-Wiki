@@ -449,6 +449,7 @@ def build_notes(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
                 ],
                 spacing=4,
             ),
+            _library_summary_panel(notes),
             *cards,
         ],
         spacing=8,
@@ -458,6 +459,45 @@ def build_notes(paths: TalamusPaths, open_note: OpenNote) -> ft.Control:
 def _count_label(count: int, singular: str, plural: str | None = None) -> str:
     suffix = singular if count == 1 else plural or f"{singular}s"
     return f"{count} {suffix}"
+
+
+def _library_summary_panel(notes: Sequence[object]) -> ft.Control:
+    from talamus.ui import theme
+
+    source_count = sum(int(getattr(note, "source_count", 0) or 0) for note in notes)
+    relation_count = sum(int(getattr(note, "relation_count", 0) or 0) for note in notes)
+    proposed_count = sum(int(getattr(note, "proposed_link_count", 0) or 0) for note in notes)
+    low_confidence = sum(float(getattr(note, "confidence", 1.0) or 0.0) < 0.75 for note in notes)
+    return theme.panel(
+        ft.Column(
+            [
+                theme.section("Library summary"),
+                ft.Row(
+                    [
+                        theme.status_pill(_count_label(len(notes), "note"), "accent"),
+                        theme.status_pill(_count_label(source_count, "source"), "accent"),
+                        theme.status_pill(_count_label(relation_count, "relation"), "ready"),
+                        theme.status_pill(_count_label(proposed_count, "proposed link"), "warn"),
+                        theme.status_pill(
+                            _count_label(
+                                low_confidence,
+                                "low confidence note",
+                                "low confidence notes",
+                            ),
+                            "warn",
+                        ),
+                    ],
+                    wrap=True,
+                    spacing=8,
+                    run_spacing=6,
+                ),
+                theme.muted("Markdown truth with provenance, graph edges and review signals."),
+            ],
+            spacing=6,
+            tight=True,
+        ),
+        padding=12,
+    )
 
 
 def _note_card(note: LibraryNoteSummary, open_note: OpenNote) -> ft.Control:
