@@ -8,6 +8,22 @@ product stays embedding-free. Needs the `bench` extra.
 pip install -e ".[bench]"
 ```
 
+## Tiers
+
+Two speeds, so quality is guarded on every change without slowing the gate:
+
+- **FAST** — runs inside `python dev.py` in seconds, no network/LLM. Recall floors
+  guard retrieval quality on every change:
+  - `tests/test_talamus_recall_floor.py` — the docs corpus (Talamus's own docs).
+  - `tests/test_talamus_recall_floor_garden.py` — the **garden** corpus: six
+    unrelated domains (cooking, astronomy, law, history, biology, personal finance),
+    so a change must keep working across domains, not just on the repo's docs.
+  - Measured 2026-06-24: both floors run in **~2.8 s** combined.
+- **HEAVY** — opt in with `TALAMUS_BENCH_HEAVY=1` (download / LLM / scale); never in
+  the normal gate. Includes BEIR, mem0, vectordb, the adaptive floor, and
+  `tests/test_benchmarks_garden_enrich.py` (the real extract→enrich→ontology pipeline
+  on the garden corpus with a local model). The shootout below is also heavy.
+
 ## Retrieval shootout
 
 Head-to-head against competitors on the same judged corpus:
