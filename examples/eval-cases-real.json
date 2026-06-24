@@ -125,6 +125,21 @@
     { "id": "negative-007", "category": "negative", "question": "come collego talamus al mio database oracle aziendale?", "relevant": [] },
     { "id": "negative-008", "category": "negative", "question": "quale modello di intelligenza artificiale viene addestrato sui miei dati personali?", "relevant": [] },
     { "id": "negative-009", "category": "negative", "question": "come compro crediti gpu per accelerare l'indicizzazione?", "relevant": [] },
-    { "id": "negative-010", "category": "negative", "question": "dove scarico il certificato iso 27001 del prodotto?", "relevant": [] }
+    { "id": "negative-010", "category": "negative", "question": "dove scarico il certificato iso 27001 del prodotto?", "relevant": [] },
+    { "id": "negative-011", "category": "negative", "question": "qual è la capitale dell'Australia?", "relevant": [] },
+    { "id": "negative-012", "category": "negative", "question": "come si prepara una carbonara tradizionale?", "relevant": [] },
+    { "id": "negative-013", "category": "negative", "question": "chi ha vinto i mondiali di calcio del 2006?", "relevant": [] },
+    { "id": "negative-014", "category": "negative", "question": "che tempo farà domani a Milano?", "relevant": [] },
+    { "id": "negative-015", "category": "negative", "question": "come si cambia una gomma a terra dell'auto?", "relevant": [] },
+    { "id": "negative-016", "category": "negative", "question": "qual è la trama dell'Amleto di Shakespeare?", "relevant": [] },
+    { "id": "negative-017", "category": "negative", "question": "quante calorie ha una mela?", "relevant": [] },
+    { "id": "negative-018", "category": "negative", "question": "come ci si allena per una maratona?", "relevant": [] },
+    { "id": "negative-019", "category": "negative", "question": "qual è la distanza tra la Terra e la Luna?", "relevant": [] },
+    { "id": "negative-020", "category": "negative", "question": "come funziona il cambio automatico di un'auto?", "relevant": [] },
+    { "id": "negative-021", "category": "negative", "question": "quali sono gli ingredienti del tiramisù?", "relevant": [] },
+    { "id": "negative-022", "category": "negative", "question": "in che anno è caduto l'Impero Romano d'Occidente?", "relevant": [] },
+    { "id": "negative-023", "category": "negative", "question": "come si fa il nodo alla cravatta?", "relevant": [] },
+    { "id": "negative-024", "category": "negative", "question": "qual è il fiume più lungo del mondo?", "relevant": [] },
+    { "id": "negative-025", "category": "negative", "question": "come si cura un raffreddore comune?", "relevant": [] }
   ]
 }
