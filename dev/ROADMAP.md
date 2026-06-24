@@ -216,6 +216,16 @@ slow, so speed is a first-class requirement, not an afterthought.
 a third corpus exists; ablations on the extended corpora show **stable** signal across
 runs; heavy runs are gated and documented as on-demand; gate green.
 
+**Round 1 — DONE** (see [dev/specs/2026-06-24-p1.5-benchmark-corpora-design.md](specs/2026-06-24-p1.5-benchmark-corpora-design.md)
++ plan): the **garden corpus** (third local enriched brain) exists — 18 frozen CC0
+factual articles across 6 unrelated domains, a deterministic `build_garden_corpus`,
+33 judged cases, a FAST recall floor (recall@5 0.95, runs in ~0.7 s) and a HEAVY
+`TALAMUS_BENCH_HEAVY` test that drives the real extract→enrich→ontology pipeline on
+it. Docs negatives expanded 10→25. FAST/HEAVY tiers measured (~2.8 s combined) and
+documented in `benchmarks/README.md`. Gate green (528 tests, 5 skipped).
+**Round 2 (deferred):** a frozen post-enrich snapshot of the garden in the FAST tier;
+a public judged retrieval set (Wikipedia/Gutenberg).
+
 ### P2 — Engines = real subscriptions (the heart of the wedge)
 
 **Goal:** Talamus works perfectly on the engine the user *already has* (local gemma
