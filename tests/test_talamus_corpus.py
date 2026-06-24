@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from talamus.corpus import build_docs_corpus, build_synthetic_corpus
+from talamus.corpus import build_docs_corpus, build_garden_corpus, build_synthetic_corpus
 from talamus.paths import TalamusPaths
 from talamus.recall import search_notes
 from talamus.store import load_notes
@@ -51,6 +51,24 @@ class SyntheticCorpusTests(unittest.TestCase):
             text_a = sorted(p.read_text(encoding="utf-8") for p in Path(a, "notes").glob("*.md"))
             text_b = sorted(p.read_text(encoding="utf-8") for p in Path(b, "notes").glob("*.md"))
             self.assertEqual(text_a, text_b)
+
+
+class GardenCorpusTests(unittest.TestCase):
+    def test_builds_diverse_searchable_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            titles = build_garden_corpus(paths, _REPO_ROOT)
+            self.assertGreaterEqual(len(titles), 18)
+            self.assertEqual(len(titles), len(set(titles)))
+            self.assertTrue(paths.index_file.is_file())
+            results = search_notes(paths, "maillard browning seared")
+            self.assertTrue(any("Maillard" in r["title"] for r in results))
+
+    def test_garden_is_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            titles_a = build_garden_corpus(TalamusPaths(Path(a)), _REPO_ROOT)
+            titles_b = build_garden_corpus(TalamusPaths(Path(b)), _REPO_ROOT)
+            self.assertEqual(titles_a, titles_b)
 
 
 if __name__ == "__main__":

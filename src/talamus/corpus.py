@@ -123,17 +123,20 @@ def _note(
     )
 
 
-def build_docs_corpus(paths: TalamusPaths, repo_root: Path) -> list[str]:
-    """Compile the repo's documentation into a real, deterministic brain.
+def _compile_markdown_corpus(
+    paths: TalamusPaths, repo_root: Path, rel_paths: list[str]
+) -> list[str]:
+    """Compile a list of Markdown files into a real, deterministic brain.
 
-    Returns the created note titles (sorted). Notes carry real provenance
-    (file path + section locator) and part-of relations section -> document.
+    One note per ``##`` section plus a doc-level note. Notes carry real provenance
+    (file path + section locator) and part-of relations section -> document. Returns
+    the created note titles (sorted). No LLM calls — fully reproducible.
     """
     paths.ensure_directories()
     titles: list[str] = []
     seen: set[str] = set()
     notes: list[CanonicalNote] = []
-    for rel_path in DOC_FILES:
+    for rel_path in rel_paths:
         file_path = repo_root / rel_path
         if not file_path.is_file():
             continue
@@ -169,6 +172,21 @@ def build_docs_corpus(paths: TalamusPaths, repo_root: Path) -> list[str]:
         render_note_markdown(paths, note, registry)
     rebuild_indexes(paths)
     return sorted(titles)
+
+
+def build_docs_corpus(paths: TalamusPaths, repo_root: Path) -> list[str]:
+    """Compile the repo's documentation into a real, deterministic brain."""
+    return _compile_markdown_corpus(paths, repo_root, DOC_FILES)
+
+
+def build_garden_corpus(paths: TalamusPaths, repo_root: Path) -> list[str]:
+    """Compile the frozen, domain-diverse garden corpus into a real, deterministic
+    brain (the P1.5 anti-overfit corpus). Globs ``tests/fixtures/garden-corpus/*.md``."""
+    garden = sorted(
+        str(path.relative_to(repo_root)).replace("\\", "/")
+        for path in (repo_root / "tests" / "fixtures" / "garden-corpus").glob("*.md")
+    )
+    return _compile_markdown_corpus(paths, repo_root, garden)
 
 
 # Shared topic vocabulary for the synthetic notes; bench `_synthetic_queries`
