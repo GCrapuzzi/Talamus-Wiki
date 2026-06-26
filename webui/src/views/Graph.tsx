@@ -25,7 +25,11 @@ export function Graph() {
       ctx.fillStyle = "#0A0E14";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.save();
-      ctx.translate(ox + canvas.width / 2 - (g.width / 2) * scale, oy + canvas.height / 2 - (g.height / 2) * scale);
+      const xs = g.nodes.map((n) => n.x);
+      const ys = g.nodes.map((n) => n.y);
+      const cx = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : g.width / 2;
+      const cy = ys.length ? (Math.min(...ys) + Math.max(...ys)) / 2 : g.height / 2;
+      ctx.translate(ox + canvas.width / 2 - cx * scale, oy + canvas.height / 2 - cy * scale);
       ctx.scale(scale, scale);
       for (const e of g.edges) {
         const a = byId.get(e.source);
