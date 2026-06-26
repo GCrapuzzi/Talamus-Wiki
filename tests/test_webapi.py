@@ -28,6 +28,35 @@ class WebApiTests(unittest.TestCase):
         self.assertIn("data", body)
         self.assertEqual(body["data"]["notes"], 3)
 
+    def test_library_endpoint_lists_notes(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            create_demo_brain(TalamusPaths(Path(tmp)))
+            resp = self._client(Path(tmp)).get("/api/library")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(len(body["data"]["notes"]), 3)
+        titles = [n["title"] for n in body["data"]["notes"]]
+        self.assertIn("Embedding", titles)
+
+    def test_graph_endpoint_lays_out_notes(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            create_demo_brain(TalamusPaths(Path(tmp)))
+            resp = self._client(Path(tmp)).get("/api/graph")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()["data"]
+        self.assertGreaterEqual(len(data["nodes"]), 3)
+        node = data["nodes"][0]
+        for key in ("id", "label", "x", "y", "r"):
+            self.assertIn(key, node)
+        self.assertIsInstance(data["edges"], list)
+
 
 if __name__ == "__main__":
     unittest.main()
