@@ -405,6 +405,25 @@ as-of/verify/propose; the agent never blows its context window using Talamus.
 **Why:** the human half of the co-launch; the biggest gap vs the competition is UX,
 and the moats are invisible today.
 
+**PIVOT (2026-06-26) — the UI becomes a local WEB workbench (React).** After a viral +
+IDE-workbench brainstorm, the foundation moved from Flet to a **React + Vite + TS SPA**
+served by a thin **FastAPI bridge over `services/`** (P1's seam pays off), opened as a
+**native window via pywebview** (plug-and-play preserved; downloadable desktop-icon
+binary at release via PyInstaller; CLI/MCP stay zero-setup — the GUI is an optional
+`[ui]` extra). Identity = **"Aurora"** (electric indigo + cyan); the **living graph is
+the hero**. The Flet UI (codex's work) keeps running and its views/copy/tests are the
+**blueprint**; it is retired only at parity. The graph layout reuses `ui/physics.py`
+server-side. Spec + plan:
+[dev/specs/2026-06-26-p7-web-workbench-design.md](specs/2026-06-26-p7-web-workbench-design.md),
+[dev/plans/2026-06-26-p7-web-workbench-skeleton.md](plans/2026-06-26-p7-web-workbench-skeleton.md).
+**Walking skeleton DONE** (branch `feat/p7-web-workbench`): FastAPI bridge
+(`/api/readiness|library|graph`) + Aurora shell (activity-bar + tabs + sidebar +
+status-bar) + Home + Graph-hero on the real brain — verified in-browser (renders AND
+**screenshots cleanly**, unlike Flutter-web), gate green (563). **Remaining
+sub-projects:** port the other views with the new IA + explainability;
+multi-tab/command-palette; onboarding (novice↔expert); packaging + Flet retirement at
+parity. The "Anchor design" below stays the IA/copy reference for the port.
+
 **Anchor design:** build on **codex's UI-completion design**
 (`.superpowers/specs/2026-06-15-talamus-ui-completion-design.md`) — a strong,
 services-first, task-first plan (Home/Ask/Library/Import/Graph/Review/Ontology/
