@@ -24,7 +24,9 @@ CANVAS_W = 660.0
 CANVAS_H = 430.0
 _EDGE_RELATED = "#3A4148"
 _EDGE_TYPED = "#7E8A96"
-_NODE_DEFAULT = "#90A4AE"
+# Nodes are colored by domain; this is the fallback when a note has no domain yet
+# (the common early state). Use the accent so the graph looks intentional, not drab.
+_NODE_DEFAULT = "#5C8DFF"
 _LABEL = "#C8D2DA"
 
 # one animation at a time: bumping the generation stops the previous loop
