@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from talamus.services.library import list_library_notes
+from talamus.services.query import read_note
 from talamus.services.readiness import inspect_readiness
 from talamus.webapi.graph_layout import compute_note_graph
 
@@ -34,6 +35,10 @@ def create_app(root: Path) -> FastAPI:
     @app.get("/api/graph")
     def graph() -> dict:
         return {"success": True, "code": "graph_laid_out", "data": compute_note_graph(root)}
+
+    @app.get("/api/note")
+    def note(title: str) -> dict:
+        return read_note(root, title).to_dict()
 
     index = _STATIC / "index.html"
     if index.is_file():

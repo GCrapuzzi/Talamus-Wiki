@@ -57,6 +57,19 @@ class WebApiTests(unittest.TestCase):
             self.assertIn(key, node)
         self.assertGreaterEqual(len(data["edges"]), 1)
 
+    def test_note_endpoint_returns_markdown(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            create_demo_brain(TalamusPaths(Path(tmp)))
+            resp = self._client(Path(tmp)).get("/api/note", params={"title": "Embedding"})
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertTrue(body["data"]["found"])
+        self.assertIn("Embedding", body["data"]["markdown"])
+
     def test_root_serves_index_or_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             resp = self._client(Path(tmp)).get("/")

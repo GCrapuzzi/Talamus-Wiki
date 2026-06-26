@@ -6,7 +6,13 @@ const NAV = [
   { id: "library", label: "Library", icon: "▤" },
 ];
 
-export function Shell({ views }: { views: Record<string, ReactNode> }) {
+export function Shell({
+  views,
+  inspector,
+}: {
+  views: Record<string, ReactNode>;
+  inspector?: ReactNode;
+}) {
   const [active, setActive] = useState("home");
   const [openTabs, setOpenTabs] = useState<string[]>(["home"]);
   const open = (id: string) => {
@@ -15,7 +21,13 @@ export function Shell({ views }: { views: Record<string, ReactNode> }) {
   };
   const label = (id: string) => NAV.find((n) => n.id === id)?.label ?? id;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "56px 220px 1fr", height: "100vh" }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: inspector ? "56px 220px 1fr 340px" : "56px 220px 1fr",
+        height: "100vh",
+      }}
+    >
       <nav
         style={{
           background: "var(--surface)",
@@ -110,6 +122,17 @@ export function Shell({ views }: { views: Record<string, ReactNode> }) {
           <span>token cost visible</span>
         </footer>
       </main>
+      {inspector ? (
+        <aside
+          style={{
+            background: "var(--surface)",
+            borderLeft: "1px solid var(--border)",
+            overflow: "hidden",
+          }}
+        >
+          {inspector}
+        </aside>
+      ) : null}
     </div>
   );
 }

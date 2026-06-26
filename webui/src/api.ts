@@ -25,6 +25,8 @@ export type GraphData = {
 
 export type NoteSummary = { title: string; summary: string };
 
+export type NoteDetail = { title: string; found: boolean; markdown: string | null };
+
 async function get<T>(path: string): Promise<T> {
   const resp = await fetch(path);
   if (!resp.ok) throw new Error(`${path} -> ${resp.status}`);
@@ -35,4 +37,6 @@ export const api = {
   readiness: () => get<ServiceResult<Record<string, unknown>>>("/api/readiness"),
   library: () => get<ServiceResult<{ notes: NoteSummary[] }>>("/api/library"),
   graph: () => get<ServiceResult<GraphData>>("/api/graph"),
+  note: (title: string) =>
+    get<ServiceResult<NoteDetail>>(`/api/note?title=${encodeURIComponent(title)}`),
 };
