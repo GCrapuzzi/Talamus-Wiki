@@ -38,6 +38,19 @@ export type ReviewItem = {
   detail: Record<string, unknown>;
 };
 
+export type AskSource = { title: string; summary: string };
+
+export type AskResult = {
+  question: string;
+  answer: string;
+  answered: boolean;
+  engine: string;
+  route: string;
+  context_tokens: number;
+  notice: string;
+  sources: AskSource[];
+};
+
 async function get<T>(path: string): Promise<T> {
   const resp = await fetch(path);
   if (!resp.ok) throw new Error(`${path} -> ${resp.status}`);
@@ -66,4 +79,5 @@ export const api = {
     post<ServiceResult<ReviewItem>>(`/api/review/${encodeURIComponent(id)}/apply`),
   rejectReview: (id: string, reason = "") =>
     post<ServiceResult<ReviewItem>>(`/api/review/${encodeURIComponent(id)}/reject`, { reason }),
+  ask: (question: string) => post<ServiceResult<AskResult>>("/api/ask", { question }),
 };

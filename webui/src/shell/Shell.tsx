@@ -2,6 +2,7 @@ import { useState, ReactNode } from "react";
 
 const NAV = [
   { id: "home", label: "Home", icon: "⌂", tip: "Home — readiness & command center" },
+  { id: "ask", label: "Ask", icon: "✦", tip: "Ask — question your memory, get a cited answer" },
   { id: "graph", label: "Graph", icon: "✸", tip: "Graph — the living constellation of notes" },
   { id: "library", label: "Library", icon: "▤", tip: "Library — browse every note" },
   { id: "review", label: "Review", icon: "✓", tip: "Review — approve or reject proposed changes" },

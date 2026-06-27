@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Shell } from "./shell/Shell";
 import { Inspector } from "./shell/Inspector";
 import { Home } from "./views/Home";
+import { Ask } from "./views/Ask";
 import { Graph } from "./views/Graph";
 import { Library } from "./views/Library";
 import { Review } from "./views/Review";
@@ -13,6 +14,7 @@ export default function App() {
     <Shell
       views={{
         home: <Home />,
+        ask: <Ask onOpenNote={setNote} />,
         graph: <Graph onOpenNote={setNote} />,
         library: <Library />,
         review: <Review onOpenNote={setNote} />,
