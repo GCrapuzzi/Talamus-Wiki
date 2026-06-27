@@ -70,6 +70,58 @@ class WebApiTests(unittest.TestCase):
         self.assertTrue(body["data"]["found"])
         self.assertIn("Embedding", body["data"]["markdown"])
 
+    def _seed_review(self, root: Path, kind: str, title: str, detail: dict) -> str:
+        from talamus.paths import TalamusPaths
+        from talamus.review import ReviewQueue
+
+        return ReviewQueue(TalamusPaths(root)).add(kind, title, detail).item_id
+
+    def test_review_endpoint_lists_pending_items(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._seed_review(root, "correction", "Fix the RAG note", {"title": "RAG"})
+            resp = self._client(root).get("/api/review")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(len(body["data"]), 1)
+        item = body["data"][0]
+        for key in ("item_id", "kind", "title", "status", "created_at", "detail"):
+            self.assertIn(key, item)
+        self.assertEqual(item["kind"], "correction")
+        self.assertEqual(item["status"], "pending")
+        self.assertEqual(item["detail"]["title"], "RAG")
+
+    def test_review_apply_endpoint_resolves_item(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            item_id = self._seed_review(
+                root, "low_confidence_note", "Maybe a note", {"reason": "confidence 0.3"}
+            )
+            client = self._client(root)
+            resp = client.post(f"/api/review/{item_id}/apply")
+            listed = client.get("/api/review").json()
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["data"]["status"], "applied")
+        self.assertEqual(listed["data"], [])  # no longer pending
+
+    def test_review_reject_endpoint_records_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            item_id = self._seed_review(
+                root, "stale_source", "Old source", {"reason": "hash changed"}
+            )
+            resp = self._client(root).post(
+                f"/api/review/{item_id}/reject", json={"reason": "still valid"}
+            )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["data"]["status"], "rejected")
+        self.assertEqual(body["data"]["resolution"], "still valid")
+
     def test_root_serves_index_or_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             resp = self._client(Path(tmp)).get("/")

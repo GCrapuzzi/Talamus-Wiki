@@ -13,6 +13,11 @@ from fastapi.staticfiles import StaticFiles
 from talamus.services.library import list_library_notes
 from talamus.services.query import read_note
 from talamus.services.readiness import inspect_readiness
+from talamus.services.review import (
+    apply_review_item,
+    list_review_items,
+    reject_review_item,
+)
 from talamus.webapi.graph_layout import compute_note_graph
 
 _STATIC = Path(__file__).parent / "static"
@@ -39,6 +44,19 @@ def create_app(root: Path) -> FastAPI:
     @app.get("/api/note")
     def note(title: str) -> dict:
         return read_note(root, title).to_dict()
+
+    @app.get("/api/review")
+    def review(status: str = "pending") -> dict:
+        return list_review_items(root, status=status).to_dict()
+
+    @app.post("/api/review/{item_id}/apply")
+    def review_apply(item_id: str) -> dict:
+        return apply_review_item(root, item_id).to_dict()
+
+    @app.post("/api/review/{item_id}/reject")
+    def review_reject(item_id: str, payload: dict | None = None) -> dict:
+        reason = str((payload or {}).get("reason", ""))
+        return reject_review_item(root, item_id, reason).to_dict()
 
     index = _STATIC / "index.html"
     if index.is_file():
