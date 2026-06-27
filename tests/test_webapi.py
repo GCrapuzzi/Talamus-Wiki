@@ -122,6 +122,33 @@ class WebApiTests(unittest.TestCase):
         self.assertEqual(body["data"]["status"], "rejected")
         self.assertEqual(body["data"]["resolution"], "still valid")
 
+    def test_ask_endpoint_rejects_empty_question(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            resp = self._client(Path(tmp)).post("/api/ask", json={"question": "  "})
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertFalse(body["success"])
+        self.assertEqual("ask_empty", body["code"])
+
+    def test_ask_endpoint_degrades_to_sources_without_engine(self) -> None:
+        from unittest.mock import patch
+
+        from talamus.demo import create_demo_brain
+        from talamus.errors import EngineNotFound
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_demo_brain(TalamusPaths(root))
+            with patch("talamus.services.ask.build_provider", side_effect=EngineNotFound("none")):
+                resp = self._client(root).post("/api/ask", json={"question": "what is reranking?"})
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual("ask_no_engine", body["code"])
+        self.assertFalse(body["data"]["answered"])
+        self.assertTrue(body["data"]["sources"])
+
     def test_root_serves_index_or_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             resp = self._client(Path(tmp)).get("/")

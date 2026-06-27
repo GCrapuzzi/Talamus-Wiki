@@ -1,0 +1,147 @@
+"""Ask the brain a question and get a written, cited answer (the magic moment).
+
+The synthesis lives in core ``talamus.ask.answer_question``; this service wraps it
+with engine resolution and a graceful fallback so the bridge/CLI/MCP share one seam.
+Retrieval (``search_brain``) is deterministic and always runs, so even with no engine
+the caller still gets the most relevant notes — the answer is the only thing that
+needs an LLM. Engine failures (unconfigured, missing binary, runtime error) degrade
+to the retrieval view instead of raising."""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
+
+from talamus.adapters.llm import ENGINE_LABELS, LLMProvider, build_provider
+from talamus.ask import answer_question
+from talamus.config import load_or_default
+from talamus.errors import EngineFailed, EngineNotFound
+from talamus.paths import TalamusPaths
+from talamus.services.query import search_brain
+from talamus.services.result import ServiceResult
+
+
+@dataclass(frozen=True)
+class AskSource:
+    title: str
+    summary: str
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class AskResult:
+    question: str
+    answer: str  # the synthesized, cited answer ("" when no engine answered)
+    answered: bool  # True only when an engine produced the answer
+    engine: str  # human label, e.g. "Claude CLI"
+    route: str  # how the context was found ("overview"/"index"/…) when answered
+    context_tokens: int  # context size fed to the engine when answered
+    notice: str  # human note shown when the answer was skipped/degraded
+    sources: list[AskSource] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["sources"] = [source.to_dict() for source in self.sources]
+        return payload
+
+
+def ask_brain(
+    root: str | Path,
+    question: str,
+    *,
+    provider: LLMProvider | None = None,
+) -> ServiceResult[AskResult]:
+    paths = TalamusPaths(Path(root))
+    text = (question or "").strip()
+    if not text:
+        return ServiceResult(success=False, message="Ask a question first.", code="ask_empty")
+
+    sources = _retrieve_sources(root, text)
+    engine_label = "engine"
+
+    if provider is None:
+        config = load_or_default(paths.config_path)
+        engine_label = _engine_label(config.llm_provider, config.llm_model)
+        try:
+            provider = build_provider(config.llm_provider, config.llm_model)
+        except EngineNotFound:
+            return _degraded(
+                text,
+                sources,
+                engine="",
+                notice=(
+                    "No engine connected — showing the most relevant notes. Run "
+                    "`talamus setup` to connect one and get a written, cited answer."
+                ),
+                code="ask_no_engine",
+            )
+    else:
+        engine_label = getattr(provider, "label", "engine")
+
+    trace: dict[str, Any] = {}
+    try:
+        answer = answer_question(paths, text, provider, trace=trace)
+    except (EngineNotFound, EngineFailed) as exc:
+        return _degraded(
+            text,
+            sources,
+            engine=engine_label,
+            notice=f"Engine {engine_label} is unavailable ({exc}). Showing relevant notes.",
+            code="ask_engine_unavailable",
+        )
+
+    return ServiceResult(
+        success=True,
+        message="Answer ready",
+        code="ask_answered",
+        data=AskResult(
+            question=text,
+            answer=answer,
+            answered=True,
+            engine=engine_label,
+            route=str(trace.get("route", "")),
+            context_tokens=int(trace.get("context_tokens", 0)),
+            notice="",
+            sources=sources,
+        ),
+    )
+
+
+def _retrieve_sources(root: str | Path, question: str) -> list[AskSource]:
+    result = search_brain(root, question, limit=5)
+    if not result.success or result.data is None:
+        return []
+    return [AskSource(title=hit.title, summary=hit.summary) for hit in result.data.hits]
+
+
+def _engine_label(provider: str, model: str) -> str:
+    label = ENGINE_LABELS.get(provider, provider) or "—"
+    return f"{label} · {model}" if model else label
+
+
+def _degraded(
+    question: str,
+    sources: list[AskSource],
+    *,
+    engine: str,
+    notice: str,
+    code: str,
+) -> ServiceResult[AskResult]:
+    return ServiceResult(
+        success=True,
+        message=notice,
+        code=code,
+        data=AskResult(
+            question=question,
+            answer="",
+            answered=False,
+            engine=engine,
+            route="retrieval",
+            context_tokens=0,
+            notice=notice,
+            sources=sources,
+        ),
+    )

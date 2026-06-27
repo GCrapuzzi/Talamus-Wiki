@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from talamus.services.ask import ask_brain
 from talamus.services.library import list_library_notes
 from talamus.services.query import read_note
 from talamus.services.readiness import inspect_readiness
@@ -44,6 +45,11 @@ def create_app(root: Path) -> FastAPI:
     @app.get("/api/note")
     def note(title: str) -> dict:
         return read_note(root, title).to_dict()
+
+    @app.post("/api/ask")
+    def ask(payload: dict | None = None) -> dict:
+        question = str((payload or {}).get("question", ""))
+        return ask_brain(root, question).to_dict()
 
     @app.get("/api/review")
     def review(status: str = "pending") -> dict:
