@@ -149,6 +149,73 @@ class WebApiTests(unittest.TestCase):
         self.assertFalse(body["data"]["answered"])
         self.assertTrue(body["data"]["sources"])
 
+    def _seed_ontology_candidate(self, root: Path, type_id: str, name: str) -> str:
+        from talamus.ontology_lab import RelationType, load_schema, save_schema
+        from talamus.paths import TalamusPaths
+
+        paths = TalamusPaths(root)
+        schema = load_schema(paths)
+        schema.relation_types.append(
+            RelationType(
+                id=type_id,
+                name=name,
+                definition=f"{name}: A relates to B",
+                examples=[f"RAG {name} fine-tuning"],
+                support=3,
+                distinct_notes=2,
+                confidence=0.62,
+                status="candidate",
+            )
+        )
+        save_schema(paths, schema)
+        return type_id
+
+    def test_ontology_status_endpoint_returns_coverage(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            create_demo_brain(TalamusPaths(Path(tmp)))
+            resp = self._client(Path(tmp)).get("/api/ontology/status")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        for key in ("schema_id", "version", "coverage"):
+            self.assertIn(key, body["data"])
+
+    def test_ontology_candidates_listed_and_promoted(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_demo_brain(TalamusPaths(root))
+            type_id = self._seed_ontology_candidate(root, "rel:contrasts", "contrasts")
+            client = self._client(root)
+            listed = client.get("/api/ontology/types", params={"status": "candidate"}).json()
+            promoted = client.post(f"/api/ontology/{type_id}/promote")
+            after = client.get("/api/ontology/types", params={"status": "active"}).json()
+        self.assertEqual(len(listed["data"]), 1)
+        self.assertEqual(listed["data"][0]["name"], "contrasts")
+        self.assertEqual(promoted.status_code, 200)
+        self.assertTrue(promoted.json()["success"])
+        self.assertIn("contrasts", [t["name"] for t in after["data"]])
+
+    def test_ontology_reject_endpoint_records_decision(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_demo_brain(TalamusPaths(root))
+            type_id = self._seed_ontology_candidate(root, "rel:echoes", "echoes")
+            resp = self._client(root).post(
+                f"/api/ontology/{type_id}/reject", json={"reason": "too vague"}
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["success"])
+        self.assertEqual("rejected", resp.json()["data"]["action"])
+
     def test_root_serves_index_or_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             resp = self._client(Path(tmp)).get("/")

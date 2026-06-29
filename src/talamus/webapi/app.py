@@ -12,6 +12,12 @@ from fastapi.staticfiles import StaticFiles
 
 from talamus.services.ask import ask_brain
 from talamus.services.library import list_library_notes
+from talamus.services.ontology import (
+    apply_ontology_candidate,
+    get_ontology_status,
+    list_ontology_candidates,
+    reject_ontology_candidate,
+)
 from talamus.services.query import read_note
 from talamus.services.readiness import inspect_readiness
 from talamus.services.review import (
@@ -63,6 +69,23 @@ def create_app(root: Path) -> FastAPI:
     def review_reject(item_id: str, payload: dict | None = None) -> dict:
         reason = str((payload or {}).get("reason", ""))
         return reject_review_item(root, item_id, reason).to_dict()
+
+    @app.get("/api/ontology/status")
+    def ontology_status() -> dict:
+        return get_ontology_status(root).to_dict()
+
+    @app.get("/api/ontology/types")
+    def ontology_types(status: str = "candidate") -> dict:
+        return list_ontology_candidates(root, status=status).to_dict()
+
+    @app.post("/api/ontology/{type_id}/promote")
+    def ontology_promote(type_id: str) -> dict:
+        return apply_ontology_candidate(root, type_id, force=True).to_dict()
+
+    @app.post("/api/ontology/{type_id}/reject")
+    def ontology_reject(type_id: str, payload: dict | None = None) -> dict:
+        reason = str((payload or {}).get("reason", ""))
+        return reject_ontology_candidate(root, type_id, reason=reason).to_dict()
 
     index = _STATIC / "index.html"
     if index.is_file():
