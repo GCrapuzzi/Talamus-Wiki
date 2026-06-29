@@ -27,6 +27,43 @@ export type NoteSummary = { title: string; summary: string };
 
 export type NoteDetail = { title: string; found: boolean; markdown: string | null };
 
+export type IngestPreview = {
+  target: string;
+  target_type: string;
+  chars: number;
+  chunks: number;
+  est_llm_calls: number;
+  est_input_tokens: number;
+  requires_confirmation: boolean;
+};
+
+export type IngestRunResult = {
+  target: string;
+  notes_written: number;
+  source: string;
+  files: number | null;
+  skipped: number | null;
+  chunks: number | null;
+};
+
+export type ScanPreview = {
+  target_root: string;
+  profile: string;
+  files: number;
+  skipped: number;
+  total_bytes: number;
+  est_tokens: number;
+  est_llm_calls: number;
+  secret_files: string[];
+};
+
+export type ScanActionResult = {
+  target_root: string;
+  state: string;
+  files: number;
+  notes_written: number;
+};
+
 export type ReviewItem = {
   item_id: string;
   kind: string;
@@ -165,4 +202,17 @@ export const api = {
     post<ServiceResult<unknown>>(`/api/ontology/${encodeURIComponent(id)}/promote`),
   rejectOntology: (id: string, reason = "") =>
     post<ServiceResult<unknown>>(`/api/ontology/${encodeURIComponent(id)}/reject`, { reason }),
+  importPreview: (target: string) =>
+    post<ServiceResult<IngestPreview>>("/api/import/preview", { target }),
+  importRun: (target: string, confirmed: boolean) =>
+    post<ServiceResult<IngestPreview | IngestRunResult>>("/api/import/run", { target, confirmed }),
+  importText: (text: string) => post<ServiceResult<IngestRunResult>>("/api/import/text", { text }),
+  scanPreview: (target: string) =>
+    post<ServiceResult<ScanPreview>>("/api/scan/preview", { target }),
+  scanRun: (target: string, confirmed: boolean, allow_secrets: boolean) =>
+    post<ServiceResult<ScanPreview | ScanActionResult>>("/api/scan/run", {
+      target,
+      confirmed,
+      allow_secrets,
+    }),
 };

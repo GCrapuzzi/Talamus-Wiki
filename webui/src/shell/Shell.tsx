@@ -5,6 +5,7 @@ const NAV = [
   { id: "ask", label: "Ask", icon: "✦", tip: "Ask — question your memory, get a cited answer" },
   { id: "graph", label: "Graph", icon: "✸", tip: "Graph — the living constellation of notes" },
   { id: "library", label: "Library", icon: "▤", tip: "Library — browse every note" },
+  { id: "import", label: "Import", icon: "⊕", tip: "Import — bring documents into your brain" },
   { id: "ontology", label: "Ontology", icon: "❖", tip: "Ontology — the schema that emerges from your notes" },
   { id: "review", label: "Review", icon: "✓", tip: "Review — approve or reject proposed changes" },
   { id: "brains", label: "Brains", icon: "⊞", tip: "Brains — the registry of local brains & scope" },

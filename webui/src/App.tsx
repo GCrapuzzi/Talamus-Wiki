@@ -6,6 +6,7 @@ import { Home } from "./views/Home";
 import { Ask } from "./views/Ask";
 import { Graph } from "./views/Graph";
 import { Library } from "./views/Library";
+import { Import } from "./views/Import";
 import { Ontology } from "./views/Ontology";
 import { Review } from "./views/Review";
 import { Brains } from "./views/Brains";
@@ -20,6 +21,7 @@ export default function App() {
         ask: <Ask onOpenNote={setNote} />,
         graph: <Graph onOpenNote={setNote} />,
         library: <Library />,
+        import: <Import />,
         ontology: <Ontology />,
         review: <Review onOpenNote={setNote} />,
         brains: <Brains />,
