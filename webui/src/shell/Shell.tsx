@@ -1,4 +1,5 @@
 import { useState, ReactNode } from "react";
+import { ActiveBrain } from "../api";
 
 const NAV = [
   { id: "home", label: "Home", icon: "⌂", tip: "Home — readiness & command center" },
@@ -15,9 +16,11 @@ const NAV = [
 export function Shell({
   views,
   inspector,
+  activeBrain,
 }: {
   views: Record<string, ReactNode>;
   inspector?: ReactNode;
+  activeBrain?: ActiveBrain | null;
 }) {
   const [active, setActive] = useState("home");
   const [openTabs, setOpenTabs] = useState<string[]>(["home"]);
@@ -76,11 +79,42 @@ export function Shell({
         <div style={{ fontWeight: 500, fontSize: 18 }}>
           Talamus<span style={{ color: "var(--accent)" }}>●</span>
         </div>
+        <button
+          onClick={() => open("brains")}
+          title="Switch brain"
+          style={{
+            display: "block",
+            width: "100%",
+            textAlign: "left",
+            marginTop: 14,
+            padding: "8px 10px",
+            borderRadius: 8,
+            cursor: "pointer",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            color: "var(--text)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ color: "var(--accent-2)", fontSize: 12 }}>⊞</span>
+            <span style={{ fontWeight: 500, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {activeBrain ? activeBrain.name : "—"}
+            </span>
+            <span style={{ marginLeft: "auto", color: "var(--muted)", fontSize: 11 }}>▾</span>
+          </div>
+          <div style={{ color: "var(--muted)", fontSize: 11, marginTop: 2 }}>
+            {activeBrain
+              ? activeBrain.initialized
+                ? `${activeBrain.notes} notes · switch brain`
+                : "not initialized · switch brain"
+              : "switch brain"}
+          </div>
+        </button>
         <div
           style={{
             color: "var(--muted)",
             fontSize: 12,
-            marginTop: 12,
+            marginTop: 14,
             textTransform: "uppercase",
             letterSpacing: 0.5,
           }}

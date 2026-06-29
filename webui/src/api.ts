@@ -100,6 +100,8 @@ export type BrainList = {
   unregistered: UnregisteredBrain[];
 };
 
+export type ActiveBrain = { path: string; name: string; initialized: boolean; notes: number };
+
 export type DiagnosticCheck = {
   check_id: string;
   label: string;
@@ -195,6 +197,9 @@ export const api = {
   ask: (question: string) => post<ServiceResult<AskResult>>("/api/ask", { question }),
   diagnostics: () => get<ServiceResult<Diagnostics>>("/api/diagnostics"),
   brains: () => get<ServiceResult<BrainList>>("/api/brains"),
+  getActive: () => get<ServiceResult<ActiveBrain>>("/api/active"),
+  setActiveBrain: (body: { name?: string; path?: string }) =>
+    post<ServiceResult<ActiveBrain>>("/api/active", body),
   ontologyStatus: () => get<ServiceResult<OntologyStatus>>("/api/ontology/status"),
   ontologyTypes: (status = "candidate") =>
     get<ServiceResult<OntologyType[]>>(`/api/ontology/types?status=${encodeURIComponent(status)}`),
