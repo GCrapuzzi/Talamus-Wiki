@@ -113,6 +113,48 @@ def register_existing_brain(
     )
 
 
+def init_brain(
+    root: str | Path,
+    name: str | None = None,
+    brain_type: str = "project",
+    home: Path | None = None,
+) -> ServiceResult[BrainItem]:
+    """Create a brand-new brain at ``root`` (mkdir the layout + write config), then
+    register and select it. Mirrors ``talamus init`` so the web UI can scaffold a
+    vault without dropping to the CLI."""
+    from dataclasses import replace
+
+    from talamus.config import TalamusConfig, save_config
+    from talamus.paths import TalamusPaths
+    from talamus.services.engines import choose_default_engine
+
+    if brain_type not in BRAIN_TYPES:
+        return ServiceResult(
+            success=False,
+            message=f"Brain type must be one of {BRAIN_TYPES}, got {brain_type!r}",
+            code="brain_type_invalid",
+        )
+    paths = TalamusPaths(Path(root))
+    try:
+        paths.ensure_directories()
+        if not paths.config_path.exists():
+            save_config(
+                paths.config_path,
+                replace(TalamusConfig.default(), llm_provider=choose_default_engine()),
+            )
+        info = register_brain(Path(root).resolve(), name=name, brain_type=brain_type, home=home)
+        select_brain(info.name, home=home)
+        registry = load_registry(home)
+    except (OSError, TypeError, ValueError, AttributeError) as exc:
+        return _registry_error(exc)
+    return ServiceResult(
+        success=True,
+        message=f"Brain initialized at {root}",
+        code="brain_initialized",
+        data=_brain_item(info, registry.selected),
+    )
+
+
 def select_registered_brain(name: str, home: Path | None = None) -> ServiceResult[dict[str, str]]:
     try:
         ok = select_brain(name, home=home)

@@ -16,7 +16,7 @@ from talamus.errors import EngineNotFound
 from talamus.paths import TalamusPaths
 from talamus.registry import load_registry, register_brain, select_brain
 from talamus.services.ask import ask_brain
-from talamus.services.brains import list_brains
+from talamus.services.brains import init_brain, list_brains
 from talamus.services.diagnostics import inspect_diagnostics
 from talamus.services.ingestion import ingest_raw_text, preview_ingest, run_ingest
 from talamus.services.library import list_library_notes
@@ -129,43 +129,64 @@ def create_app(root: Path) -> FastAPI:
         data = payload or {}
         name = str(data.get("name", "")).strip()
         path = str(data.get("path", "")).strip()
-        if name:
-            info = load_registry().by_name(name)
-            if info is None:
+        try:
+            if name:
+                info = load_registry().by_name(name)
+                if info is None:
+                    return {
+                        "success": False,
+                        "code": "brain_not_found",
+                        "message": f"No brain named {name!r}",
+                    }
+                target = Path(info.root())
+                select_brain(name)
+            elif path:
+                target = Path(path).expanduser()
+                if not target.is_dir():
+                    return {
+                        "success": False,
+                        "code": "brain_path_missing",
+                        "message": f"Folder not found: {path}",
+                    }
+                if not (target / "talamus.json").is_file():
+                    return {
+                        "success": False,
+                        "code": "brain_not_initialized",
+                        "message": "No talamus.json here — create a new brain instead.",
+                    }
+                target = target.resolve()
+                registry = load_registry()
+                existing = registry.by_path(target)
+                chosen = existing if existing is not None else register_brain(target)
+                select_brain(chosen.name)
+            else:
                 return {
                     "success": False,
-                    "code": "brain_not_found",
-                    "message": f"No brain named {name!r}",
+                    "code": "brain_target_missing",
+                    "message": "Provide a brain name or a folder path.",
                 }
-            target = Path(info.root())
-            select_brain(name)
-        elif path:
-            target = Path(path).expanduser()
-            if not target.is_dir():
-                return {
-                    "success": False,
-                    "code": "brain_path_missing",
-                    "message": f"Folder not found: {path}",
-                }
-            if not (target / "talamus.json").is_file():
-                return {
-                    "success": False,
-                    "code": "brain_not_initialized",
-                    "message": "No talamus.json here. Run `talamus init` in that folder first.",
-                }
-            target = target.resolve()
-            registry = load_registry()
-            existing = registry.by_path(target)
-            chosen = existing if existing is not None else register_brain(target)
-            select_brain(chosen.name)
-        else:
+        except (OSError, TypeError, ValueError, AttributeError) as exc:
+            return {"success": False, "code": "brain_switch_error", "message": str(exc)}
+        root = target
+        return {"success": True, "code": "brain_activated", "data": _brain_summary(root)}
+
+    @app.post("/api/brains/init")
+    def brains_init(payload: dict | None = None) -> dict:
+        """Create + initialize a brand-new brain at a folder, then switch to it."""
+        nonlocal root
+        data = payload or {}
+        path = str(data.get("path", "")).strip()
+        name = str(data.get("name", "")).strip() or None
+        if not path:
             return {
                 "success": False,
                 "code": "brain_target_missing",
-                "message": "Provide a brain name or a folder path.",
+                "message": "Provide a folder path for the new brain.",
             }
-        root = target
-        return {"success": True, "code": "brain_activated", "data": _brain_summary(root)}
+        result = init_brain(Path(path).expanduser(), name=name)
+        if result.success:
+            root = Path(path).expanduser().resolve()
+        return result.to_dict()
 
     @app.post("/api/import/preview")
     def import_preview(payload: dict | None = None) -> dict:

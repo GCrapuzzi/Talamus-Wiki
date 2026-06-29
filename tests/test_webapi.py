@@ -372,6 +372,27 @@ class WebApiTests(unittest.TestCase):
         self.assertFalse(body["success"])
         self.assertEqual(body["code"], "brain_not_initialized")
 
+    def test_init_endpoint_creates_and_switches_to_new_brain(self) -> None:
+        import os
+        from unittest.mock import patch
+
+        with (
+            tempfile.TemporaryDirectory() as home,
+            tempfile.TemporaryDirectory() as start,
+            tempfile.TemporaryDirectory() as parent,
+        ):
+            fresh = Path(parent) / "new_brain"  # does not exist yet
+            client = self._client(Path(start))
+            with patch.dict(os.environ, {"TALAMUS_HOME": home}):
+                created = client.post("/api/brains/init", json={"path": str(fresh)}).json()
+                now = client.get("/api/active").json()
+            # assert while the temp dir still exists
+            self.assertTrue(created["success"])
+            self.assertEqual(created["code"], "brain_initialized")
+            self.assertTrue((fresh / "talamus.json").is_file())  # really initialized on disk
+            self.assertTrue(now["data"]["initialized"])
+            self.assertEqual(Path(now["data"]["path"]), fresh.resolve())
+
     def test_root_serves_index_or_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             resp = self._client(Path(tmp)).get("/")
