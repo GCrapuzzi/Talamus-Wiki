@@ -216,6 +216,34 @@ class WebApiTests(unittest.TestCase):
         self.assertTrue(resp.json()["success"])
         self.assertEqual("rejected", resp.json()["data"]["action"])
 
+    def test_diagnostics_endpoint_reports_healthy_demo(self) -> None:
+        from talamus.config import TalamusConfig, save_config
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = TalamusPaths(Path(tmp))
+            create_demo_brain(paths)
+            save_config(paths.config_path, TalamusConfig.default())
+            resp = self._client(Path(tmp)).get("/api/diagnostics")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        data = body["data"]
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["notes"], 3)
+        self.assertEqual(data["index_backend"], "sqlite-fts5")
+        self.assertTrue(any(c["label"] == "Config" for c in data["checks"]))
+
+    def test_diagnostics_endpoint_flags_uninitialized_brain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            resp = self._client(Path(tmp)).get("/api/diagnostics")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertFalse(body["success"])
+        self.assertEqual("diagnostics_not_initialized", body["code"])
+        self.assertIn("checks", body["data"])
+
     def test_root_serves_index_or_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             resp = self._client(Path(tmp)).get("/")
