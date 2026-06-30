@@ -281,6 +281,25 @@ button {
   color: var(--accent-1);
 }
 
+/* compact icon button (inspector header, etc.) */
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 /* clickable note row (Library) */
 .note-row {
   display: block;

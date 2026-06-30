@@ -1,17 +1,30 @@
 import { useEffect, useRef, useState } from "react";
-import { api, GraphData, GraphNode } from "../api";
+import {
+  forceSimulation,
+  forceManyBody,
+  forceLink,
+  forceCenter,
+  forceCollide,
+  forceX,
+  forceY,
+  type SimulationNodeDatum,
+} from "d3-force";
+import { api, GraphData } from "../api";
 
-const LOW: [number, number, number] = [120, 104, 235]; // indigo (leaves)
-const HIGH: [number, number, number] = [176, 214, 255]; // bright (hubs)
+type SNode = SimulationNodeDatum & { id: string; label: string; degree: number };
+type SLink = { source: string | SNode; target: string | SNode; typed: boolean };
+
+const LOW = [120, 104, 235];
+const HIGH = [176, 214, 255];
 const mix = (a: number[], b: number[], t: number) =>
   `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)})`;
-const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+const asNode = (v: string | SNode) => v as SNode;
 
 export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [g, setG] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
-  const view = useRef({ scale: 1, ox: 0, oy: 0, drag: false, px: 0, py: 0, moved: 0, fitted: false });
+  const view = useRef({ scale: 1, ox: 0, oy: 0, drag: false, px: 0, py: 0, moved: 0, autofit: true });
   const hover = useRef<string | null>(null);
 
   useEffect(() => {
@@ -19,7 +32,7 @@ export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) 
     api
       .graph()
       .then((r) => setG(r.data))
-      .catch(() => setG({ nodes: [], edges: [], width: 900, height: 600 }))
+      .catch(() => setG({ nodes: [], edges: [] }))
       .finally(() => setLoading(false));
   }, []);
 
@@ -29,63 +42,44 @@ export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) 
     const ctx = canvas.getContext("2d")!;
 
     const maxDeg = Math.max(1, ...g.nodes.map((n) => n.degree));
-    // derived radius for a stronger hub/leaf hierarchy
-    const radius = new Map<string, number>();
-    const ratio = new Map<string, number>();
-    const order = new Map<string, number>(); // entrance stagger order (hubs first)
-    [...g.nodes]
-      .sort((a, b) => b.degree - a.degree)
-      .forEach((n, i) => order.set(n.id, i));
-    for (const n of g.nodes) {
-      const r = n.degree / maxDeg;
-      ratio.set(n.id, r);
-      radius.set(n.id, 3 + 10 * Math.pow(r, 0.7));
-    }
-    const labelSet = new Set(
-      [...g.nodes].sort((a, b) => b.degree - a.degree).slice(0, 11).map((n) => n.id),
-    );
-    const byId = new Map(g.nodes.map((n) => [n.id, n]));
+    const nodes: SNode[] = g.nodes.map((n) => ({ id: n.id, label: n.label, degree: n.degree }));
+    const links: SLink[] = g.edges.map((e) => ({ source: e.source, target: e.target, typed: e.typed }));
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const ratio = (n: SNode) => n.degree / maxDeg;
+    const radius = (n: SNode) => 3 + 10 * Math.pow(ratio(n), 0.7);
     const adj = new Map<string, Set<string>>();
     for (const e of g.edges) {
       (adj.get(e.source) ?? adj.set(e.source, new Set()).get(e.source)!).add(e.target);
       (adj.get(e.target) ?? adj.set(e.target, new Set()).get(e.target)!).add(e.source);
     }
-
-    const xs = g.nodes.map((n) => n.x);
-    const ys = g.nodes.map((n) => n.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    const labelSet = new Set(
+      [...nodes].sort((a, b) => b.degree - a.degree).slice(0, 11).map((n) => n.id),
+    );
 
     let W = 0, H = 0, dpr = 1;
-    const tx = () => W / 2 - cx * view.current.scale + view.current.ox;
-    const ty = () => H / 2 - cy * view.current.scale + view.current.oy;
+    const tx = () => W / 2 + view.current.ox;
+    const ty = () => H / 2 + view.current.oy;
+
     const fit = () => {
-      const pad = 110;
-      const s = Math.min((W - pad) / Math.max(1, maxX - minX), (H - pad) / Math.max(1, maxY - minY), 1.5);
-      view.current.scale = Math.max(0.25, Math.min(2, s || 1));
-      view.current.ox = 0;
-      view.current.oy = 0;
-      view.current.fitted = true;
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const n of nodes) {
+        if (n.x == null || n.y == null) continue;
+        minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
+        minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+      }
+      if (!isFinite(minX)) return;
+      const pad = 90;
+      const s = Math.min((W - pad) / Math.max(1, maxX - minX), (H - pad) / Math.max(1, maxY - minY), 2.2);
+      view.current.scale = Math.max(0.12, Math.min(2.4, s || 1));
     };
 
-    let start = 0;
-    let raf = 0;
-
-    const draw = (now?: number) => {
+    const draw = () => {
       dpr = window.devicePixelRatio || 1;
       W = canvas.clientWidth;
       H = canvas.clientHeight;
       if (canvas.width !== Math.round(W * dpr)) canvas.width = Math.round(W * dpr);
       if (canvas.height !== Math.round(H * dpr)) canvas.height = Math.round(H * dpr);
-      if (!view.current.fitted) fit();
-
-      const elapsed = now && start ? now - start : 9999;
-      const intro = (id: string) => {
-        const delay = (order.get(id) ?? 0) * 5;
-        return easeOut(Math.max(0, Math.min(1, (elapsed - delay) / 420)));
-      };
-
+      if (view.current.autofit) fit();
       const { scale } = view.current;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
@@ -96,42 +90,37 @@ export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) 
       const hot = hover.current;
       const near = hot ? (adj.get(hot) ?? new Set<string>()) : null;
 
-      // edges — faint, slightly curved threads (not a spiderweb)
-      for (const e of g.edges) {
-        const a = byId.get(e.source), b = byId.get(e.target);
-        if (!a || !b) continue;
-        const p = Math.min(intro(e.source), intro(e.target));
-        if (p <= 0.01) continue;
-        const lit = hot && (e.source === hot || e.target === hot);
+      for (const e of links) {
+        const a = asNode(e.source), b = asNode(e.target);
+        if (a.x == null || b.x == null) continue;
+        const lit = hot && (a.id === hot || b.id === hot);
         const faded = hot && !lit;
-        ctx.globalAlpha = p * (faded ? 0.25 : 1);
+        ctx.globalAlpha = faded ? 0.22 : 1;
         ctx.strokeStyle = lit
-          ? "rgba(79,195,247,0.75)"
+          ? "rgba(79,195,247,0.8)"
           : e.typed
             ? "rgba(135,160,255,0.3)"
-            : "rgba(120,104,235,0.13)";
-        ctx.lineWidth = (lit ? 1.8 : e.typed ? 1.1 : 0.7) / scale;
-        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-        const nx = -(b.y - a.y), ny = b.x - a.x;
+            : "rgba(120,104,235,0.12)";
+        ctx.lineWidth = (lit ? 1.8 : e.typed ? 1.1 : 0.6) / scale;
+        const mx = (a.x! + b.x!) / 2, my = (a.y! + b.y!) / 2;
+        const nx = -(b.y! - a.y!), ny = b.x! - a.x!;
         const len = Math.hypot(nx, ny) || 1;
-        const k = Math.hypot(b.x - a.x, b.y - a.y) * 0.07;
+        const k = Math.hypot(b.x! - a.x!, b.y! - a.y!) * 0.06;
         ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.quadraticCurveTo(mx + (nx / len) * k, my + (ny / len) * k, b.x, b.y);
+        ctx.moveTo(a.x!, a.y!);
+        ctx.quadraticCurveTo(mx + (nx / len) * k, my + (ny / len) * k, b.x!, b.y!);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
 
-      // nodes
-      for (const n of g.nodes) {
-        const t = ratio.get(n.id)!;
-        const r = radius.get(n.id)! * (0.3 + 0.7 * intro(n.id));
+      for (const n of nodes) {
+        if (n.x == null || n.y == null) continue;
+        const t = ratio(n), r = radius(n);
         const isHot = n.id === hot;
         const dim = hot && !isHot && !near?.has(n.id);
-        ctx.globalAlpha = intro(n.id) * (dim ? 0.32 : 1);
-        // subtle glow only on hubs / hovered (no blanket neon)
+        ctx.globalAlpha = dim ? 0.3 : 1;
         if (isHot || t > 0.45) {
-          ctx.fillStyle = isHot ? "rgba(79,195,247,0.22)" : "rgba(120,104,235,0.16)";
+          ctx.fillStyle = isHot ? "rgba(79,195,247,0.22)" : "rgba(120,104,235,0.15)";
           ctx.beginPath();
           ctx.arc(n.x, n.y, r + (isHot ? 10 : 6), 0, Math.PI * 2);
           ctx.fill();
@@ -146,61 +135,66 @@ export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) 
         ctx.globalAlpha = 1;
       }
 
-      // labels — only hubs + hovered (+ its neighbours), with a legibility backing
       ctx.textBaseline = "middle";
-      for (const n of g.nodes) {
+      for (const n of nodes) {
+        if (n.x == null) continue;
         const show = n.id === hot || near?.has(n.id) || (!hot && labelSet.has(n.id));
-        if (!show || intro(n.id) < 0.6) continue;
-        const r = radius.get(n.id)!;
+        if (!show) continue;
+        const r = radius(n);
         const fs = (n.id === hot ? 13 : 12) / scale;
         ctx.font = `${n.id === hot ? 600 : 500} ${fs}px ui-sans-serif, system-ui, sans-serif`;
         const tw = ctx.measureText(n.label).width;
-        const lx = n.x + r + 6 / scale, ly = n.y;
+        const lx = n.x + r + 6 / scale, ly = n.y!;
+        const pad = 4 / scale;
         ctx.fillStyle = "rgba(10,14,20,0.66)";
         ctx.beginPath();
-        const pad = 4 / scale;
         ctx.roundRect(lx - pad, ly - fs / 2 - pad, tw + pad * 2, fs + pad * 2, 4 / scale);
         ctx.fill();
         ctx.fillStyle = n.id === hot ? "#EAF6FF" : "rgba(213,221,235,0.92)";
         ctx.fillText(n.label, lx, ly + 0.5 / scale);
       }
       ctx.restore();
-
-      if (elapsed < 9999 && elapsed < (g.nodes.length * 5 + 480)) {
-        raf = requestAnimationFrame(draw);
-      }
     };
+
+    const sim = forceSimulation(nodes)
+      .force("charge", forceManyBody().strength(-58).distanceMax(380))
+      .force("link", forceLink<SNode, SLink>(links).id((d) => d.id).distance(32).strength(0.6))
+      .force("collide", forceCollide<SNode>().radius((n) => radius(n) + 3).iterations(2))
+      .force("center", forceCenter(0, 0))
+      .force("x", forceX(0).strength(0.05))
+      .force("y", forceY(0).strength(0.05));
+    sim.on("tick", draw);
+    sim.on("end", () => {
+      view.current.autofit = false;
+      draw();
+    });
 
     const worldAt = (sx: number, sy: number) => ({
       x: (sx - tx()) / view.current.scale,
       y: (sy - ty()) / view.current.scale,
     });
-    const hit = (sx: number, sy: number): GraphNode | null => {
+    const hit = (sx: number, sy: number): SNode | null => {
       const w = worldAt(sx, sy);
-      let best: GraphNode | null = null;
-      let bestD = Infinity;
-      for (const n of g.nodes) {
-        const rr = (radius.get(n.id)! + 6) ** 2;
-        const d = (w.x - n.x) ** 2 + (w.y - n.y) ** 2;
-        if (d <= rr && d < bestD) {
-          best = n;
-          bestD = d;
-        }
+      let best: SNode | null = null, bestD = Infinity;
+      for (const n of nodes) {
+        if (n.x == null) continue;
+        const d = (w.x - n.x) ** 2 + (w.y - n.y!) ** 2;
+        const rr = (radius(n) + 6) ** 2;
+        if (d <= rr && d < bestD) { best = n; bestD = d; }
       }
       return best;
     };
 
-    start = performance.now();
-    draw(start);
     const ro = new ResizeObserver(() => draw());
     ro.observe(canvas);
-
     const onWheel = (ev: WheelEvent) => {
       ev.preventDefault();
-      view.current.scale = Math.min(3.5, Math.max(0.18, view.current.scale * (ev.deltaY < 0 ? 1.12 : 0.89)));
+      view.current.autofit = false;
+      view.current.scale = Math.min(4, Math.max(0.1, view.current.scale * (ev.deltaY < 0 ? 1.12 : 0.89)));
       draw();
     };
     const onDown = (ev: MouseEvent) => {
+      view.current.autofit = false;
       view.current.drag = true;
       view.current.moved = 0;
       view.current.px = ev.clientX;
@@ -209,10 +203,9 @@ export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) 
     const onMove = (ev: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       if (view.current.drag) {
-        const dx = ev.clientX - view.current.px, dy = ev.clientY - view.current.py;
-        view.current.moved += Math.abs(dx) + Math.abs(dy);
-        view.current.ox += dx;
-        view.current.oy += dy;
+        view.current.ox += ev.clientX - view.current.px;
+        view.current.oy += ev.clientY - view.current.py;
+        view.current.moved += Math.abs(ev.clientX - view.current.px) + Math.abs(ev.clientY - view.current.py);
         view.current.px = ev.clientX;
         view.current.py = ev.clientY;
         draw();
@@ -239,7 +232,7 @@ export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
-      cancelAnimationFrame(raf);
+      sim.stop();
       ro.disconnect();
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("mousedown", onDown);
@@ -272,20 +265,16 @@ export function Graph({ onOpenNote }: { onOpenNote?: (title: string) => void }) 
           borderRadius: "var(--r-lg)",
           overflow: "hidden",
           background:
-            "radial-gradient(820px 520px at 50% 30%, rgba(110,91,255,0.07), transparent 60%), #0A0E14",
+            "radial-gradient(900px 600px at 50% 45%, rgba(110,91,255,0.08), transparent 62%), #0A0E14",
         }}
       >
         <canvas ref={ref} style={{ width: "100%", height: "100%", display: "block", cursor: "grab" }} />
         {loading ? (
-          <div
-            style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "var(--muted)", fontSize: 13 }}
-          >
+          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "var(--muted)", fontSize: 13 }}>
             Mapping the constellation…
           </div>
         ) : g && g.nodes.length === 0 ? (
-          <div
-            style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "var(--faint)", fontSize: 13 }}
-          >
+          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "var(--faint)", fontSize: 13 }}>
             No notes yet — import a document to start the constellation.
           </div>
         ) : null}

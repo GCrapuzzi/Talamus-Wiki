@@ -53,7 +53,7 @@ class WebApiTests(unittest.TestCase):
         data = resp.json()["data"]
         self.assertGreaterEqual(len(data["nodes"]), 3)
         node = data["nodes"][0]
-        for key in ("id", "label", "x", "y", "r"):
+        for key in ("id", "label", "degree"):
             self.assertIn(key, node)
         self.assertGreaterEqual(len(data["edges"]), 1)
 

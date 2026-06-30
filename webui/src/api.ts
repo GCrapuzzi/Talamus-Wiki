@@ -5,22 +5,13 @@ export type ServiceResult<T> = {
   data: T;
 };
 
-export type GraphNode = {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  r: number;
-  degree: number;
-};
+export type GraphNode = { id: string; label: string; degree: number };
 
 export type GraphEdge = { source: string; target: string; type: string; typed: boolean };
 
 export type GraphData = {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  width: number;
-  height: number;
   total?: number;
   shown?: number;
 };
