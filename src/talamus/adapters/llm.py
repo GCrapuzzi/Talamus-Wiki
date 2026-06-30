@@ -59,7 +59,15 @@ def _default_runner(args: list[str], prompt: str) -> str:
     except subprocess.TimeoutExpired as exc:
         raise EngineFailed(f"engine timed out: {args[0]}") from exc
     if completed.returncode != 0:
-        raise EngineFailed(f"LLM command failed: {completed.stderr.strip()}")
+        # CLI engines (e.g. `claude -p`) often write the real error to stdout and exit
+        # non-zero with an empty stderr — surface whichever carries the reason so the
+        # failure is actionable (e.g. a 401 means the CLI needs re-authentication).
+        detail = (
+            completed.stderr.strip()
+            or completed.stdout.strip()
+            or f"exit code {completed.returncode}"
+        )
+        raise EngineFailed(f"LLM command failed ({args[0]}): {detail}")
     return completed.stdout.strip()
 
 
