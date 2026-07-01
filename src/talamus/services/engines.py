@@ -3,24 +3,17 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from talamus.adapters.llm import ENGINE_COMMANDS, save_credential
+from talamus.adapters.llm import ENGINE_COMMANDS, canonical_provider, save_credential
 from talamus.config import TalamusConfig, load_config, load_or_default, save_config
 from talamus.errors import ConfigError
 from talamus.paths import TalamusPaths
 from talamus.services.readiness import EngineReadiness, inspect_engines
 from talamus.services.result import ServiceResult
 
-_ALIASES: dict[str, str] = {
-    "codex": "codex-cli",
-    "gemini": "gemini-cli",
-    "api": "anthropic-api",
-}
+# canonical_provider now lives in talamus.adapters.llm; re-exported here for callers
+# that import it from this module.
+__all__ = ["canonical_provider"]
 _ENGINE_SETTING_FIELDS = ("llm_provider", "llm_model", "language")
-
-
-def canonical_provider(provider: str) -> str:
-    normalized = provider.strip()
-    return _ALIASES.get(normalized, normalized)
 
 
 def list_engines(selected_provider: str = "", selected_model: str = "") -> list[EngineReadiness]:
