@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import tempfile
 import unittest
@@ -29,6 +30,27 @@ class ConfigTests(unittest.TestCase):
             path.write_text("{not json", encoding="utf-8")
             with self.assertRaises(ConfigError):
                 load_config(path)
+
+    def test_config_round_trips_tiering_overrides(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from talamus.config import TalamusConfig, load_config, save_config
+
+        config = TalamusConfig(
+            **{**vars(TalamusConfig.default()), "task_tiers": {"extraction": {"tier": "quality"}}},
+        )
+        config = dataclasses.replace(
+            config, provider_models={"claude-cli": {"economy": "haiku", "quality": "opus"}}
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "talamus.json"
+            save_config(path, config)
+            loaded = load_config(path)
+        self.assertEqual(loaded.task_tiers, {"extraction": {"tier": "quality"}})
+        self.assertEqual(
+            loaded.provider_models, {"claude-cli": {"economy": "haiku", "quality": "opus"}}
+        )
 
 
 if __name__ == "__main__":
