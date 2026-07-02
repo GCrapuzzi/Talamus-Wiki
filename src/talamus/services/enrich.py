@@ -4,10 +4,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
-from talamus.adapters.llm import LLMProvider
 from talamus.config import load_or_default, resolve_language
 from talamus.enrich import enrich_estimate, enrich_notes
 from talamus.paths import TalamusPaths
+from talamus.routing import Router
 from talamus.services.result import ServiceResult
 
 T = TypeVar("T")
@@ -60,7 +60,7 @@ def preview_enrich(root: str | Path) -> ServiceResult[EnrichPreview]:
 
 def run_enrich(
     root: str | Path,
-    llm: LLMProvider,
+    router: Router,
     *,
     confirmed: bool = False,
 ) -> ServiceResult[EnrichPreview | EnrichRunResult]:
@@ -83,7 +83,7 @@ def run_enrich(
                 data=preview,
             )
         language = resolve_language(load_or_default(paths.config_path))
-        report = enrich_notes(paths, llm, language=language)
+        report = enrich_notes(paths, router, language=language)
     except (OSError, TypeError, ValueError, AttributeError) as exc:
         return _enrich_error(exc)
     return ServiceResult(

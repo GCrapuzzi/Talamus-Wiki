@@ -10,6 +10,7 @@ from pathlib import Path
 
 from talamus.models import CanonicalNote, SourceRef
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.store import rebuild_indexes, write_note
 from tests.support import FakeLLMProvider
 
@@ -45,7 +46,7 @@ class HostileExtractionTests(unittest.TestCase):
         package = normalize_text("raw/a.md", "Testo sorgente.")
         for raw in HOSTILE:
             try:
-                notes = extract_notes(package, FakeLLMProvider([raw]))
+                notes = extract_notes(package, StaticRouter(FakeLLMProvider([raw])))
             except ValueError:
                 continue  # clean, actionable error: acceptable
             self.assertEqual(notes, [])  # otherwise empty list: NEVER corrupt notes
@@ -69,7 +70,7 @@ class HostileRoutingTests(unittest.TestCase):
             for raw in HOSTILE:
                 trace: dict = {}
                 llm = FakeLLMProvider([raw, raw, raw, "Risposta [1]."])
-                answer = answer_question(paths, "concetto", llm, trace=trace)
+                answer = answer_question(paths, "concetto", StaticRouter(llm), trace=trace)
                 self.assertNotIn("Traceback", answer)
                 self.assertTrue(trace["items_read"])  # something is ALWAYS read
 
@@ -81,7 +82,9 @@ class HostileDomainsTests(unittest.TestCase):
         clusters = [[f"N{i}" for i in range(30)], ["A", "B", "C"], ["Sola"]]
         summaries = {t: "s" for c in clusters for t in c}
         for raw in HOSTILE:
-            domains = _name_domains_batched(clusters, summaries, FakeLLMProvider([raw] * 5))
+            domains = _name_domains_batched(
+                clusters, summaries, StaticRouter(FakeLLMProvider([raw] * 5))
+            )
             members = sorted(m for d in domains for m in d["members"])
             self.assertEqual(members, sorted(summaries))  # every note stays mapped
 
@@ -100,7 +103,7 @@ class HostileEnrichTests(unittest.TestCase):
                 *HOSTILE,
             )
             for raw in junk:
-                report = enrich_notes(paths, FakeLLMProvider([raw]))
+                report = enrich_notes(paths, StaticRouter(FakeLLMProvider([raw])))
                 self.assertEqual(report["enriched"], 0)
             self.assertEqual(load_notes(paths)[0].retrieval_text, original)
 
@@ -112,7 +115,32 @@ class HostileConsolidateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp, ["Alfa", "Beta"])
             for raw in HOSTILE:
-                self.assertEqual(find_duplicates(paths, FakeLLMProvider([raw])), [])
+                self.assertEqual(find_duplicates(paths, StaticRouter(FakeLLMProvider([raw]))), [])
+
+
+class HostileTieredProviderTests(unittest.TestCase):
+    """P2: the new model/effort constructor args must not change how hostile engine
+    output is handled — a tiered provider degrades exactly like an untiered one."""
+
+    def test_tiered_providers_still_degrade_gracefully(self) -> None:
+        from talamus.adapters.llm import build_provider_for_task
+        from talamus.config import TalamusConfig
+        from talamus.extract import extract_notes
+        from talamus.normalize import normalize_text
+
+        package = normalize_text("raw/a.md", "Testo sorgente.")
+        for provider_name in ("claude-cli", "codex-cli", "gemini-cli"):
+            for tier, effort in (("economy", "low"), ("quality", "high")):
+                for raw in HOSTILE:
+                    provider = build_provider_for_task(
+                        provider_name, TalamusConfig.default(), tier, effort
+                    )
+                    provider._runner = lambda args, prompt, raw=raw: raw  # type: ignore[attr-defined]
+                    try:
+                        notes = extract_notes(package, StaticRouter(provider))
+                    except ValueError:
+                        continue  # clean, actionable error: acceptable
+                    self.assertEqual(notes, [])  # never corrupt notes
 
 
 if __name__ == "__main__":

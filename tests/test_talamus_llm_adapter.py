@@ -38,6 +38,92 @@ class LLMAdapterTests(unittest.TestCase):
                 _default_runner(["claude", "-p"], "hi")
         self.assertIn("401", str(ctx.exception))
 
+    def test_claude_cli_applies_tier_model(self) -> None:
+        captured = {}
+
+        def fake_runner(args: list[str], prompt: str) -> str:
+            captured["args"] = args
+            return "ok"
+
+        from talamus.adapters.llm import build_provider_for_task
+        from talamus.config import TalamusConfig
+
+        provider = build_provider_for_task("claude-cli", TalamusConfig.default(), "economy", "low")
+        provider._runner = fake_runner  # type: ignore[attr-defined]
+        provider.complete("hi")
+        self.assertIn("--model", captured["args"])
+        self.assertIn("haiku", captured["args"])
+
+    def test_codex_cli_applies_tier_model_and_effort(self) -> None:
+        captured = {}
+
+        def fake_runner(args: list[str], prompt: str) -> str:
+            captured["args"] = args
+            return "ok"
+
+        from talamus.adapters.llm import build_provider_for_task
+        from talamus.config import TalamusConfig
+
+        provider = build_provider_for_task("codex-cli", TalamusConfig.default(), "quality", "high")
+        provider._runner = fake_runner  # type: ignore[attr-defined]
+        provider.complete("hi")
+        self.assertIn("gpt-5.5", captured["args"])
+        self.assertIn("model_reasoning_effort=high", " ".join(captured["args"]))
+
+    def test_gemini_cli_ignores_unsupported_effort(self) -> None:
+        captured = {}
+
+        def fake_runner(args: list[str], prompt: str) -> str:
+            captured["args"] = args
+            return "ok"
+
+        from talamus.adapters.llm import build_provider_for_task
+        from talamus.config import TalamusConfig
+
+        provider = build_provider_for_task("gemini-cli", TalamusConfig.default(), "economy", "high")
+        provider._runner = fake_runner  # type: ignore[attr-defined]
+        provider.complete("hi")
+        self.assertIn("gemini-2.5-flash", captured["args"])
+        self.assertNotIn("high", captured["args"])  # effort silently ignored
+
+    def test_ollama_falls_back_to_the_configured_model_when_untiered(self) -> None:
+        from dataclasses import replace
+
+        from talamus.adapters.llm import build_provider_for_task
+        from talamus.config import TalamusConfig
+
+        config = replace(TalamusConfig.default(), llm_model="gemma3n")
+        provider = build_provider_for_task("ollama", config, "quality", "high")
+        self.assertEqual(provider._model, "gemma3n")  # type: ignore[attr-defined]
+
+    def test_provider_models_override_wins_over_the_builtin_tier_map(self) -> None:
+        captured = {}
+
+        def fake_runner(args: list[str], prompt: str) -> str:
+            captured["args"] = args
+            return "ok"
+
+        from dataclasses import replace
+
+        from talamus.adapters.llm import build_provider_for_task
+        from talamus.config import TalamusConfig
+
+        config = replace(
+            TalamusConfig.default(), provider_models={"claude-cli": {"economy": "sonnet"}}
+        )
+        provider = build_provider_for_task("claude-cli", config, "economy", "low")
+        provider._runner = fake_runner  # type: ignore[attr-defined]
+        provider.complete("hi")
+        self.assertIn("sonnet", captured["args"])
+
+    def test_canonical_provider_normalizes_aliases(self) -> None:
+        from talamus.adapters.llm import canonical_provider
+
+        self.assertEqual(canonical_provider("codex"), "codex-cli")
+        self.assertEqual(canonical_provider("gemini"), "gemini-cli")
+        self.assertEqual(canonical_provider("api"), "anthropic-api")
+        self.assertEqual(canonical_provider("claude-cli"), "claude-cli")
+
     def test_claude_cli_builds_print_mode_command(self) -> None:
         captured = {}
 

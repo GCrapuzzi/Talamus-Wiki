@@ -6,6 +6,7 @@ from unittest.mock import patch
 from talamus.demo import create_demo_brain
 from talamus.errors import EngineNotFound
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.services.ask import ask_brain
 
 
@@ -30,7 +31,9 @@ class AskServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             create_demo_brain(TalamusPaths(root))
-            result = ask_brain(root, "what is retrieval augmented generation?", provider=_FakeLLM())
+            result = ask_brain(
+                root, "what is retrieval augmented generation?", router=StaticRouter(_FakeLLM())
+            )
         self.assertTrue(result.success)
         self.assertEqual("ask_answered", result.code)
         self.assertIsNotNone(result.data)
@@ -43,7 +46,12 @@ class AskServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             create_demo_brain(TalamusPaths(root))
-            with patch("talamus.services.ask.build_provider", side_effect=EngineNotFound("none")):
+            # the engine is now built LAZILY inside the router: patch the name
+            # EngineRouter.for_task actually calls (bound into talamus.routing)
+            with patch(
+                "talamus.routing.build_provider_for_task",
+                side_effect=EngineNotFound("none"),
+            ):
                 result = ask_brain(root, "how does reranking work?")
         self.assertTrue(result.success)
         self.assertEqual("ask_no_engine", result.code)

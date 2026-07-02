@@ -30,10 +30,10 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from talamus.adapters.llm import LLMProvider
 from talamus.models import CanonicalNote
 from talamus.ontology import build_ontology, load_ontology, neighbors, normalize_relation
 from talamus.paths import TalamusPaths
+from talamus.routing import Router, TaskClass
 from talamus.store import load_notes, save_ontology
 from talamus.textutil import tokens
 
@@ -234,7 +234,7 @@ OBSERVED CLUSTERS:
 
 def induce_candidates(
     paths: TalamusPaths,
-    llm: LLMProvider,
+    router: Router,
     min_support: int = DEFAULT_MIN_SUPPORT,
 ) -> list[RelationType]:
     """Induce candidate relation types from unexplained surfaces. One LLM call.
@@ -262,6 +262,7 @@ def induce_candidates(
         f'"{records[0].subject} {records[0].predicate_surface} {records[0].object}"'
         for key, records in sorted(eligible.items())
     )
+    llm = router.for_task(TaskClass.ONTOLOGY_NAMING)
     raw = llm.complete(_NAMING_PROMPT.format(clusters=cluster_text))
     start, end = raw.find("["), raw.rfind("]")
     proposals: list = []

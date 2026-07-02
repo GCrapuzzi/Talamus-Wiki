@@ -5,6 +5,7 @@ from pathlib import Path
 
 from talamus.ingest import CHUNK_CHARS, split_chunks
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.services.ingestion import ingest_raw_text, preview_ingest, run_ingest
 from talamus.store import load_notes
 from tests.support import FakeLLMProvider
@@ -63,7 +64,7 @@ class TalamusIngestionServiceTests(unittest.TestCase):
             source = _large_markdown(tmp)
             llm = FakeLLMProvider([])
 
-            result = run_ingest(tmp, str(source), llm, confirmed=False)
+            result = run_ingest(tmp, str(source), StaticRouter(llm), confirmed=False)
 
             notes = load_notes(paths)
 
@@ -82,7 +83,7 @@ class TalamusIngestionServiceTests(unittest.TestCase):
             expected = len(split_chunks(source.read_text(encoding="utf-8")))
             llm = FakeLLMProvider([_note_json(f"Nota {i}") for i in range(expected)])
 
-            result = run_ingest(tmp, str(source), llm, confirmed=True)
+            result = run_ingest(tmp, str(source), StaticRouter(llm), confirmed=True)
 
             notes = load_notes(paths)
 
@@ -101,7 +102,7 @@ class TalamusIngestionServiceTests(unittest.TestCase):
             paths = _brain(tmp)
             llm = FakeLLMProvider([_note_json("Insight")])
 
-            result = ingest_raw_text(tmp, "A short insight worth keeping.", llm)
+            result = ingest_raw_text(tmp, "A short insight worth keeping.", StaticRouter(llm))
 
             notes = load_notes(paths)
 

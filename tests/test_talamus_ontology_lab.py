@@ -19,6 +19,7 @@ from talamus.ontology_lab import (
     surface_key,
 )
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.store import load_notes, rebuild_indexes, write_note
 from tests.support import FakeLLMProvider
 
@@ -95,7 +96,9 @@ class InductionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            created = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            created = induce_candidates(
+                paths, StaticRouter(FakeLLMProvider([_naming_response(key)]))
+            )
             self.assertEqual(len(created), 1)
             candidate = created[0]
             self.assertEqual(candidate.status, "candidate")
@@ -110,8 +113,8 @@ class InductionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
-            again = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            induce_candidates(paths, StaticRouter(FakeLLMProvider([_naming_response(key)])))
+            again = induce_candidates(paths, StaticRouter(FakeLLMProvider([_naming_response(key)])))
             self.assertEqual(again, [])  # surface already known to the schema
 
     def test_candidates_do_not_touch_runtime(self) -> None:
@@ -119,7 +122,7 @@ class InductionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            induce_candidates(paths, StaticRouter(FakeLLMProvider([_naming_response(key)])))
             rebuild_indexes(paths)
             cov = coverage(paths)
             self.assertEqual(cov["non_related"], 0)  # everything still `related`
@@ -130,7 +133,9 @@ class PromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            created = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            created = induce_candidates(
+                paths, StaticRouter(FakeLLMProvider([_naming_response(key)]))
+            )
             ok, message = promote_candidate(paths, created[0].id)
             self.assertFalse(ok)  # support 3 < 8 (rule 12.6)
             self.assertIn("12.6", message)
@@ -140,7 +145,9 @@ class PromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            created = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            created = induce_candidates(
+                paths, StaticRouter(FakeLLMProvider([_naming_response(key)]))
+            )
             ok, _ = promote_candidate(paths, created[0].id, force=True)
             self.assertTrue(ok)
             cov = coverage(paths)
@@ -154,7 +161,9 @@ class PromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            created = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            created = induce_candidates(
+                paths, StaticRouter(FakeLLMProvider([_naming_response(key)]))
+            )
             ok, _ = reject_candidate(paths, created[0].id, "non convincente")
             self.assertTrue(ok)
             kept = load_schema(paths).by_id(created[0].id)
@@ -174,7 +183,9 @@ class RetrievalLiftTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            created = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            created = induce_candidates(
+                paths, StaticRouter(FakeLLMProvider([_naming_response(key)]))
+            )
             notes = load_notes(paths)
 
             def first_expanded(ontology: dict) -> str:
@@ -194,7 +205,9 @@ class RetrievalLiftTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             key = surface_key("alimenta")
-            created = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+            created = induce_candidates(
+                paths, StaticRouter(FakeLLMProvider([_naming_response(key)]))
+            )
             promote_candidate(paths, created[0].id, force=True)
             cases_file = Path(tmp) / "cases.json"
             cases_file.write_text(

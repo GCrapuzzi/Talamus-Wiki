@@ -7,9 +7,12 @@ import subprocess
 import urllib.error
 import urllib.request
 from collections.abc import Callable
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from talamus.errors import EngineFailed, EngineNotFound
+
+if TYPE_CHECKING:
+    from talamus.config import TalamusConfig
 
 
 class LLMProvider(Protocol):
@@ -41,6 +44,19 @@ _ENGINE_COMMAND_ALIASES: dict[str, str | None] = {
 
 def engine_command(provider: str) -> str | None:
     return ENGINE_COMMANDS.get(provider, _ENGINE_COMMAND_ALIASES.get(provider, provider))
+
+
+_PROVIDER_ALIASES: dict[str, str] = {
+    "codex": "codex-cli",
+    "gemini": "gemini-cli",
+    "api": "anthropic-api",
+}
+
+
+def canonical_provider(provider: str) -> str:
+    """Normalize a provider name to its canonical form (e.g. 'codex' -> 'codex-cli')."""
+    normalized = provider.strip()
+    return _PROVIDER_ALIASES.get(normalized, normalized)
 
 
 def _default_runner(args: list[str], prompt: str) -> str:
@@ -83,13 +99,26 @@ def _default_poster(url: str, headers: dict[str, str], payload: dict) -> dict:
 
 
 class ClaudeCliProvider:
-    """CLI subscription via `claude -p` (non-interactive)."""
+    """CLI subscription via `claude -p` (non-interactive). ``model`` is a short CLI
+    alias (e.g. "haiku", "opus"), passed as `--model` before `-p` (verified 2026-07-01);
+    ``effort`` has no verified equivalent for this CLI today and is accepted but ignored."""
 
-    def __init__(self, runner: Callable[[list[str], str], str] = _default_runner) -> None:
+    def __init__(
+        self,
+        model: str = "",
+        effort: str | None = None,
+        runner: Callable[[list[str], str], str] = _default_runner,
+    ) -> None:
+        self._model = model
+        self._effort = effort  # unused: no verified flag (see the tiering design doc)
         self._runner = runner
 
     def complete(self, prompt: str) -> str:
-        return self._runner(["claude", "-p"], prompt)
+        args = ["claude"]
+        if self._model:
+            args += ["--model", self._model]
+        args += ["-p"]
+        return self._runner(args, prompt)
 
 
 class CodexCliProvider:
@@ -100,15 +129,21 @@ class CodexCliProvider:
     (config `llm_model`, e.g. a mini model for fast bulk ingest)."""
 
     def __init__(
-        self, model: str = "", runner: Callable[[list[str], str], str] = _default_runner
+        self,
+        model: str = "",
+        effort: str | None = None,
+        runner: Callable[[list[str], str], str] = _default_runner,
     ) -> None:
         self._model = model
+        self._effort = effort
         self._runner = runner
 
     def complete(self, prompt: str) -> str:
         args = ["codex", "exec", "--skip-git-repo-check", "-s", "read-only"]
         if self._model:
             args += ["-m", self._model]
+        if self._effort:
+            args += ["-c", f"model_reasoning_effort={self._effort}"]
         return self._runner([*args, "-"], prompt)
 
 
@@ -121,9 +156,13 @@ class GeminiCliProvider:
     Optional model via `-m` (config `llm_model`, e.g. a flash model)."""
 
     def __init__(
-        self, model: str = "", runner: Callable[[list[str], str], str] = _default_runner
+        self,
+        model: str = "",
+        effort: str | None = None,
+        runner: Callable[[list[str], str], str] = _default_runner,
     ) -> None:
         self._model = model
+        self._effort = effort  # unused: no verified flag (see the tiering design doc)
         self._runner = runner
 
     def complete(self, prompt: str) -> str:
@@ -267,4 +306,51 @@ def build_provider(provider: str, model: str = "") -> LLMProvider:
         return OllamaProvider(model or "llama3")
     if provider in ("anthropic-api", "api"):
         return AnthropicApiProvider(model or "claude-3-5-sonnet-latest")
+    raise EngineNotFound(provider)
+
+
+# Built-in tier -> model defaults per provider. A provider absent here (or a tier the
+# table doesn't cover) falls back to the brain's single configured `llm_model` — this
+# keeps providers with no natural "small vs large" split (e.g. ollama until the user
+# pulls a second model) behaving as they do today for both tiers. Overridable per brain
+# via config.provider_models. Aliases verified/standard as of 2026-07-02 (smoke-tested;
+# codex also accepts model_reasoning_effort=xhigh on gpt-5.5 — see the spec).
+_TIER_MODELS: dict[str, dict[str, str]] = {
+    "claude-cli": {"economy": "haiku", "quality": "opus"},
+    "codex-cli": {"economy": "gpt-5.4-mini", "quality": "gpt-5.5"},
+    "gemini-cli": {"economy": "gemini-2.5-flash", "quality": "gemini-2.5-pro"},
+    "anthropic-api": {
+        "economy": "claude-3-5-haiku-latest",
+        "quality": "claude-3-5-sonnet-latest",
+    },
+}
+
+
+def _resolve_tiered_model(provider: str, config: TalamusConfig, tier: str) -> str:
+    override = config.provider_models.get(provider, {})
+    if tier in override:
+        return override[tier]
+    builtin = _TIER_MODELS.get(provider, {})
+    if tier in builtin:
+        return builtin[tier]
+    return config.llm_model
+
+
+def build_provider_for_task(
+    provider: str, config: TalamusConfig, tier: str, effort: str
+) -> LLMProvider:
+    """Build the provider for one task's resolved (tier, effort) intent, within the
+    single provider configured for the brain (tiering never switches providers)."""
+    provider = canonical_provider(provider)
+    model = _resolve_tiered_model(provider, config, tier)
+    if provider == "claude-cli":
+        return ClaudeCliProvider(model=model, effort=effort)
+    if provider == "codex-cli":
+        return CodexCliProvider(model=model, effort=effort)
+    if provider == "gemini-cli":
+        return GeminiCliProvider(model=model, effort=effort)
+    if provider == "ollama":
+        return OllamaProvider(model=model or "llama3")
+    if provider == "anthropic-api":
+        return AnthropicApiProvider(model=model or "claude-3-5-sonnet-latest")
     raise EngineNotFound(provider)

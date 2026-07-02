@@ -13,6 +13,7 @@ from talamus.domains import (
 )
 from talamus.models import CanonicalNote, SourceRef
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.store import rebuild_indexes, write_note
 from tests.support import FakeLLMProvider
 
@@ -61,7 +62,7 @@ class TreeBuildTests(unittest.TestCase):
             paths = TalamusPaths(Path(tmp))
             paths.ensure_directories()
             save_overview(paths, [{"name": "Solo", "members": []}])
-            areas = build_overview_tree(paths, FakeLLMProvider([]))
+            areas = build_overview_tree(paths, StaticRouter(FakeLLMProvider([])))
             self.assertEqual(areas, [])
             self.assertEqual(load_overview_tree(paths), [])
 
@@ -77,7 +78,7 @@ class TreeBuildTests(unittest.TestCase):
                     }
                 ]
             )
-            areas = build_overview_tree(paths, FakeLLMProvider([response]))
+            areas = build_overview_tree(paths, StaticRouter(FakeLLMProvider([response])))
             self.assertEqual(len(areas), 2)  # the named area + "Other" for leftovers
             self.assertEqual(len(areas[0]["children"]), 6)
             self.assertEqual(areas[1]["name"], "Other")
@@ -103,11 +104,11 @@ class TwoLevelRoutingTests(unittest.TestCase):
                     },
                 ]
             )
-            build_overview_tree(paths, FakeLLMProvider([grouping]))
+            build_overview_tree(paths, StaticRouter(FakeLLMProvider([grouping])))
             trace: dict = {}
             # queue: area routing, domain routing, query expansion (RS3), answer
             llm = FakeLLMProvider(["area-area-b", "dom-dominio-07", "prova", "Risposta [1]."])
-            answer = answer_question(paths, "domanda di prova", llm, trace=trace)
+            answer = answer_question(paths, "domanda di prova", StaticRouter(llm), trace=trace)
             self.assertIn("Risposta", answer)
             self.assertEqual(trace["routing_levels"], 2)
             self.assertEqual(trace["areas_chosen"], ["area-area-b"])

@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.services.consolidation import (
     ConsolidationGroup,
     apply_consolidation_groups,
@@ -34,7 +35,7 @@ class TalamusConsolidationServiceTests(unittest.TestCase):
                 ]
             )
 
-            result = list_consolidation_groups(tmp, llm)
+            result = list_consolidation_groups(tmp, StaticRouter(llm))
 
         self.assertTrue(result.success, result.message)
         self.assertEqual("consolidation_groups_loaded", result.code)
@@ -53,7 +54,7 @@ class TalamusConsolidationServiceTests(unittest.TestCase):
             llm = FakeLLMProvider([])
             reviewed = [ConsolidationGroup("Hybrid search", ("Hybrid search", "Ricerca ibrida"))]
 
-            result = apply_consolidation_groups(tmp, llm, reviewed)
+            result = apply_consolidation_groups(tmp, StaticRouter(llm), reviewed)
 
             notes = load_notes(paths)
 
@@ -84,7 +85,7 @@ class TalamusConsolidationServiceTests(unittest.TestCase):
                 ]
             )
 
-            result = apply_consolidation_groups(tmp, llm)
+            result = apply_consolidation_groups(tmp, StaticRouter(llm))
 
             notes = load_notes(paths)
 

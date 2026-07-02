@@ -14,6 +14,7 @@ from talamus.correct import (
 from talamus.models import CanonicalNote, SourceRef
 from talamus.paths import TalamusPaths
 from talamus.review import ReviewQueue
+from talamus.routing import StaticRouter
 from talamus.store import load_notes, rebuild_indexes, write_note
 from talamus.timeline import note_history
 from tests.support import FakeLLMProvider
@@ -108,7 +109,7 @@ class VerifyBatchTests(unittest.TestCase):
             ok = json.dumps({"ok": True})
             wrong = json.dumps({"ok": False, "summary": "Il valore è 42.", "body": "Corretto."})
             llm = FakeLLMProvider([ok, wrong])  # Fedele, then Sbagliata (sorted note order)
-            report = verify_batch(paths, llm)
+            report = verify_batch(paths, StaticRouter(llm))
             self.assertEqual(report["stale"], 2)  # Orfana (missing) + Incerta (low confidence)
             self.assertEqual(report["checked"], 2)
             self.assertEqual(report["ok"], 1)
@@ -124,7 +125,7 @@ class VerifyBatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             llm = FakeLLMProvider([])
-            report = verify_batch(paths, llm, only_stale=True)
+            report = verify_batch(paths, StaticRouter(llm), only_stale=True)
             self.assertEqual(llm.prompts, [])
             self.assertEqual(report["stale"], 2)
             self.assertEqual(report["checked"], 0)
@@ -133,7 +134,7 @@ class VerifyBatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
             llm = FakeLLMProvider([json.dumps({"ok": True})] * 3)
-            report = verify_batch(paths, llm, source_filter="sparita")
+            report = verify_batch(paths, StaticRouter(llm), source_filter="sparita")
             self.assertEqual(report["skipped"], 3)
             self.assertEqual(report["stale"], 1)  # only Orfana selected, and it's stale
 

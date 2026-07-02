@@ -4,9 +4,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
-from talamus.adapters.llm import LLMProvider
 from talamus.consolidate import apply_consolidation, find_duplicates
 from talamus.paths import TalamusPaths
+from talamus.routing import Router
 from talamus.services.result import ServiceResult
 
 T = TypeVar("T")
@@ -41,11 +41,11 @@ class ConsolidationApplyResult:
 
 def list_consolidation_groups(
     root: str | Path,
-    llm: LLMProvider,
+    router: Router,
 ) -> ServiceResult[ConsolidationGroupList]:
     root_path = Path(root)
     try:
-        groups = _typed_groups(find_duplicates(TalamusPaths(root_path), llm))
+        groups = _typed_groups(find_duplicates(TalamusPaths(root_path), router))
     except (OSError, TypeError, ValueError, AttributeError) as exc:
         return _consolidation_error(exc)
     return ServiceResult(
@@ -58,13 +58,13 @@ def list_consolidation_groups(
 
 def apply_consolidation_groups(
     root: str | Path,
-    llm: LLMProvider,
+    router: Router,
     groups: list[ConsolidationGroup | dict[str, Any]] | None = None,
 ) -> ServiceResult[ConsolidationApplyResult]:
     root_path = Path(root)
     try:
         raw_groups = None if groups is None else [_group_to_dict(group) for group in groups]
-        merged = apply_consolidation(TalamusPaths(root_path), llm, raw_groups)
+        merged = apply_consolidation(TalamusPaths(root_path), router, raw_groups)
     except (OSError, TypeError, ValueError, AttributeError) as exc:
         return _consolidation_error(exc)
     return ServiceResult(

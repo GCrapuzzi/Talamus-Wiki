@@ -4,6 +4,7 @@ from pathlib import Path
 
 from talamus.jobs import JobStore
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.scan import build_plan
 from talamus.services.scan import preview_scan, run_scan
 from talamus.store import load_notes
@@ -30,41 +31,31 @@ class TalamusScanServiceTests(unittest.TestCase):
         self.assertEqual(result.data.est_llm_calls, result.data.files)
         self.assertEqual([], notes)
 
-    def test_run_scan_without_confirmation_does_not_build_llm(self) -> None:
+    def test_run_scan_without_confirmation_makes_no_llm_call(self) -> None:
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as brain:
             _fixture_repo(Path(repo))
             paths = TalamusPaths(Path(brain))
             paths.ensure_directories()
-            llm_built = False
+            llm = FakeLLMProvider([])
 
-            def llm_factory() -> FakeLLMProvider:
-                nonlocal llm_built
-                llm_built = True
-                return FakeLLMProvider([])
-
-            result = run_scan(brain, repo, llm_factory, profile="docs", confirmed=False)
+            result = run_scan(brain, repo, StaticRouter(llm), profile="docs", confirmed=False)
 
             notes = load_notes(paths)
 
         self.assertTrue(result.success, result.message)
         self.assertEqual("scan_confirmation_required", result.code)
-        self.assertFalse(llm_built)
+        self.assertEqual([], llm.prompts)  # not a single LLM call without consent
         self.assertEqual([], notes)
 
-    def test_run_scan_blocks_secrets_without_building_llm(self) -> None:
+    def test_run_scan_blocks_secrets_without_llm_calls(self) -> None:
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as brain:
             _fixture_repo(Path(repo))
-            llm_built = False
-
-            def llm_factory() -> FakeLLMProvider:
-                nonlocal llm_built
-                llm_built = True
-                return FakeLLMProvider([])
+            llm = FakeLLMProvider([])
 
             result = run_scan(
                 brain,
                 repo,
-                llm_factory,
+                StaticRouter(llm),
                 profile="docs",
                 confirmed=True,
                 allow_secrets=False,
@@ -72,27 +63,22 @@ class TalamusScanServiceTests(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertEqual("scan_secrets_blocked", result.code)
-        self.assertFalse(llm_built)
+        self.assertEqual([], llm.prompts)
         self.assertIsNotNone(result.data)
         assert result.data is not None
         self.assertIn("config.md", result.data.secret_files)
 
-    def test_run_scan_background_queues_job_without_building_llm(self) -> None:
+    def test_run_scan_background_queues_job_without_llm_calls(self) -> None:
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as brain:
             _fixture_repo(Path(repo))
             paths = TalamusPaths(Path(brain))
             paths.ensure_directories()
-            llm_built = False
-
-            def llm_factory() -> FakeLLMProvider:
-                nonlocal llm_built
-                llm_built = True
-                return FakeLLMProvider([])
+            llm = FakeLLMProvider([])
 
             result = run_scan(
                 brain,
                 repo,
-                llm_factory,
+                StaticRouter(llm),
                 profile="docs",
                 background=True,
                 allow_secrets=True,
@@ -102,7 +88,7 @@ class TalamusScanServiceTests(unittest.TestCase):
 
         self.assertTrue(result.success, result.message)
         self.assertEqual("scan_queued", result.code)
-        self.assertFalse(llm_built)
+        self.assertEqual([], llm.prompts)
         self.assertEqual(1, len(jobs))
         self.assertEqual("queued", jobs[0].state)
         self.assertIsNotNone(result.data)
@@ -120,7 +106,7 @@ class TalamusScanServiceTests(unittest.TestCase):
             result = run_scan(
                 brain,
                 repo,
-                lambda: llm,
+                StaticRouter(llm),
                 profile="docs",
                 confirmed=True,
                 allow_secrets=True,

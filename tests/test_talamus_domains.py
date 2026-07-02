@@ -6,6 +6,7 @@ from pathlib import Path
 from talamus.domains import build_overview
 from talamus.models import CanonicalNote, SourceRef
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.store import rebuild_indexes, write_note
 from tests.support import FakeLLMProvider
 
@@ -32,7 +33,7 @@ class DomainsTests(unittest.TestCase):
                 ]
             )
 
-            domains = build_overview(paths, llm)
+            domains = build_overview(paths, StaticRouter(llm))
 
             assigned = {member for domain in domains for member in domain["members"]}
             self.assertEqual({"RAG", "Embedding"}, assigned)
@@ -45,7 +46,7 @@ class DomainsTests(unittest.TestCase):
             write_note(paths, _note("Beta"))
             rebuild_indexes(paths)
 
-            domains = build_overview(paths, FakeLLMProvider([json.dumps([])]))
+            domains = build_overview(paths, StaticRouter(FakeLLMProvider([json.dumps([])])))
 
             self.assertEqual(1, len(domains))
             self.assertEqual({"Alpha", "Beta"}, set(domains[0]["members"]))
@@ -60,8 +61,14 @@ class DomainsTests(unittest.TestCase):
             rebuild_indexes(paths)
             build_overview(
                 paths,
-                FakeLLMProvider(
-                    [json.dumps([{"name": "Retrieval", "description": "d", "members": ["RAG"]}])]
+                StaticRouter(
+                    FakeLLMProvider(
+                        [
+                            json.dumps(
+                                [{"name": "Retrieval", "description": "d", "members": ["RAG"]}]
+                            )
+                        ]
+                    )
                 ),
             )
 
@@ -69,7 +76,7 @@ class DomainsTests(unittest.TestCase):
             answer = answer_question(
                 paths,
                 "come funziona?",
-                FakeLLMProvider(["Retrieval", "retrieval rag", "Risposta [1]."]),
+                StaticRouter(FakeLLMProvider(["Retrieval", "retrieval rag", "Risposta [1]."])),
             )
 
             self.assertIn("[1]", answer)
@@ -85,7 +92,7 @@ class DomainsTests(unittest.TestCase):
             # no overview built -> routing skipped; the literal question misses; expansion recovers.
             llm = FakeLLMProvider(["reranking", "Risposta [1]."])
 
-            answer = answer_question(paths, "come ordino meglio i risultati?", llm)
+            answer = answer_question(paths, "come ordino meglio i risultati?", StaticRouter(llm))
 
             self.assertIn("[1]", answer)
 

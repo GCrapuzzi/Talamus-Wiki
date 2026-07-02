@@ -10,11 +10,11 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from talamus.adapters.llm import LLMProvider, build_provider
 from talamus.config import load_or_default
 from talamus.errors import EngineNotFound
 from talamus.paths import TalamusPaths
 from talamus.registry import load_registry, register_brain, select_brain
+from talamus.routing import EngineRouter, TaskClass
 from talamus.services.ask import ask_brain
 from talamus.services.brains import init_brain, list_brains
 from talamus.services.diagnostics import inspect_diagnostics
@@ -45,9 +45,13 @@ _NO_ENGINE = {
 }
 
 
-def _provider(root: Path) -> LLMProvider:
-    config = load_or_default(TalamusPaths(root).config_path)
-    return build_provider(config.llm_provider, config.llm_model)
+def _router(root: Path) -> EngineRouter:
+    """Engine router for the brain. Probes the configured provider eagerly (one
+    for_task call) so the import/scan endpoints can keep returning the friendly
+    no-engine payload BEFORE starting a long job, as they did with build_provider."""
+    router = EngineRouter(load_or_default(TalamusPaths(root).config_path))
+    router.for_task(TaskClass.EXTRACTION)  # raises EngineNotFound if misconfigured
+    return router
 
 
 def _brain_summary(root_path: Path) -> dict:
@@ -199,10 +203,10 @@ def create_app(root: Path) -> FastAPI:
         target = str(data.get("target", ""))
         confirmed = bool(data.get("confirmed", False))
         try:
-            provider = _provider(root)
+            router = _router(root)
         except EngineNotFound:
             return _NO_ENGINE
-        return run_ingest(root, target, provider, confirmed=confirmed).to_dict()
+        return run_ingest(root, target, router, confirmed=confirmed).to_dict()
 
     @app.post("/api/import/text")
     def import_text(payload: dict | None = None) -> dict:
@@ -210,10 +214,10 @@ def create_app(root: Path) -> FastAPI:
         if not text.strip():
             return {"success": False, "code": "import_empty", "message": "Paste some text first."}
         try:
-            provider = _provider(root)
+            router = _router(root)
         except EngineNotFound:
             return _NO_ENGINE
-        return ingest_raw_text(root, text, provider).to_dict()
+        return ingest_raw_text(root, text, router).to_dict()
 
     @app.post("/api/scan/preview")
     def scan_preview_endpoint(payload: dict | None = None) -> dict:
@@ -226,10 +230,14 @@ def create_app(root: Path) -> FastAPI:
         target = str(data.get("target", ""))
         confirmed = bool(data.get("confirmed", False))
         allow_secrets = bool(data.get("allow_secrets", False))
+        try:
+            router = _router(root)
+        except EngineNotFound:
+            return _NO_ENGINE
         return run_scan(
             root,
             target,
-            lambda: _provider(root),
+            router,
             confirmed=confirmed,
             allow_secrets=allow_secrets,
         ).to_dict()

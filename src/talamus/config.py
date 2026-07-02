@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict, dataclass, fields, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
+from typing import Any
 
 from talamus.errors import ConfigError
 
@@ -23,6 +24,11 @@ class TalamusConfig:
     # machine layer (relation surfaces, canonical aliases) is English-canonical.
     # Empty = auto-detect from the system locale.
     language: str = ""
+    # P2 tiering overrides (empty = use the code defaults in talamus.routing).
+    # task_tiers: {"<TaskClass value>": {"tier": "economy"|"quality", "effort": "low"|"high"}}
+    task_tiers: dict[str, dict[str, str]] = field(default_factory=dict)
+    # provider_models: {"<provider>": {"economy": "<model>", "quality": "<model>"}}
+    provider_models: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @classmethod
     def default(cls) -> TalamusConfig:
@@ -58,7 +64,8 @@ def load_config(path: Path) -> TalamusConfig:
     empty = [
         name
         for name, value in asdict(config).items()
-        if name not in ("llm_model", "language") and not str(value).strip()
+        if name not in ("llm_model", "language", "task_tiers", "provider_models")
+        and not str(value).strip()
     ]
     if empty:
         raise ConfigError(f"Empty config fields in {path}: {', '.join(empty)}")
@@ -67,7 +74,7 @@ def load_config(path: Path) -> TalamusConfig:
 
 def _apply_env_overrides(config: TalamusConfig) -> TalamusConfig:
     """Override fields from TALAMUS_<FIELD> env vars, e.g. TALAMUS_LLM_PROVIDER=ollama."""
-    overrides = {
+    overrides: dict[str, Any] = {
         field.name: os.environ[f"TALAMUS_{field.name.upper()}"]
         for field in fields(config)
         if os.environ.get(f"TALAMUS_{field.name.upper()}")

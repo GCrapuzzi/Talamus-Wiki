@@ -10,11 +10,11 @@ from __future__ import annotations
 import dataclasses
 import json
 
-from talamus.adapters.llm import LLMProvider
 from talamus.linking import NoteRegistry
 from talamus.models import CanonicalNote, Relation
 from talamus.naming import note_filename, note_slug
 from talamus.paths import TalamusPaths
+from talamus.routing import Router, TaskClass
 from talamus.store import (
     load_notes,
     merge_notes,
@@ -91,10 +91,11 @@ def _balanced_objects(raw: str) -> list[dict]:
     return objects
 
 
-def _detect_groups(notes: list[CanonicalNote], llm: LLMProvider) -> list[dict]:
+def _detect_groups(notes: list[CanonicalNote], router: Router) -> list[dict]:
     if len(notes) < 2:
         return []
     listing = "\n".join(f"- [{n.note_id}] {n.title}: {n.summary}" for n in notes)
+    llm = router.for_task(TaskClass.CONSOLIDATE)
     raw = llm.complete(_PROMPT.replace("__NOTES__", listing))
     parsed = _balanced_objects(raw)
     titles = {n.title for n in notes}
@@ -112,13 +113,13 @@ def _detect_groups(notes: list[CanonicalNote], llm: LLMProvider) -> list[dict]:
     return groups
 
 
-def find_duplicates(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
+def find_duplicates(paths: TalamusPaths, router: Router) -> list[dict]:
     """Return the proposed merge groups (does not change anything)."""
-    return _detect_groups(load_notes(paths), llm)
+    return _detect_groups(load_notes(paths), router)
 
 
 def apply_consolidation(
-    paths: TalamusPaths, llm: LLMProvider, groups: list[dict] | None = None
+    paths: TalamusPaths, router: Router, groups: list[dict] | None = None
 ) -> int:
     """Merge duplicate groups. Returns how many notes were merged away.
 
@@ -127,7 +128,7 @@ def apply_consolidation(
     book brain): detection proposes, a human or a filter decides."""
     notes = load_notes(paths)
     if groups is None:
-        groups = _detect_groups(notes, llm)
+        groups = _detect_groups(notes, router)
     if not groups:
         return 0
 
