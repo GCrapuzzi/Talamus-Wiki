@@ -33,7 +33,7 @@ class DomainsTests(unittest.TestCase):
                 ]
             )
 
-            domains = build_overview(paths, llm)
+            domains = build_overview(paths, StaticRouter(llm))
 
             assigned = {member for domain in domains for member in domain["members"]}
             self.assertEqual({"RAG", "Embedding"}, assigned)
@@ -46,7 +46,7 @@ class DomainsTests(unittest.TestCase):
             write_note(paths, _note("Beta"))
             rebuild_indexes(paths)
 
-            domains = build_overview(paths, FakeLLMProvider([json.dumps([])]))
+            domains = build_overview(paths, StaticRouter(FakeLLMProvider([json.dumps([])])))
 
             self.assertEqual(1, len(domains))
             self.assertEqual({"Alpha", "Beta"}, set(domains[0]["members"]))
@@ -61,8 +61,14 @@ class DomainsTests(unittest.TestCase):
             rebuild_indexes(paths)
             build_overview(
                 paths,
-                FakeLLMProvider(
-                    [json.dumps([{"name": "Retrieval", "description": "d", "members": ["RAG"]}])]
+                StaticRouter(
+                    FakeLLMProvider(
+                        [
+                            json.dumps(
+                                [{"name": "Retrieval", "description": "d", "members": ["RAG"]}]
+                            )
+                        ]
+                    )
                 ),
             )
 

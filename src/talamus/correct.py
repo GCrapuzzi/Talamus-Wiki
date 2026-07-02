@@ -9,10 +9,10 @@ from __future__ import annotations
 import dataclasses
 import json
 
-from talamus.adapters.llm import LLMProvider
 from talamus.linking import NoteRegistry
 from talamus.models import CanonicalNote
 from talamus.paths import TalamusPaths
+from talamus.routing import Router, TaskClass
 from talamus.store import load_notes, overwrite_note_json, rebuild_indexes, render_note_markdown
 
 _PROMPT = """Here is a NOTE and its SOURCE. Is the note faithful to the source?
@@ -47,7 +47,7 @@ def _source_text(paths: TalamusPaths, note: CanonicalNote) -> str:
     return ""
 
 
-def verify_note(paths: TalamusPaths, title: str, llm: LLMProvider) -> dict:
+def verify_note(paths: TalamusPaths, title: str, router: Router) -> dict:
     """Check a note against its source. Returns {found, checked, ok, summary?, body?}."""
     note = _find(load_notes(paths), title)
     if note is None:
@@ -56,6 +56,7 @@ def verify_note(paths: TalamusPaths, title: str, llm: LLMProvider) -> dict:
     if not source:
         return {"found": True, "checked": False}
     body = "\n".join(note.body_sections.values())
+    llm = router.for_task(TaskClass.VERIFY)
     raw = llm.complete(
         _PROMPT.replace("<TITLE>", note.title)
         .replace("<SUMMARY>", note.summary)
@@ -88,9 +89,9 @@ def _write_correction(paths: TalamusPaths, note: CanonicalNote, summary: str, bo
     _record_correction_claims(paths, note, corrected)
 
 
-def apply_correction(paths: TalamusPaths, title: str, llm: LLMProvider) -> bool:
+def apply_correction(paths: TalamusPaths, title: str, router: Router) -> bool:
     """Verify and, if needed, write the corrected note (old version kept in history)."""
-    result = verify_note(paths, title, llm)
+    result = verify_note(paths, title, router)
     if not result.get("found") or result.get("ok", True):
         return False
     note = _find(load_notes(paths), title)
@@ -171,7 +172,7 @@ def provenance_report(paths: TalamusPaths) -> list[dict]:
 
 def verify_batch(
     paths: TalamusPaths,
-    llm: LLMProvider,
+    router: Router,
     only_stale: bool = False,
     source_filter: str | None = None,
 ) -> dict:
@@ -200,7 +201,7 @@ def verify_batch(
         if only_stale:
             report["skipped"] += 1
             continue
-        result = verify_note(paths, note.title, llm)
+        result = verify_note(paths, note.title, router)
         report["checked"] += 1
         if result.get("ok", True):
             report["ok"] += 1

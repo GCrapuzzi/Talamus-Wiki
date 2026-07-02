@@ -12,7 +12,7 @@ from talamus.cli._common import (
     _ALL_COMMANDS,
     _detect_engine,
     _print_json,
-    _provider_for,
+    _router_for,
 )
 from talamus.config import TalamusConfig, load_config, save_config
 from talamus.demo import create_demo_brain
@@ -21,7 +21,6 @@ from talamus.paths import TalamusPaths
 from talamus.registry import (
     register_brain,
 )
-from talamus.routing import StaticRouter
 from talamus.scan import (
     build_plan,
     format_plan,
@@ -163,7 +162,7 @@ def _cmd_hook_run(root: Path) -> int:
         ).stdout
     except (subprocess.SubprocessError, OSError):
         diff = ""
-    remember_session(TalamusPaths(root), transcript, diff, StaticRouter(_provider_for(root)))
+    remember_session(TalamusPaths(root), transcript, diff, _router_for(root))
     return 0
 
 

@@ -13,12 +13,11 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from talamus.adapters.llm import ENGINE_LABELS, LLMProvider, build_provider
 from talamus.ask import answer_question
 from talamus.config import load_or_default
 from talamus.errors import EngineFailed, EngineNotFound
 from talamus.paths import TalamusPaths
-from talamus.routing import StaticRouter
+from talamus.routing import EngineRouter, Router
 from talamus.services.query import search_brain
 from talamus.services.result import ServiceResult
 
@@ -53,7 +52,7 @@ def ask_brain(
     root: str | Path,
     question: str,
     *,
-    provider: LLMProvider | None = None,
+    router: Router | None = None,
 ) -> ServiceResult[AskResult]:
     paths = TalamusPaths(Path(root))
     text = (question or "").strip()
@@ -61,31 +60,30 @@ def ask_brain(
         return ServiceResult(success=False, message="Ask a question first.", code="ask_empty")
 
     sources = _retrieve_sources(root, text)
-    engine_label = "engine"
 
-    if provider is None:
-        config = load_or_default(paths.config_path)
-        engine_label = _engine_label(config.llm_provider, config.llm_model)
-        try:
-            provider = build_provider(config.llm_provider, config.llm_model)
-        except EngineNotFound:
-            return _degraded(
-                text,
-                sources,
-                engine="",
-                notice=(
-                    "No engine connected — showing the most relevant notes. Run "
-                    "`talamus setup` to connect one and get a written, cited answer."
-                ),
-                code="ask_no_engine",
-            )
-    else:
-        engine_label = getattr(provider, "label", "engine")
+    # EngineRouter(config) never raises: it only stores config. The "no engine"
+    # condition is now lazy — build_provider_for_task raises EngineNotFound the first
+    # time answer_question actually calls the engine — so both failure modes are caught
+    # around the answer_question call below.
+    if router is None:
+        router = EngineRouter(load_or_default(paths.config_path))
+    engine_label = router.label
 
     trace: dict[str, Any] = {}
     try:
-        answer = answer_question(paths, text, StaticRouter(provider), trace=trace)
-    except (EngineNotFound, EngineFailed) as exc:
+        answer = answer_question(paths, text, router, trace=trace)
+    except EngineNotFound:
+        return _degraded(
+            text,
+            sources,
+            engine="",
+            notice=(
+                "No engine connected — showing the most relevant notes. Run "
+                "`talamus setup` to connect one and get a written, cited answer."
+            ),
+            code="ask_no_engine",
+        )
+    except EngineFailed as exc:
         return _degraded(
             text,
             sources,
@@ -116,11 +114,6 @@ def _retrieve_sources(root: str | Path, question: str) -> list[AskSource]:
     if not result.success or result.data is None:
         return []
     return [AskSource(title=hit.title, summary=hit.summary) for hit in result.data.hits]
-
-
-def _engine_label(provider: str, model: str) -> str:
-    label = ENGINE_LABELS.get(provider, provider) or "—"
-    return f"{label} · {model}" if model else label
 
 
 def _degraded(

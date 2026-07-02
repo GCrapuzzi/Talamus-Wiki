@@ -6,6 +6,7 @@ from pathlib import Path
 from talamus.models import CanonicalNote, Relation, SourceRef
 from talamus.ontology_lab import induce_candidates, surface_key
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.services.ontology import (
     apply_ontology_candidate,
     deprecate_ontology_type,
@@ -63,7 +64,7 @@ def _naming_response(key: str) -> str:
 
 def _induce(paths: TalamusPaths) -> str:
     key = surface_key("alimenta")
-    created = induce_candidates(paths, FakeLLMProvider([_naming_response(key)]))
+    created = induce_candidates(paths, StaticRouter(FakeLLMProvider([_naming_response(key)])))
     return created[0].id
 
 

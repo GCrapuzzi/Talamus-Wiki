@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
-from talamus.adapters.llm import LLMProvider
 from talamus.cli._common import (
     JOB_RUNNERS,
     _print_json,
-    _provider_for,
+    _router_for,
 )
 from talamus.domains import build_overview, load_overview
 from talamus.jobs import JobRecord
@@ -17,7 +15,7 @@ from talamus.paths import TalamusPaths
 from talamus.registry import (
     load_registry,
 )
-from talamus.routing import StaticRouter
+from talamus.routing import Router
 from talamus.scan import (
     execute_plan,
     format_plan,
@@ -39,7 +37,7 @@ from talamus.services.verification import (
 def _cmd_scan(
     root: Path,
     target: str,
-    llm_factory: Callable[[], LLMProvider],
+    router: Router,
     args: argparse.Namespace,
 ) -> int:
     json_out = bool(getattr(args, "json", False))
@@ -66,7 +64,7 @@ def _cmd_scan(
     service_result = run_scan(
         root,
         target,
-        llm_factory,
+        router,
         profile=args.profile,
         include=args.include or None,
         exclude=args.exclude or None,
@@ -115,7 +113,7 @@ def _run_scan_job(root: Path, record: JobRecord) -> int:
     """Resume runner registered in JOB_RUNNERS for `talamus jobs resume`."""
     paths = TalamusPaths(root)
     plan = plan_from_record(record)
-    report = execute_plan(paths, plan, _provider_for(root), job_record=record)
+    report = execute_plan(paths, plan, _router_for(root), job_record=record)
     print(
         f"scan {report['state']}: {report['notes_written']} notes from "
         f"{report['files']} files (job {report['job_id']})"
@@ -134,9 +132,7 @@ def _run_ingest_job(root: Path, record: JobRecord) -> int:
     if not file_path.is_file():
         print(f"error: source file missing: {file_path}", file=sys.stderr)
         return 1
-    report = ingest_large(
-        TalamusPaths(root), file_path, StaticRouter(_provider_for(root)), job_record=record
-    )
+    report = ingest_large(TalamusPaths(root), file_path, _router_for(root), job_record=record)
     print(
         f"ingest {report['state']}: {report['notes_written']} notes from "
         f"{report['chunks']} chunks (job {report['job_id']})"
@@ -147,10 +143,8 @@ def _run_ingest_job(root: Path, record: JobRecord) -> int:
 JOB_RUNNERS["ingest"] = _run_ingest_job
 
 
-def _cmd_ingest(
-    root: Path, target: str, llm: LLMProvider, json_out: bool, yes: bool = False
-) -> int:
-    service_result = run_ingest(root, target, llm, confirmed=yes)
+def _cmd_ingest(root: Path, target: str, router: Router, json_out: bool, yes: bool = False) -> int:
+    service_result = run_ingest(root, target, router, confirmed=yes)
     if service_result.code == "ingest_confirmation_required" and isinstance(
         service_result.data, IngestPreview
     ):
@@ -187,9 +181,9 @@ def _cmd_ingest(
     return 0
 
 
-def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: bool) -> int:
+def _cmd_consolidate(root: Path, do_apply: bool, router: Router, json_out: bool) -> int:
     if do_apply:
-        apply_result = apply_consolidation_groups(root, llm)
+        apply_result = apply_consolidation_groups(root, router)
         if not apply_result.success or apply_result.data is None:
             print(apply_result.message, file=sys.stderr)
             return 1
@@ -199,7 +193,7 @@ def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: boo
         else:
             print(f"consolidate: merged {merged} note(s)")
         return 0
-    list_result = list_consolidation_groups(root, llm)
+    list_result = list_consolidation_groups(root, router)
     if not list_result.success or list_result.data is None:
         print(list_result.message, file=sys.stderr)
         return 1
@@ -217,9 +211,9 @@ def _cmd_consolidate(root: Path, do_apply: bool, llm: LLMProvider, json_out: boo
     return 0
 
 
-def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
+def _cmd_enrich(root: Path, yes: bool, router: Router, json_out: bool) -> int:
     """Symptom enrichment (RS2.4-bis): estimate first, batches only with --yes."""
-    service_result = run_enrich(root, llm, confirmed=yes)
+    service_result = run_enrich(root, router, confirmed=yes)
     if service_result.code == "enrich_nothing_to_do":
         print("all notes already have the symptom vocabulary")
         return 0
@@ -249,9 +243,11 @@ def _cmd_enrich(root: Path, yes: bool, llm: LLMProvider, json_out: bool) -> int:
 
 
 def _cmd_verify_batch(
-    root: Path, llm: LLMProvider, only_stale: bool, source: str | None, json_out: bool
+    root: Path, router: Router, only_stale: bool, source: str | None, json_out: bool
 ) -> int:
-    service_result = run_verification_batch(root, llm, only_stale=only_stale, source_filter=source)
+    service_result = run_verification_batch(
+        root, router, only_stale=only_stale, source_filter=source
+    )
     if not service_result.success or not isinstance(service_result.data, VerificationBatchResult):
         print(service_result.message, file=sys.stderr)
         return 1
@@ -269,9 +265,9 @@ def _cmd_verify_batch(
     return 0
 
 
-def _cmd_verify(root: Path, title: str, do_apply: bool, llm: LLMProvider, json_out: bool) -> int:
+def _cmd_verify(root: Path, title: str, do_apply: bool, router: Router, json_out: bool) -> int:
     if do_apply:
-        apply_result = apply_note_correction(root, title, llm)
+        apply_result = apply_note_correction(root, title, router)
         if not apply_result.success or apply_result.data is None:
             print(apply_result.message, file=sys.stderr)
             return 1
@@ -281,7 +277,7 @@ def _cmd_verify(root: Path, title: str, do_apply: bool, llm: LLMProvider, json_o
         else:
             print(f"verify: {'corrected' if corrected else 'no correction needed for'} '{title}'")
         return 0
-    note_result = verify_single_note(root, title, llm)
+    note_result = verify_single_note(root, title, router)
     if not note_result.success or not isinstance(note_result.data, VerificationNoteResult):
         print(note_result.message, file=sys.stderr)
         return 1
@@ -305,7 +301,7 @@ def _cmd_verify(root: Path, title: str, do_apply: bool, llm: LLMProvider, json_o
 
 
 def _cmd_overview(
-    root: Path, llm: LLMProvider, json_out: bool, rebuild: bool, policy: str | None = None
+    root: Path, router: Router, json_out: bool, rebuild: bool, policy: str | None = None
 ) -> int:
     if policy == "all":
         registry = load_registry()
@@ -326,9 +322,9 @@ def _cmd_overview(
     if rebuild or not paths.overview_file.exists():
         from talamus.domains import TREE_THRESHOLD, build_overview_tree
 
-        domains = build_overview(paths, llm)
+        domains = build_overview(paths, router)
         if len(domains) >= TREE_THRESHOLD:
-            areas = build_overview_tree(paths, llm)
+            areas = build_overview_tree(paths, router)
             if areas and not json_out:
                 print(f"(hierarchical map: {len(areas)} macro-areas over {len(domains)} domains)")
     else:

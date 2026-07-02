@@ -7,6 +7,7 @@ from pathlib import Path
 from talamus.correct import apply_correction, verify_note
 from talamus.models import CanonicalNote, SourceRef
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.store import load_notes, rebuild_indexes, write_note
 from talamus.timeline import note_history
 from tests.support import FakeLLMProvider
@@ -37,7 +38,7 @@ class CorrectTests(unittest.TestCase):
                 [json.dumps({"ok": False, "summary": "corretto", "body": "corpo corretto"})]
             )
 
-            changed = apply_correction(paths, "X", llm)
+            changed = apply_correction(paths, "X", StaticRouter(llm))
 
             self.assertTrue(changed)
             note = next(n for n in load_notes(paths) if n.title == "X")
@@ -51,7 +52,9 @@ class CorrectTests(unittest.TestCase):
             write_note(paths, _note_with_source(tmp))
             rebuild_indexes(paths)
 
-            result = verify_note(paths, "X", FakeLLMProvider([json.dumps({"ok": True})]))
+            result = verify_note(
+                paths, "X", StaticRouter(FakeLLMProvider([json.dumps({"ok": True})]))
+            )
 
             self.assertTrue(result["ok"])
 

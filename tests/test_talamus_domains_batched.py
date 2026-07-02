@@ -13,6 +13,7 @@ from talamus.domains import (
     SPLIT_CLUSTER_THRESHOLD,
     _name_domains_batched,
 )
+from talamus.routing import StaticRouter
 from tests.support import FakeLLMProvider
 
 
@@ -46,7 +47,7 @@ class BatchedDomainsTests(unittest.TestCase):
         )
         llm = FakeLLMProvider([split_answer, naming_answer, assign_answer])
 
-        domains = _name_domains_batched(clusters, summaries, llm)
+        domains = _name_domains_batched(clusters, summaries, StaticRouter(llm))
 
         by_name = {d["name"]: d for d in domains}
         self.assertEqual(
@@ -68,7 +69,7 @@ class BatchedDomainsTests(unittest.TestCase):
 
         # malformed split, malformed naming, malformed assignment
         llm = FakeLLMProvider(["NON-JSON", "{rotto", "..."])
-        domains = _name_domains_batched(clusters, summaries, llm)
+        domains = _name_domains_batched(clusters, summaries, StaticRouter(llm))
 
         by_name = {d["name"]: d for d in domains}
         # the mid cluster survives with the deterministic fallback (first title)
@@ -84,7 +85,7 @@ class BatchedDomainsTests(unittest.TestCase):
         clusters = [["Sola"], ["Persa"]]
         summaries = _summaries(["Sola", "Persa"])
         llm = FakeLLMProvider([])
-        domains = _name_domains_batched(clusters, summaries, llm)
+        domains = _name_domains_batched(clusters, summaries, StaticRouter(llm))
         self.assertEqual(len(domains), 1)
         self.assertEqual(domains[0]["name"], "Misc")
         self.assertEqual(llm.prompts, [])  # no domains -> no batches to assign

@@ -6,8 +6,8 @@ from pathlib import Path
 from talamus.adapters.llm import LLMProvider
 from talamus.cli._common import (
     _ensure_utf8_output,
-    _provider_for,
     _resolve_root,
+    _router_for,
 )
 from talamus.cli.dashboard import _cmd_panel, _cmd_quickstart, _cmd_ui, _cmd_where
 from talamus.cli.groups import (
@@ -56,6 +56,7 @@ from talamus.cli.query import (
 )
 from talamus.errors import TalamusError
 from talamus.log import configure
+from talamus.routing import StaticRouter
 from talamus.scan import (
     build_plan,
     format_plan,
@@ -104,6 +105,14 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
     )
     json_out = bool(getattr(args, "json", False))
     policy = "all" if getattr(args, "all_brains", False) else getattr(args, "scope", None)
+
+    def _build_router():
+        """Router for the LLM commands, built LAZILY: non-LLM commands (doctor,
+        search without --smart, ...) must keep working on a malformed or missing
+        config. A test-injected provider is pinned via StaticRouter; otherwise the
+        brain's config drives per-task tiering."""
+        return StaticRouter(llm) if llm is not None else _router_for(root)
+
     try:
         if command == "where":
             return _cmd_where(resolve_brain(args.root, args.brain, args.use_global), json_out)
@@ -112,9 +121,7 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         if command == "import":
             return _cmd_import(args.file, root)
         if command == "ontology":
-            return _cmd_ontology_group(
-                args, root, lambda: llm if llm is not None else _provider_for(root)
-            )
+            return _cmd_ontology_group(args, root, _build_router())
         if command == "jobs":
             return _cmd_jobs_group(args, root)
         if command == "review":
@@ -136,7 +143,16 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         if command == "reindex":
             return _cmd_reindex(root, json_out)
         if command == "search":
-            return _cmd_search(root, args.query, json_out, args.limit, policy, args.smart, llm)
+            return _cmd_search(
+                root,
+                args.query,
+                json_out,
+                args.limit,
+                policy,
+                args.smart,
+                # lazy: only --smart needs an engine; _cmd_search falls back on its own
+                StaticRouter(llm) if llm is not None else None,
+            )
         if command == "read":
             return _cmd_read(root, args.title, json_out, args.as_of)
         if command == "timeline":
@@ -157,32 +173,28 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         if command == "relations":
             return _cmd_relations(root, args.prune, json_out)
         if command == "scan":
-            return _cmd_scan(
-                root,
-                args.target,
-                lambda: llm if llm is not None else _provider_for(root),
-                args,
-            )
-        provider = llm if llm is not None else _provider_for(root)
+            return _cmd_scan(root, args.target, _build_router(), args)
         if command == "ingest":
-            return _cmd_ingest(root, args.target, provider, json_out, args.yes)
+            return _cmd_ingest(root, args.target, _build_router(), json_out, args.yes)
         if command == "consolidate":
-            return _cmd_consolidate(root, args.apply, provider, json_out)
+            return _cmd_consolidate(root, args.apply, _build_router(), json_out)
         if command == "enrich":
-            return _cmd_enrich(root, args.yes, provider, json_out)
+            return _cmd_enrich(root, args.yes, _build_router(), json_out)
         if command == "verify":
             if args.all or args.stale or args.source:
-                return _cmd_verify_batch(root, provider, args.stale, args.source, json_out)
+                return _cmd_verify_batch(root, _build_router(), args.stale, args.source, json_out)
             if not args.title:
                 print("error: pass a note title, or --all / --stale / --source", file=sys.stderr)
                 return 1
-            return _cmd_verify(root, args.title, args.apply, provider, json_out)
+            return _cmd_verify(root, args.title, args.apply, _build_router(), json_out)
         if command == "overview":
-            return _cmd_overview(root, provider, json_out, args.rebuild, policy)
+            return _cmd_overview(root, _build_router(), json_out, args.rebuild, policy)
         if command == "ask":
-            return _cmd_ask(root, args.question, provider, json_out, policy, args.trace, args.as_of)
+            return _cmd_ask(
+                root, args.question, _build_router(), json_out, policy, args.trace, args.as_of
+            )
         if command == "remember":
-            return _cmd_remember(root, args.transcript, args.diff, provider, json_out)
+            return _cmd_remember(root, args.transcript, args.diff, _build_router(), json_out)
     except TalamusError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

@@ -11,9 +11,9 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from talamus.adapters.llm import LLMProvider, build_provider
 from talamus.config import load_or_default
 from talamus.paths import TalamusPaths
+from talamus.routing import EngineRouter
 from talamus.services.graph import list_graph_neighbors
 from talamus.services.ingestion import ingest_raw_text
 from talamus.services.library import get_library_note
@@ -53,9 +53,8 @@ def _root_for(scope: str) -> Path:
     return _root
 
 
-def _provider() -> LLMProvider:
-    config = load_or_default(_paths().config_path)
-    return build_provider(config.llm_provider, config.llm_model)
+def _router() -> EngineRouter:
+    return EngineRouter(load_or_default(_paths().config_path))
 
 
 @server.tool()
@@ -67,10 +66,9 @@ def search(query: str, smart: bool = False) -> str:
     call per new query."""
     query_text = query
     if smart:
-        from talamus.routing import StaticRouter
         from talamus.smartsearch import expand_query
 
-        query_text = expand_query(_paths(), query, StaticRouter(_provider()))
+        query_text = expand_query(_paths(), query, _router())
     result = search_brain(_root, query_text)
     if not result.success or result.data is None:
         return result.message
@@ -177,7 +175,7 @@ def remember(text: str, scope: str = "project") -> str:
     """Save into the Talamus brain an important insight or decision that emerged in
     the session, turning it into a note. scope: 'project' (default) or 'central' for
     the personal brain — writing to the global brain must be explicit."""
-    result = ingest_raw_text(_root_for(scope), text, _provider())
+    result = ingest_raw_text(_root_for(scope), text, _router())
     if not result.success or result.data is None:
         return result.message
     return f"Remembered in [{scope}]: {result.data.notes_written} notes saved."
@@ -187,7 +185,7 @@ def remember(text: str, scope: str = "project") -> str:
 def ingest_text(text: str, name: str = "insight", scope: str = "project") -> str:
     """Compile a text into brain notes (without the 'worth remembering' gate: use it
     for already-selected content). scope: 'project' (default) or 'central'."""
-    result = ingest_raw_text(_root_for(scope), text, _provider(), name=name)
+    result = ingest_raw_text(_root_for(scope), text, _router(), name=name)
     if not result.success or result.data is None:
         return result.message
     return f"Ingested in [{scope}]: {result.data.notes_written} notes."

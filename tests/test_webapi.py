@@ -140,7 +140,9 @@ class WebApiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             create_demo_brain(TalamusPaths(root))
-            with patch("talamus.services.ask.build_provider", side_effect=EngineNotFound("none")):
+            with patch(
+                "talamus.routing.build_provider_for_task", side_effect=EngineNotFound("none")
+            ):
                 resp = self._client(root).post("/api/ask", json={"question": "what is reranking?"})
         self.assertEqual(resp.status_code, 200)
         body = resp.json()

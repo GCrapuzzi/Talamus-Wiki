@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
-from talamus.adapters.llm import LLMProvider
 from talamus.cli._common import (
     JOB_RUNNERS,
     _print_json,
@@ -22,6 +20,7 @@ from talamus.registry import (
     load_registry,
     talamus_home,
 )
+from talamus.routing import Router
 from talamus.scope import (
     promote_note,
 )
@@ -50,9 +49,7 @@ from talamus.services.review import (
 )
 
 
-def _cmd_ontology_group(
-    args: argparse.Namespace, root: Path, llm_factory: Callable[[], LLMProvider]
-) -> int:
+def _cmd_ontology_group(args: argparse.Namespace, root: Path, router: Router) -> int:
     paths = TalamusPaths(root)
     cmd = getattr(args, "ontology_cmd", None) or "status"
     json_out = bool(getattr(args, "json", False))
@@ -75,7 +72,7 @@ def _cmd_ontology_group(
         )
         return 0
     if cmd == "induce":
-        created = induce_candidates(paths, llm_factory(), min_support=args.min_support)
+        created = induce_candidates(paths, router, min_support=args.min_support)
         if json_out:
             _print_json([c.to_dict() for c in created])
             return 0

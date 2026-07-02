@@ -5,10 +5,10 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from talamus.adapters.llm import LLMProvider, build_provider
 from talamus.config import load_or_default
 from talamus.jobs import JobRecord
 from talamus.paths import TalamusPaths
+from talamus.routing import EngineRouter
 from talamus.scope import (
     resolve_brain,
 )
@@ -25,9 +25,9 @@ def _resolve_root(root: str | None, brain: str | None, use_global: bool) -> Path
     return resolve_brain(root, brain, use_global).root
 
 
-def _provider_for(root: Path) -> LLMProvider:
-    config = load_or_default(TalamusPaths(root).config_path)
-    return build_provider(config.llm_provider, config.llm_model)
+def _router_for(root: Path) -> EngineRouter:
+    """Build the per-task engine router for a brain (reads its config each call)."""
+    return EngineRouter(load_or_default(TalamusPaths(root).config_path))
 
 
 def _ensure_utf8_output() -> None:

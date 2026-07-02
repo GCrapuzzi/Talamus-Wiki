@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 
+from talamus.routing import StaticRouter
 from talamus.services.enrich import preview_enrich, run_enrich
 from talamus.store import load_notes
 from tests.support import FakeLLMProvider
@@ -30,7 +31,7 @@ class TalamusEnrichServiceTests(unittest.TestCase):
             paths = _brain(tmp, ["Allucinazione"])
             llm = FakeLLMProvider([])
 
-            result = run_enrich(tmp, llm, confirmed=False)
+            result = run_enrich(tmp, StaticRouter(llm), confirmed=False)
 
             note = load_notes(paths)[0]
 
@@ -47,7 +48,7 @@ class TalamusEnrichServiceTests(unittest.TestCase):
             )
             llm = FakeLLMProvider([answer])
 
-            result = run_enrich(tmp, llm, confirmed=True)
+            result = run_enrich(tmp, StaticRouter(llm), confirmed=True)
 
             note = load_notes(paths)[0]
 
@@ -64,10 +65,10 @@ class TalamusEnrichServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             _brain(tmp, ["Allucinazione"])
             answer = json.dumps([{"id": "allucinazione", "symptoms": "frasi sintomo"}])
-            first = run_enrich(tmp, FakeLLMProvider([answer]), confirmed=True)
+            first = run_enrich(tmp, StaticRouter(FakeLLMProvider([answer])), confirmed=True)
             llm = FakeLLMProvider([])
 
-            second = run_enrich(tmp, llm, confirmed=True)
+            second = run_enrich(tmp, StaticRouter(llm), confirmed=True)
 
         self.assertTrue(first.success, first.message)
         self.assertTrue(second.success, second.message)

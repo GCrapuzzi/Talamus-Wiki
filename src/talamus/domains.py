@@ -11,10 +11,10 @@ from __future__ import annotations
 import json
 import re
 
-from talamus.adapters.llm import LLMProvider
 from talamus.models import CanonicalNote
 from talamus.ontology import load_ontology, neighbors
 from talamus.paths import TalamusPaths
+from talamus.routing import Router, TaskClass
 from talamus.store import load_notes
 
 _PROMPT = """You are a librarian. The NOTES are pre-grouped by connections (CLUSTERS).
@@ -78,12 +78,13 @@ def _parse_json_array(raw: str) -> list:
 def _domains_from_llm(
     clusters: list[list[str]],
     summaries: dict[str, str],
-    llm: LLMProvider,
+    router: Router,
     language: str,
 ) -> tuple[list[dict], set[str]]:
     """One full-partition call (the original path). Returns (domains, assigned)."""
     cluster_text = "\n".join(f"- {', '.join(cluster)}" for cluster in clusters)
     summary_text = "\n".join(f"- {title}: {summary}" for title, summary in summaries.items())
+    llm = router.for_task(TaskClass.OVERVIEW_NAMING)
     raw = llm.complete(
         _PROMPT.replace("<CLUSTERS>", cluster_text)
         .replace("<SUMMARIES>", summary_text)
@@ -111,10 +112,10 @@ def _domains_from_llm(
 def _name_domains(
     clusters: list[list[str]],
     summaries: dict[str, str],
-    llm: LLMProvider,
+    router: Router,
     language: str = "English",
 ) -> list[dict]:
-    domains, assigned = _domains_from_llm(clusters, summaries, llm, language)
+    domains, assigned = _domains_from_llm(clusters, summaries, router, language)
     leftover = [title for title in summaries if title not in assigned]
     if leftover:
         domains.append(
@@ -157,18 +158,20 @@ NOTES (title: summary):
 def _name_domains_batched(
     clusters: list[list[str]],
     summaries: dict[str, str],
-    llm: LLMProvider,
+    router: Router,
     language: str = "English",
 ) -> list[dict]:
     big = [c for c in clusters if len(c) >= SPLIT_CLUSTER_THRESHOLD]
     mid = [c for c in clusters if MIN_NAMED_CLUSTER <= len(c) < SPLIT_CLUSTER_THRESHOLD]
     strays = [t for c in clusters if len(c) < MIN_NAMED_CLUSTER for t in c]
     domains: list[dict] = []
+    # one task for the whole function (mid naming + stray assignment share the tier)
+    llm = router.for_task(TaskClass.OVERVIEW_NAMING)
 
     # 1) giant clusters: dedicated thematic partition (echo limited to the cluster)
     for cluster in big:
         sub = {t: summaries.get(t, "") for t in cluster}
-        split_domains, assigned = _domains_from_llm([cluster], sub, llm, language)
+        split_domains, assigned = _domains_from_llm([cluster], sub, router, language)
         domains.extend(split_domains)
         strays.extend(t for t in cluster if t not in assigned)
 
@@ -232,7 +235,7 @@ def _name_domains_batched(
     return domains
 
 
-def build_overview(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
+def build_overview(paths: TalamusPaths, router: Router) -> list[dict]:
     """Induce the domains and persist the overview. Returns the domain list."""
     from talamus.config import load_or_default, resolve_language
 
@@ -243,7 +246,7 @@ def build_overview(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
     summaries = {note.title: note.summary for note in notes}
     language = resolve_language(load_or_default(paths.config_path))
     namer = _name_domains_batched if len(notes) > BATCH_NOTES_THRESHOLD else _name_domains
-    domains = namer(clusters, summaries, llm, language=language)
+    domains = namer(clusters, summaries, router, language=language)
     save_overview(paths, domains)
     return domains
 
@@ -296,7 +299,7 @@ def tree_path(paths: TalamusPaths):
     return paths.cache / "overview-tree.json"
 
 
-def build_overview_tree(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
+def build_overview_tree(paths: TalamusPaths, router: Router) -> list[dict]:
     """Second overview level (Fase R5): macro-areas over the domains, so routing
     cost stays ~log(N) instead of growing linearly with the domain count.
     One extra LLM call, only when the flat map is big enough to need it."""
@@ -310,6 +313,7 @@ def build_overview_tree(paths: TalamusPaths, llm: LLMProvider) -> list[dict]:
         f"- {d.get('id', '?')} | {d.get('name', '')}: {d.get('description', '')}" for d in overview
     )
     language = resolve_language(load_or_default(paths.config_path))
+    llm = router.for_task(TaskClass.OVERVIEW_NAMING)
     raw = llm.complete(
         _TREE_PROMPT.replace("<DOMAINS>", domain_lines).replace("<LANGUAGE>", language)
     )

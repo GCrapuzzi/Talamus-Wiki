@@ -21,12 +21,11 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PurePosixPath
 
-from talamus.adapters.llm import LLMProvider
 from talamus.ingest import ingest_text
 from talamus.jobs import JobRecord, JobStore, run_items
 from talamus.paths import TalamusPaths
 from talamus.redact import find_secrets, is_secret_file, redact
-from talamus.routing import StaticRouter
+from talamus.routing import Router
 
 DOC_EXTS = {".md", ".markdown", ".rst", ".txt", ".docx", ".pdf", ".html", ".htm"}
 CODE_EXTS = {
@@ -296,7 +295,7 @@ def code_digest(full: Path, rel_path: str) -> str:
 def execute_plan(
     paths: TalamusPaths,
     plan: ScanPlan,
-    llm: LLMProvider,
+    router: Router,
     job_record: JobRecord | None = None,
 ) -> dict:
     """Run the plan as a persistent, resumable job. Per-file failures are recorded,
@@ -308,7 +307,6 @@ def execute_plan(
     commit = plan.git.get("commit", "dirty") if plan.git else "no-git"
     failures: list[dict] = []
     notes_written = 0
-    router = StaticRouter(llm)  # scan pins one engine for the whole batch (no per-task tiering)
 
     def handle(rel_path: str) -> None:
         nonlocal notes_written

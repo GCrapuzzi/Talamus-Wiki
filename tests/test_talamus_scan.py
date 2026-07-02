@@ -6,6 +6,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.scan import build_plan, code_digest, execute_plan, format_plan
 from talamus.store import load_notes
 from tests.support import FakeLLMProvider
@@ -114,7 +115,7 @@ class ExecutePlanTests(unittest.TestCase):
             paths.ensure_directories()
             plan = build_plan(Path(repo), profile="all")
             llm = FakeLLMProvider([_note_json(f"Concetto {i}") for i in range(len(plan.included))])
-            report = execute_plan(paths, plan, llm)
+            report = execute_plan(paths, plan, StaticRouter(llm))
             self.assertEqual(report["state"], "completed")
             self.assertGreater(report["notes_written"], 0)
             self.assertEqual(report["failed"], [])
@@ -131,7 +132,7 @@ class ExecutePlanTests(unittest.TestCase):
             paths.ensure_directories()
             plan = build_plan(Path(repo), profile="docs")
             llm = FakeLLMProvider(["non è json"] * len(plan.included))
-            report = execute_plan(paths, plan, llm)
+            report = execute_plan(paths, plan, StaticRouter(llm))
             self.assertEqual(report["state"], "completed")
             self.assertEqual(len(report["failed"]), len(plan.included))
 

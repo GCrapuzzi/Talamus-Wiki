@@ -8,6 +8,7 @@ from pathlib import Path
 from talamus.errors import TalamusError
 from talamus.models import CanonicalNote, SourceRef
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.store import overwrite_note_json, rebuild_indexes, write_note
 from talamus.temporal import (
     claims_as_of,
@@ -114,7 +115,7 @@ class CorrectionIntegrationTests(unittest.TestCase):
             llm = FakeLLMProvider(
                 [json.dumps({"ok": False, "summary": "Il valore è 42.", "body": "Corretto: 42."})]
             )
-            self.assertTrue(apply_correction(paths, "Valore", llm))
+            self.assertTrue(apply_correction(paths, "Valore", StaticRouter(llm)))
             now = current_claims(paths, "valore")
             self.assertEqual(len(now), 1)
             self.assertEqual(now[0].text, "Il valore è 42.")  # only the corrected fact is current

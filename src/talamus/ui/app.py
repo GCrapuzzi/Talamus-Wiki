@@ -15,11 +15,10 @@ from pathlib import Path
 
 import flet as ft
 
-from talamus.adapters.llm import build_provider
 from talamus.ask import answer_question
 from talamus.config import load_or_default, resolve_language
 from talamus.paths import TalamusPaths
-from talamus.routing import StaticRouter
+from talamus.routing import EngineRouter
 from talamus.services.ingestion import (
     IngestPreview,
     IngestRunResult,
@@ -142,9 +141,8 @@ def _show_sidebar_for_width(width: int | float | str | None) -> bool:
     return width_value >= SIDEBAR_COLLAPSE_WIDTH
 
 
-def _provider(paths: TalamusPaths):
-    config = load_or_default(paths.config_path)
-    return build_provider(config.llm_provider, config.llm_model)
+def _router(paths: TalamusPaths) -> EngineRouter:
+    return EngineRouter(load_or_default(paths.config_path))
 
 
 def _format_import_guardrail() -> str:
@@ -537,16 +535,14 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                         trace["as_of"] = as_of_value
                         if items:
                             answer.value = answer_from_items(
-                                question, items, StaticRouter(_provider(paths)), trace=trace
+                                question, items, _router(paths), trace=trace
                             )
                         else:
                             trace["items_read"] = []
                             trace["context_tokens"] = 0
                             answer.value = f"No knowledge in the brain as of {as_of_value}."
                     else:
-                        answer.value = answer_question(
-                            paths, question, StaticRouter(_provider(paths)), trace=trace
-                        )
+                        answer.value = answer_question(paths, question, _router(paths), trace=trace)
                     trace_text.value = _format_answer_trace(trace)
                 except Exception as exc:  # surface engine errors instead of hanging
                     answer.value = f"**Engine error:** {exc}"
@@ -705,7 +701,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                         scan_result = run_scan(
                             paths.project_root,
                             paths.project_root,
-                            lambda: _provider(paths),
+                            _router(paths),
                             confirmed=confirmed == {"target": value, "kind": "scan"},
                         )
                         if scan_result.data is not None and isinstance(
@@ -724,7 +720,7 @@ def _build(page: ft.Page, paths: TalamusPaths) -> None:
                         ingest_result = run_ingest_service(
                             paths.project_root,
                             service_target,
-                            _provider(paths),
+                            _router(paths),
                             confirmed=confirmed == {"target": value, "kind": "ingest"},
                         )
                         if ingest_result.data is not None and isinstance(

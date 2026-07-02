@@ -17,8 +17,8 @@ from __future__ import annotations
 import dataclasses
 import json
 
-from talamus.adapters.llm import LLMProvider
 from talamus.paths import TalamusPaths
+from talamus.routing import Router, TaskClass
 from talamus.store import load_notes, overwrite_note_json, rebuild_indexes
 
 BATCH_SIZE = 20
@@ -58,7 +58,7 @@ def enrich_estimate(paths: TalamusPaths) -> dict:
     return {"notes": len(pending), "batches": batches, "est_llm_calls": batches}
 
 
-def enrich_notes(paths: TalamusPaths, llm: LLMProvider, language: str = "English") -> dict:
+def enrich_notes(paths: TalamusPaths, router: Router, language: str = "English") -> dict:
     """Add the symptom phrasings to the retrieval_text of notes that lack them.
 
     Idempotent (marker in retrieval_text); a malformed batch is skipped and counted,
@@ -67,6 +67,7 @@ def enrich_notes(paths: TalamusPaths, llm: LLMProvider, language: str = "English
     by_id = {n.note_id: n for n in notes}
     enriched = 0
     failed_batches = 0
+    llm = router.for_task(TaskClass.ENRICH)
     for offset in range(0, len(notes), BATCH_SIZE):
         batch = notes[offset : offset + BATCH_SIZE]
         listing = "\n".join(_note_brief(n) for n in batch)

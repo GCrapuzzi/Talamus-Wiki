@@ -4,11 +4,10 @@ import json
 import sys
 from pathlib import Path
 
-from talamus.adapters.llm import LLMProvider
 from talamus.ask import answer_from_items, answer_question
 from talamus.cli._common import (
     _print_json,
-    _provider_for,
+    _router_for,
 )
 from talamus.eval import evaluate, load_cases, search_retriever
 from talamus.ingest import remember_session
@@ -18,7 +17,7 @@ from talamus.registry import (
     central_brain,
 )
 from talamus.relations import list_relations, prune_relations
-from talamus.routing import StaticRouter
+from talamus.routing import Router
 from talamus.scope import (
     default_scope,
     scoped_context_items,
@@ -32,7 +31,7 @@ from talamus.timeline import note_as_of, note_history
 def _cmd_ask(
     root: Path,
     question: str,
-    llm: LLMProvider,
+    router: Router,
     json_out: bool,
     policy: str | None = None,
     with_trace: bool = False,
@@ -40,7 +39,6 @@ def _cmd_ask(
 ) -> int:
     policy = policy or default_scope(root)
     trace: dict | None = {"scope": policy} if with_trace else None
-    router = StaticRouter(llm)  # CLI pins the one configured engine for every sub-call
     if as_of:
         when = parse_when(as_of)
         if trace is not None and when.warning:
@@ -143,11 +141,11 @@ def _cmd_eval(
 
 
 def _cmd_remember(
-    root: Path, transcript_file: str, diff_file: str | None, llm: LLMProvider, json_out: bool
+    root: Path, transcript_file: str, diff_file: str | None, router: Router, json_out: bool
 ) -> int:
     transcript = Path(transcript_file).read_text(encoding="utf-8")
     diff = Path(diff_file).read_text(encoding="utf-8") if diff_file else ""
-    result = remember_session(TalamusPaths(root), transcript, diff, StaticRouter(llm))
+    result = remember_session(TalamusPaths(root), transcript, diff, router)
     if json_out:
         _print_json(result)
         return 0
@@ -165,14 +163,15 @@ def _cmd_search(
     limit: int = 5,
     policy: str | None = None,
     smart: bool = False,
-    llm: LLMProvider | None = None,
+    router: Router | None = None,
 ) -> int:
     policy = policy or default_scope(root)
     if smart:  # Query2doc: expand the query with the user's LLM (cached), then search
         from talamus.smartsearch import expand_query
 
-        provider = llm if llm is not None else _provider_for(root)
-        query = expand_query(TalamusPaths(root), query, StaticRouter(provider))
+        query = expand_query(
+            TalamusPaths(root), query, router if router is not None else _router_for(root)
+        )
     search_result = search_brain(root, query, policy=policy, limit=limit)
     if not search_result.success or search_result.data is None:
         print(search_result.message, file=sys.stderr)

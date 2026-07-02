@@ -4,9 +4,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
-from talamus.adapters.llm import LLMProvider
 from talamus.correct import apply_correction, verify_batch, verify_note
 from talamus.paths import TalamusPaths
+from talamus.routing import Router
 from talamus.services.result import ServiceResult
 
 T = TypeVar("T")
@@ -53,7 +53,7 @@ class VerificationApplyResult:
 
 def run_verification_batch(
     root: str | Path,
-    llm: LLMProvider,
+    router: Router,
     *,
     only_stale: bool = False,
     source_filter: str | None = None,
@@ -62,7 +62,7 @@ def run_verification_batch(
     try:
         report = verify_batch(
             TalamusPaths(root_path),
-            llm,
+            router,
             only_stale=only_stale,
             source_filter=source_filter,
         )
@@ -79,11 +79,11 @@ def run_verification_batch(
 def verify_single_note(
     root: str | Path,
     title: str,
-    llm: LLMProvider,
+    router: Router,
 ) -> ServiceResult[VerificationNoteResult]:
     root_path = Path(root)
     try:
-        report = verify_note(TalamusPaths(root_path), title, llm)
+        report = verify_note(TalamusPaths(root_path), title, router)
     except (OSError, TypeError, ValueError, AttributeError) as exc:
         return _verification_error(exc)
     return ServiceResult(
@@ -97,11 +97,11 @@ def verify_single_note(
 def apply_note_correction(
     root: str | Path,
     title: str,
-    llm: LLMProvider,
+    router: Router,
 ) -> ServiceResult[VerificationApplyResult]:
     root_path = Path(root)
     try:
-        corrected = apply_correction(TalamusPaths(root_path), title, llm)
+        corrected = apply_correction(TalamusPaths(root_path), title, router)
     except (OSError, TypeError, ValueError, AttributeError) as exc:
         return _verification_error(exc)
     return ServiceResult(

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
-from talamus.adapters.llm import LLMProvider
 from talamus.errors import TalamusError
 from talamus.jobs import JobStore
 from talamus.paths import TalamusPaths
+from talamus.routing import Router
 from talamus.scan import ScanPlan, build_plan, execute_plan
 from talamus.services.result import ServiceResult
 
@@ -78,7 +77,7 @@ def preview_scan(
 def run_scan(
     brain_root: str | Path,
     target: str | Path,
-    llm_factory: Callable[[], LLMProvider],
+    router: Router,
     *,
     profile: str = "all",
     include: list[str] | None = None,
@@ -151,7 +150,7 @@ def run_scan(
             )
         report = cast(
             dict[str, Any],
-            execute_plan(TalamusPaths(brain_path), preview.plan, llm_factory()),
+            execute_plan(TalamusPaths(brain_path), preview.plan, router),
         )
     except TalamusError as exc:
         return ServiceResult(

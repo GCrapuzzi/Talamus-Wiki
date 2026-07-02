@@ -82,7 +82,9 @@ class HostileDomainsTests(unittest.TestCase):
         clusters = [[f"N{i}" for i in range(30)], ["A", "B", "C"], ["Sola"]]
         summaries = {t: "s" for c in clusters for t in c}
         for raw in HOSTILE:
-            domains = _name_domains_batched(clusters, summaries, FakeLLMProvider([raw] * 5))
+            domains = _name_domains_batched(
+                clusters, summaries, StaticRouter(FakeLLMProvider([raw] * 5))
+            )
             members = sorted(m for d in domains for m in d["members"])
             self.assertEqual(members, sorted(summaries))  # every note stays mapped
 
@@ -101,7 +103,7 @@ class HostileEnrichTests(unittest.TestCase):
                 *HOSTILE,
             )
             for raw in junk:
-                report = enrich_notes(paths, FakeLLMProvider([raw]))
+                report = enrich_notes(paths, StaticRouter(FakeLLMProvider([raw])))
                 self.assertEqual(report["enriched"], 0)
             self.assertEqual(load_notes(paths)[0].retrieval_text, original)
 
@@ -113,7 +115,7 @@ class HostileConsolidateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp, ["Alfa", "Beta"])
             for raw in HOSTILE:
-                self.assertEqual(find_duplicates(paths, FakeLLMProvider([raw])), [])
+                self.assertEqual(find_duplicates(paths, StaticRouter(FakeLLMProvider([raw]))), [])
 
 
 if __name__ == "__main__":

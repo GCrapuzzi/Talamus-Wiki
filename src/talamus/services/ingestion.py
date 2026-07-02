@@ -4,11 +4,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
-from talamus.adapters.llm import LLMProvider
 from talamus.errors import TalamusError
 from talamus.ingest import estimate_chunks, ingest_path, ingest_text
 from talamus.paths import TalamusPaths
-from talamus.routing import StaticRouter
+from talamus.routing import Router
 from talamus.services.result import ServiceResult
 from talamus.sources import is_url
 
@@ -66,7 +65,7 @@ def preview_ingest(root: str | Path, target: str) -> ServiceResult[IngestPreview
 def run_ingest(
     root: str | Path,
     target: str,
-    llm: LLMProvider,
+    router: Router,
     *,
     confirmed: bool = False,
 ) -> ServiceResult[IngestPreview | IngestRunResult]:
@@ -80,9 +79,7 @@ def run_ingest(
                 code="ingest_confirmation_required",
                 data=preview,
             )
-        result = cast(
-            dict[str, Any], ingest_path(TalamusPaths(root_path), target, StaticRouter(llm))
-        )
+        result = cast(dict[str, Any], ingest_path(TalamusPaths(root_path), target, router))
     except TalamusError as exc:
         return ServiceResult(
             success=False,
@@ -102,7 +99,7 @@ def run_ingest(
 def ingest_raw_text(
     root: str | Path,
     text: str,
-    llm: LLMProvider,
+    router: Router,
     *,
     name: str = "insight",
 ) -> ServiceResult[IngestRunResult]:
@@ -110,10 +107,7 @@ def ingest_raw_text(
     MCP remember/ingest_text tools."""
     root_path = Path(root)
     try:
-        result = cast(
-            dict[str, Any],
-            ingest_text(TalamusPaths(root_path), text, StaticRouter(llm), name=name),
-        )
+        result = cast(dict[str, Any], ingest_text(TalamusPaths(root_path), text, router, name=name))
     except TalamusError as exc:
         return ServiceResult(success=False, message=f"Ingest failed: {exc}", code="ingest_failed")
     except (OSError, TypeError, ValueError, AttributeError) as exc:

@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.services.verification import (
     apply_note_correction,
     run_verification_batch,
@@ -22,7 +23,7 @@ class TalamusVerificationServiceTests(unittest.TestCase):
             _brain(tmp)
             llm = FakeLLMProvider([])
 
-            result = run_verification_batch(tmp, llm, only_stale=True)
+            result = run_verification_batch(tmp, StaticRouter(llm), only_stale=True)
 
         self.assertTrue(result.success, result.message)
         self.assertEqual("verification_batch_completed", result.code)
@@ -39,7 +40,9 @@ class TalamusVerificationServiceTests(unittest.TestCase):
             write_note(paths, _note_with_source(tmp))
             rebuild_indexes(paths)
 
-            result = verify_single_note(tmp, "X", FakeLLMProvider([json.dumps({"ok": True})]))
+            result = verify_single_note(
+                tmp, "X", StaticRouter(FakeLLMProvider([json.dumps({"ok": True})]))
+            )
 
         self.assertTrue(result.success, result.message)
         self.assertEqual("verification_note_checked", result.code)
@@ -59,7 +62,7 @@ class TalamusVerificationServiceTests(unittest.TestCase):
                 [json.dumps({"ok": False, "summary": "corretto", "body": "corpo corretto"})]
             )
 
-            result = apply_note_correction(tmp, "X", llm)
+            result = apply_note_correction(tmp, "X", StaticRouter(llm))
 
             note = next(note for note in load_notes(paths) if note.title == "X")
             versions = note_history(paths, "X")

@@ -15,6 +15,7 @@ from pathlib import Path
 from talamus.enrich import BATCH_SIZE, enrich_estimate, enrich_notes
 from talamus.models import CanonicalNote, SourceRef
 from talamus.paths import TalamusPaths
+from talamus.routing import StaticRouter
 from talamus.store import load_notes, rebuild_indexes, write_note
 from tests.support import FakeLLMProvider
 
@@ -53,7 +54,7 @@ class EnrichTests(unittest.TestCase):
             answer = json.dumps(
                 [{"id": "allucinazione", "symptoms": "si inventa le cose, makes things up"}]
             )
-            report = enrich_notes(paths, FakeLLMProvider([answer]))
+            report = enrich_notes(paths, StaticRouter(FakeLLMProvider([answer])))
             self.assertEqual(report["enriched"], 1)
             note = load_notes(paths)[0]
             self.assertIn("si inventa le cose", note.retrieval_text)
@@ -67,10 +68,10 @@ class EnrichTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp, ["Allucinazione"])
             answer = json.dumps([{"id": "allucinazione", "symptoms": "frasi sintomo"}])
-            enrich_notes(paths, FakeLLMProvider([answer]))
+            enrich_notes(paths, StaticRouter(FakeLLMProvider([answer])))
             self.assertEqual(enrich_estimate(paths)["notes"], 0)
             llm = FakeLLMProvider([])
-            report = enrich_notes(paths, llm)
+            report = enrich_notes(paths, StaticRouter(llm))
             self.assertEqual(llm.prompts, [])
             self.assertEqual(report["enriched"], 0)
 
@@ -84,7 +85,7 @@ class EnrichTests(unittest.TestCase):
                     for i in range(BATCH_SIZE, BATCH_SIZE + 2)
                 ]
             )
-            report = enrich_notes(paths, FakeLLMProvider(["NON-JSON", good]))
+            report = enrich_notes(paths, StaticRouter(FakeLLMProvider(["NON-JSON", good])))
             self.assertEqual(report["failed_batches"], 1)
             self.assertEqual(report["enriched"], 2)
 
