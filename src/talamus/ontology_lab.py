@@ -46,8 +46,35 @@ def lab_dir(paths: TalamusPaths) -> Path:
     return paths.cache / "ontology"
 
 
+def _ontology_scope(paths: TalamusPaths) -> str:
+    """ "global" (default): ONE schema shared across all brains; "brain": isolated.
+
+    Read from the brain's config on every call (cheap, and config edits apply
+    immediately); a malformed config never blocks the lab — default wins."""
+    from talamus.config import load_or_default
+
+    try:
+        scope = load_or_default(paths.config_path).ontology_scope
+    except Exception:
+        return "global"
+    return scope if scope in ("global", "brain") else "global"
+
+
+def _global_lab_dir() -> Path:
+    from talamus.registry import talamus_home
+
+    return talamus_home() / "ontology"
+
+
 def schema_path(paths: TalamusPaths) -> Path:
-    return lab_dir(paths) / "schema.json"
+    """Where the relation-type schema lives for this brain's scope.
+
+    The schema (learned types) is the user's personal semantic layer, shared
+    machine-wide by default so a type learned anywhere improves every brain
+    (dev/specs/2026-07-02-global-ontology-design.md). Evidence stays per brain."""
+    if _ontology_scope(paths) == "brain":
+        return lab_dir(paths) / "schema.json"
+    return _global_lab_dir() / "schema.json"
 
 
 def evidence_path(paths: TalamusPaths) -> Path:
@@ -55,7 +82,10 @@ def evidence_path(paths: TalamusPaths) -> Path:
 
 
 def history_path(paths: TalamusPaths) -> Path:
-    return lab_dir(paths) / "history.jsonl"
+    """Schema events follow the schema: global scope logs beside the shared file."""
+    if _ontology_scope(paths) == "brain":
+        return lab_dir(paths) / "history.jsonl"
+    return _global_lab_dir() / "history.jsonl"
 
 
 def _now() -> str:
@@ -123,14 +153,13 @@ class Schema:
         }
 
 
-def load_schema(paths: TalamusPaths) -> Schema:
-    path = schema_path(paths)
+def _read_schema_file(path: Path) -> Schema | None:
     if not path.is_file():
-        return Schema(schema_id=f"schema-{time.strftime('%Y%m%d')}-v1", created_at=_now())
+        return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return Schema(schema_id=f"schema-{time.strftime('%Y%m%d')}-v1", created_at=_now())
+        return None
     known = {f for f in RelationType.__dataclass_fields__}
     types = [
         RelationType(**{k: v for k, v in entry.items() if k in known})
@@ -144,17 +173,36 @@ def load_schema(paths: TalamusPaths) -> Schema:
     )
 
 
+def load_schema(paths: TalamusPaths) -> Schema:
+    path = schema_path(paths)
+    schema = _read_schema_file(path)
+    if schema is not None:
+        return schema
+    # Migration: a pre-global brain has its schema in the legacy per-brain spot —
+    # the first global read seeds the shared file from it (non-destructive: the
+    # local file stays, it simply stops being read).
+    legacy = lab_dir(paths) / "schema.json"
+    if path != legacy:
+        migrated = _read_schema_file(legacy)
+        if migrated is not None:
+            save_schema(paths, migrated)
+            _log_event(paths, "schema_migrated_to_global", {"from": str(legacy)})
+            return migrated
+    return Schema(schema_id=f"schema-{time.strftime('%Y%m%d')}-v1", created_at=_now())
+
+
 def save_schema(paths: TalamusPaths, schema: Schema) -> None:
-    lab_dir(paths).mkdir(parents=True, exist_ok=True)
     target = schema_path(paths)
+    target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(schema.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, target)
 
 
 def _log_event(paths: TalamusPaths, event: str, detail: dict) -> None:
-    lab_dir(paths).mkdir(parents=True, exist_ok=True)
-    with history_path(paths).open("a", encoding="utf-8") as handle:
+    target = history_path(paths)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps({"at": _now(), "event": event, **detail}, ensure_ascii=False))
         handle.write("\n")
 

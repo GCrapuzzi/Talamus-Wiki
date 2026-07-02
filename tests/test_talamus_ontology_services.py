@@ -68,7 +68,23 @@ def _induce(paths: TalamusPaths) -> str:
     return created[0].id
 
 
-class TalamusOntologyServiceTests(unittest.TestCase):
+class _IsolatedHomeTest(unittest.TestCase):
+    """Each test gets its own TALAMUS_HOME: the ontology schema is machine-wide
+    by default (global scope), so schema-writing tests must never share state
+    or touch the developer's real home."""
+
+    def setUp(self) -> None:
+        import os
+        from unittest.mock import patch as _patch
+
+        self._home = tempfile.TemporaryDirectory()
+        patcher = _patch.dict(os.environ, {"TALAMUS_HOME": self._home.name})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(self._home.cleanup)
+
+
+class TalamusOntologyServiceTests(_IsolatedHomeTest):
     def test_status_and_candidates_are_typed_reports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)

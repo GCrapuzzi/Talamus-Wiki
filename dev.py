@@ -10,17 +10,23 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 
+# Hermetic tests: the global ontology (and anything else under TALAMUS_HOME)
+# must never read from or write to the developer's real home during the gate.
+_TEST_HOME = tempfile.mkdtemp(prefix="talamus-gate-home-")
+
 
 def _env() -> dict[str, str]:
     env = os.environ.copy()
     pythonpath = env.get("PYTHONPATH")
     env["PYTHONPATH"] = str(SRC) if not pythonpath else f"{SRC}{os.pathsep}{pythonpath}"
+    env["TALAMUS_HOME"] = _TEST_HOME
     return env
 
 

@@ -8,6 +8,20 @@ _HAS_FASTAPI = importlib.util.find_spec("fastapi") is not None
 
 @unittest.skipUnless(_HAS_FASTAPI, "fastapi not installed (ui extra)")
 class WebApiTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # the ontology schema is machine-wide by default: isolate TALAMUS_HOME
+        # per test so seeded candidates never leak across tests or into the
+        # developer's real home
+        import os
+        import tempfile
+        from unittest.mock import patch as _patch
+
+        self._home = tempfile.TemporaryDirectory()
+        patcher = _patch.dict(os.environ, {"TALAMUS_HOME": self._home.name})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(self._home.cleanup)
+
     def _client(self, root: Path):
         from fastapi.testclient import TestClient
 

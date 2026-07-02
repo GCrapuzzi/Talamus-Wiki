@@ -72,7 +72,23 @@ def _naming_response(key: str) -> str:
     )
 
 
-class EvidenceTests(unittest.TestCase):
+class _IsolatedHomeTest(unittest.TestCase):
+    """Each test gets its own TALAMUS_HOME: the ontology schema is machine-wide
+    by default (global scope), so schema-writing tests must never share state
+    or touch the developer's real home."""
+
+    def setUp(self) -> None:
+        import os
+        from unittest.mock import patch as _patch
+
+        self._home = tempfile.TemporaryDirectory()
+        patcher = _patch.dict(os.environ, {"TALAMUS_HOME": self._home.name})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(self._home.cleanup)
+
+
+class EvidenceTests(_IsolatedHomeTest):
     def test_collects_raw_surfaces_with_provenance(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
@@ -91,7 +107,7 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(len(clusters[surface_key("alimenta")]), 3)
 
 
-class InductionTests(unittest.TestCase):
+class InductionTests(_IsolatedHomeTest):
     def test_induces_candidate_with_support_and_examples(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
@@ -128,7 +144,7 @@ class InductionTests(unittest.TestCase):
             self.assertEqual(cov["non_related"], 0)  # everything still `related`
 
 
-class PromotionTests(unittest.TestCase):
+class PromotionTests(_IsolatedHomeTest):
     def test_under_supported_candidate_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
@@ -171,7 +187,7 @@ class PromotionTests(unittest.TestCase):
             self.assertTrue(any(e["event"] == "rejected" for e in read_history(paths)))
 
 
-class RetrievalLiftTests(unittest.TestCase):
+class RetrievalLiftTests(_IsolatedHomeTest):
     def test_promoted_type_reorders_expansion_deterministically(self) -> None:
         """The honest proof that MEANING earns its keep: with the promoted type,
         the typed edge is expanded BEFORE the vague `related` one — so when the
@@ -223,7 +239,7 @@ class RetrievalLiftTests(unittest.TestCase):
             self.assertGreater(report["coverage"]["non_related"], 0)
 
 
-class StabilityTests(unittest.TestCase):
+class StabilityTests(_IsolatedHomeTest):
     def test_unchanged_corpus_is_fully_stable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             paths = _brain(tmp)
@@ -231,7 +247,7 @@ class StabilityTests(unittest.TestCase):
             self.assertEqual(result["jaccard"], 1.0)
 
 
-class CliOntologyTests(unittest.TestCase):
+class CliOntologyTests(_IsolatedHomeTest):
     def test_full_cli_flow(self) -> None:
         import io
         from contextlib import redirect_stdout
@@ -275,7 +291,7 @@ class CliOntologyTests(unittest.TestCase):
             self.assertEqual(1, code)
 
 
-class BuildOntologyHookTests(unittest.TestCase):
+class BuildOntologyHookTests(_IsolatedHomeTest):
     def test_emergent_surfaces_param_types_edges(self) -> None:
         notes = [
             _note("A", "a", [("alimenta", "B")]),
