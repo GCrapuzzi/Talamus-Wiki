@@ -36,6 +36,9 @@ class McpServerTests(unittest.TestCase):
             "history",
             "sources",
             "ontology_status",
+            # moats as agent tools (P6: the agent is a first-class curator)
+            "ask",
+            "verify",
             # write (F10.3)
             "remember",
             "ingest_text",
@@ -99,6 +102,67 @@ class McpToolBehaviorTests(unittest.TestCase):
                 self.assertIn("[", mcp_server.history("Reranking"))
                 self.assertIn("demo", mcp_server.sources("Reranking"))
                 self.assertIn("schema", mcp_server.ontology_status())
+            finally:
+                mcp_server._root = Path(".").resolve()
+
+    def test_read_note_as_of_reads_the_past_not_the_present(self) -> None:
+        """The temporal moat as an agent tool: as_of answers 'what was believed
+        at that date' — a date before the note existed yields no version."""
+        from talamus import mcp_server
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._brain(tmp)
+            mcp_server._root = Path(tmp)
+            try:
+                today = mcp_server.read_note("Reranking")
+                self.assertIn("Reranking", today)
+                past = mcp_server.read_note("Reranking", as_of="2020-01-01")
+                self.assertIn("No version", past)
+            finally:
+                mcp_server._root = Path(".").resolve()
+
+    def test_verify_reports_without_crashing_and_without_engine_when_unchecked(self) -> None:
+        """The verifiability moat as an agent tool."""
+        import json
+        from unittest.mock import patch
+
+        from talamus import mcp_server
+        from talamus.routing import StaticRouter
+        from tests.support import FakeLLMProvider
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._brain(tmp)
+            mcp_server._root = Path(tmp)
+            try:
+                fake = StaticRouter(FakeLLMProvider([json.dumps({"ok": True})]))
+                with patch("talamus.mcp_server._router", return_value=fake):
+                    out = mcp_server.verify("Reranking")
+                self.assertIsInstance(out, str)
+                self.assertIn("Reranking", out)
+                missing = mcp_server.verify("Nota Inesistente")
+                self.assertIn("not found", missing.lower())
+            finally:
+                mcp_server._root = Path(".").resolve()
+
+    def test_ask_returns_a_cited_answer_through_the_router(self) -> None:
+        from unittest.mock import patch
+
+        from talamus import mcp_server
+        from talamus.routing import StaticRouter
+
+        class _Fake:
+            label = "Fake Engine"
+
+            def complete(self, prompt: str) -> str:
+                return "QQZ synthesized answer citing [1]."
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._brain(tmp)
+            mcp_server._root = Path(tmp)
+            try:
+                with patch("talamus.mcp_server._router", return_value=StaticRouter(_Fake())):
+                    out = mcp_server.ask("what is retrieval augmented generation?")
+                self.assertIn("QQZ", out)
             finally:
                 mcp_server._root = Path(".").resolve()
 

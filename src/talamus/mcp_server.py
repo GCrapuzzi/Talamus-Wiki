@@ -14,6 +14,7 @@ from mcp.server.fastmcp import FastMCP
 from talamus.config import load_or_default
 from talamus.paths import TalamusPaths
 from talamus.routing import EngineRouter
+from talamus.services.ask import ask_brain
 from talamus.services.graph import list_graph_neighbors
 from talamus.services.ingestion import ingest_raw_text
 from talamus.services.library import get_library_note
@@ -31,6 +32,7 @@ from talamus.services.review import (
     propose_review_note,
     reject_review_item,
 )
+from talamus.services.verification import verify_single_note
 
 server = FastMCP("talamus")
 
@@ -78,12 +80,61 @@ def search(query: str, smart: bool = False) -> str:
 
 
 @server.tool()
-def read_note(title: str) -> str:
-    """Read the full Markdown content of a Talamus note given its title."""
-    result = read_note_service(_root, title)
-    if result.data is not None and result.data.markdown is not None:
-        return result.data.markdown
+def read_note(title: str, as_of: str = "") -> str:
+    """Read the full Markdown content of a Talamus note given its title.
+
+    Optional as_of (a date like "2026-01" or "2026-01-15"): read the note AS IT
+    WAS at that moment — Talamus keeps every note's history, so you can check
+    what was believed at a past date before trusting or updating it."""
+    result = read_note_service(_root, title, as_of=as_of or None)
+    data = result.data
+    if data is None:
+        return f"Note not found: {title}"
+    if as_of:
+        if not result.success or data.version is None:
+            return result.message
+        version = data.version
+        body = "\n".join(str(v) for v in version.get("body_sections", {}).values())
+        return f"[as of {as_of}] {title}\n{version.get('summary', '')}\n\n{body}".strip()
+    if data.markdown is not None:
+        return data.markdown
     return f"Note not found: {title}"
+
+
+@server.tool()
+def ask(question: str) -> str:
+    """Ask the brain and get a written answer WITH CITATIONS to the exact notes
+    used. Spends LLM calls on the user's configured engine (cheap tier for the
+    routing, strong tier for the answer). Prefer `recall` when you only need raw
+    context to reason over yourself — it costs zero LLM calls."""
+    result = ask_brain(_root, question, router=_router())
+    if result.data is None:
+        return result.message
+    data = result.data
+    if not data.answered:
+        listing = "\n".join(f"- {s.title}: {s.summary}" for s in data.sources)
+        return f"{data.notice}\n{listing}".strip()
+    return data.answer
+
+
+@server.tool()
+def verify(title: str) -> str:
+    """Check whether a note is still faithful to its ORIGINAL source (Talamus
+    preserves the source of every note). Returns ok, a proposed correction, or
+    unchecked when the source is unavailable. Costs one LLM call when the source
+    exists — use it before relying on a note that smells stale."""
+    result = verify_single_note(_root, title, _router())
+    if not result.success or result.data is None:
+        return result.message
+    data = result.data
+    if not data.found:
+        return f"Note not found: {title}"
+    if not data.checked:
+        return f"{title}: source unavailable — verification skipped (provenance may be stale)."
+    if data.ok:
+        return f"{title}: OK — still faithful to its source."
+    correction = data.summary or data.body or "see the review queue"
+    return f"{title}: MISMATCH with its source — proposed correction: {correction}"
 
 
 @server.tool()
