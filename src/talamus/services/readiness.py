@@ -10,6 +10,7 @@ from typing import Any
 from talamus.adapters.llm import (
     ENGINE_COMMANDS,
     ENGINE_LABELS,
+    canonical_provider,
     engine_command,
     stored_credential_present,
 )
@@ -214,12 +215,7 @@ def _engine_status(
 
 
 def _canonical_provider(provider: str) -> str:
-    aliases = {
-        "codex": "codex-cli",
-        "gemini": "gemini-cli",
-        "api": "anthropic-api",
-    }
-    return aliases.get(provider, provider)
+    return canonical_provider(provider)
 
 
 def _credential_present_safe(name: str) -> bool:

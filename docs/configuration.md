@@ -17,10 +17,16 @@ Created by `talamus init` in the brain directory. Fields:
 ### Engines (`llm_provider`)
 
 - `claude-cli` — your Claude subscription (default if `claude` is on PATH).
+- `codex-cli` (or `codex`) — your ChatGPT subscription (Codex is bundled with it).
+- `gemini-cli` (or `gemini`) — your Gemini subscription.
+- `opencode` — opencode, with whatever providers you configured in it.
+- `antigravity-cli` (or `agy`) — Google Antigravity.
 - `ollama` — a local model, fully offline. Set `llm_model` (e.g. `llama3`).
 - `anthropic-api` (or `api`) — the Anthropic API. Needs `ANTHROPIC_API_KEY`.
 
-*(Gemini, Codex and OpenAI providers are on the roadmap — same adapter pattern.)*
+Every engine goes through per-task **model+effort tiering** (`task_tiers` and
+`provider_models` in `talamus.json` override the cost-minimizing defaults);
+`TALAMUS_ENGINE_TIMEOUT` caps a single engine call in seconds (default 600).
 
 ## Environment variables
 

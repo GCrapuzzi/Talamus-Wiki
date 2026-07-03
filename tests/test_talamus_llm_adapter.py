@@ -218,6 +218,75 @@ class LLMAdapterTests(unittest.TestCase):
         self.assertEqual(canonical_provider("api"), "anthropic-api")
         self.assertEqual(canonical_provider("claude-cli"), "claude-cli")
 
+    def test_opencode_builds_a_read_only_run_command(self) -> None:
+        captured = {}
+
+        def fake_runner(args: list[str], prompt: str) -> str:
+            captured["args"] = args
+            captured["prompt"] = prompt
+            return "ok"
+
+        from talamus.adapters.llm import OpencodeCliProvider
+
+        OpencodeCliProvider(runner=fake_runner).complete("ciao")
+        # verified live 2026-07-02: `opencode run` reads the prompt from stdin
+        # (no Windows argv limit) and `--agent plan` pins it read-only
+        self.assertEqual(["opencode", "run", "--agent", "plan"], captured["args"])
+        self.assertEqual("ciao", captured["prompt"])
+
+    def test_opencode_applies_tier_model_and_variant(self) -> None:
+        captured = {}
+
+        def fake_runner(args: list[str], prompt: str) -> str:
+            captured["args"] = args
+            return "ok"
+
+        from dataclasses import replace
+
+        from talamus.adapters.llm import build_provider_for_task
+        from talamus.config import TalamusConfig
+
+        config = replace(
+            TalamusConfig.default(),
+            llm_provider="opencode",
+            provider_models={"opencode": {"quality": "minimaxai/minimax-m2.7"}},
+        )
+        provider = build_provider_for_task("opencode", config, "quality", "high")
+        provider._runner = fake_runner  # type: ignore[attr-defined]
+        provider.complete("hi")
+        self.assertIn("minimaxai/minimax-m2.7", captured["args"])
+        self.assertIn("--variant", captured["args"])
+        self.assertIn("high", captured["args"])
+
+    def test_antigravity_builds_a_headless_print_command(self) -> None:
+        captured = {}
+
+        def fake_runner(args: list[str], prompt: str) -> str:
+            captured["args"] = args
+            captured["prompt"] = prompt
+            return "ok"
+
+        from talamus.adapters.llm import AntigravityCliProvider
+
+        AntigravityCliProvider(model="gemini-3-pro", runner=fake_runner).complete("ciao")
+        # verified live 2026-07-02: `agy -p ""` triggers print mode and the real
+        # prompt travels on stdin (the same headless pattern as gemini-cli)
+        self.assertEqual(["agy", "--model", "gemini-3-pro", "-p", ""], captured["args"])
+        self.assertEqual("ciao", captured["prompt"])
+
+    def test_new_provider_aliases_normalize(self) -> None:
+        from talamus.adapters.llm import canonical_provider
+
+        self.assertEqual(canonical_provider("agy"), "antigravity-cli")
+        self.assertEqual(canonical_provider("antigravity"), "antigravity-cli")
+        self.assertEqual(canonical_provider("opencode-cli"), "opencode")
+
+    def test_build_provider_selects_the_new_types(self) -> None:
+        from talamus.adapters.llm import AntigravityCliProvider, OpencodeCliProvider
+
+        self.assertIsInstance(build_provider("opencode"), OpencodeCliProvider)
+        self.assertIsInstance(build_provider("antigravity-cli"), AntigravityCliProvider)
+
     def test_claude_cli_builds_print_mode_command(self) -> None:
         captured = {}
 

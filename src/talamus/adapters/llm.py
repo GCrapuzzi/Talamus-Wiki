@@ -23,6 +23,8 @@ ENGINE_COMMANDS: dict[str, str | None] = {
     "claude-cli": "claude",
     "codex-cli": "codex",
     "gemini-cli": "gemini",
+    "opencode": "opencode",
+    "antigravity-cli": "agy",
     "ollama": "ollama",
     "anthropic-api": None,
 }
@@ -31,6 +33,8 @@ ENGINE_LABELS: dict[str, str] = {
     "claude-cli": "Claude CLI",
     "codex-cli": "Codex CLI",
     "gemini-cli": "Gemini CLI",
+    "opencode": "opencode",
+    "antigravity-cli": "Antigravity CLI",
     "ollama": "Ollama",
     "anthropic-api": "Anthropic API",
 }
@@ -50,6 +54,9 @@ _PROVIDER_ALIASES: dict[str, str] = {
     "codex": "codex-cli",
     "gemini": "gemini-cli",
     "api": "anthropic-api",
+    "agy": "antigravity-cli",
+    "antigravity": "antigravity-cli",
+    "opencode-cli": "opencode",
 }
 
 
@@ -217,6 +224,56 @@ class GeminiCliProvider:
         return self._runner([*args, "-p", ""], prompt)
 
 
+class OpencodeCliProvider:
+    """opencode subscription/credentials via `opencode run` (prompt on stdin —
+    verified live 2026-07-02, dodging the Windows argv limit). opencode is an
+    AGENT, so `--agent plan` pins it read-only: it must behave as a pure
+    completion engine. ``model`` via `-m provider/model`; ``effort`` via
+    `--variant` (opencode's provider-specific reasoning-effort knob)."""
+
+    def __init__(
+        self,
+        model: str = "",
+        effort: str | None = None,
+        runner: Callable[[list[str], str], str] = _default_runner,
+    ) -> None:
+        self._model = model
+        self._effort = effort
+        self._runner = runner
+
+    def complete(self, prompt: str) -> str:
+        args = ["opencode", "run", "--agent", "plan"]
+        if self._model:
+            args += ["-m", self._model]
+        if self._effort:
+            args += ["--variant", self._effort]
+        return self._runner(args, prompt)
+
+
+class AntigravityCliProvider:
+    """Google Antigravity CLI subscription via `agy -p ""` — print mode with the
+    real prompt on stdin (the same headless pattern as gemini-cli; verified live
+    2026-07-02). Antigravity is an AGENT whose tool permissions are denied by
+    default in print mode, so it behaves as a completion engine. ``model`` via
+    `--model`; ``effort`` has no known flag and is accepted but ignored."""
+
+    def __init__(
+        self,
+        model: str = "",
+        effort: str | None = None,
+        runner: Callable[[list[str], str], str] = _default_runner,
+    ) -> None:
+        self._model = model
+        self._effort = effort  # unused: no known flag
+        self._runner = runner
+
+    def complete(self, prompt: str) -> str:
+        args = ["agy"]
+        if self._model:
+            args += ["--model", self._model]
+        return self._runner([*args, "-p", ""], prompt)
+
+
 class OllamaProvider:
     """Local model via Ollama — fully local, no subscription.
 
@@ -347,6 +404,10 @@ def build_provider(provider: str, model: str = "") -> LLMProvider:
         return CodexCliProvider(model)
     if provider in ("gemini-cli", "gemini"):
         return GeminiCliProvider(model)
+    if provider in ("opencode", "opencode-cli"):
+        return OpencodeCliProvider(model)
+    if provider in ("antigravity-cli", "antigravity", "agy"):
+        return AntigravityCliProvider(model)
     if provider == "ollama":
         return OllamaProvider(model or "llama3")
     if provider in ("anthropic-api", "api"):
@@ -394,6 +455,10 @@ def build_provider_for_task(
         return CodexCliProvider(model=model, effort=effort)
     if provider == "gemini-cli":
         return GeminiCliProvider(model=model, effort=effort)
+    if provider == "opencode":
+        return OpencodeCliProvider(model=model, effort=effort)
+    if provider == "antigravity-cli":
+        return AntigravityCliProvider(model=model, effort=effort)
     if provider == "ollama":
         return OllamaProvider(model=model or "llama3")
     if provider == "anthropic-api":

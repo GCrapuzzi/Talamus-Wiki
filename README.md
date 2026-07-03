@@ -68,8 +68,16 @@ Run `talamus` with no arguments for a status panel, or follow the
 Talamus runs on what you already have — set it in `talamus.json` or `TALAMUS_LLM_PROVIDER`:
 
 - `claude-cli` — your Claude subscription (default if `claude` is on PATH)
+- `codex-cli` — your ChatGPT subscription (Codex is bundled with it)
+- `gemini-cli` — your Gemini subscription
+- `opencode` — opencode, with whatever providers you configured in it
+- `antigravity-cli` — Google Antigravity (`agy`)
 - `ollama` — a local model, fully offline (`TALAMUS_LLM_MODEL=llama3`)
 - `anthropic-api` — the Anthropic API (`ANTHROPIC_API_KEY`)
+
+Every engine gets per-task **model+effort tiering** automatically: bulk work
+(extraction, routing) runs on the cheap tier, the answer you read on the strong
+one — top quality while burning as little of your subscription as possible.
 
 ## For agents (MCP)
 
