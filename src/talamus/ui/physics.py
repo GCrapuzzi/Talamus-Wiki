@@ -1,6 +1,6 @@
 """Force-directed graph layout in pure Python — the physics behind the graph view.
 
-No Flet, no dependencies: a deterministic (seeded) spring-embedder in the spirit
+No UI framework, no dependencies: a deterministic (seeded) spring-embedder in the spirit
 of Fruchterman–Reingold / ForceAtlas: Coulomb repulsion between every pair,
 Hooke springs along edges, a soft pull toward the center, velocity damping.
 ``step()`` returns the total movement so callers can animate until settled.

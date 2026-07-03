@@ -92,10 +92,10 @@ hosted services.
 - **Multi-brain**: Federated Hub with Project-Local Ownership — independent
   project brains + one central; central reads federate, writes stay local by
   default, `--all-brains` is explicit; promote notes project → central.
-- **UI**: Flet workbench (desktop/web) — chat with as-of, search, notes,
-  domains, physics graph (click node → open note), timeline, ingest with
-  dry-run, review queue, ontology lab, full settings (engine, model, API keys,
-  MCP). Dark, dense, 10k-stars-worthy.
+- **UI**: local web workbench — chat with as-of, search, notes, domains, physics
+  graph (click node → open note), timeline, ingest with dry-run, review queue,
+  ontology lab, full settings (engine, model, API keys, MCP). Dark, dense,
+  10k-stars-worthy.
 - **For agents**: MCP server (read + write tools), token-cheap CLI commands,
   SDK (`recall.py`), session hook.
 

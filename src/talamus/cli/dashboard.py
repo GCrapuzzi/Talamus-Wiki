@@ -121,7 +121,7 @@ def _cmd_ui(root: Path, web: bool = False, port: int = 8760) -> int:
     """Launch the web workbench (React SPA + FastAPI bridge over services/).
 
     Native window via pywebview by default; --web opens the browser instead.
-    This replaced the legacy Flet app at parity (P7)."""
+    This replaced the legacy Python UI app at parity (P7)."""
     try:
         from talamus.webapi.__main__ import main as run_workbench
     except ImportError:

@@ -265,9 +265,9 @@ UI is mid-migration onto it.
   review_list/apply/reject), all routed through `services/`. Local stdio;
   optional localhost HTTP.
 - **SDK** (`recall.py`): read-side functions for embedding in agent code.
-- **UI** (`ui/`, optional extra): Flet workbench — `app.py` shell (3 zones +
-  inspector), `views.py` headless-testable builders, `graph.py` physics
-  canvas (`physics.py` pure force layout), `theme.py` design system.
+- **Web workbench** (`webapi/`, optional `ui` extra): FastAPI + React/Vite static
+  workbench launched by `talamus ui`; `ui/physics.py` remains as the pure
+  server-side force layout used by `webapi/graph_layout.py`.
 - **Hook** (`scripts/talamus-session-hook.py`): session capture on agent
   session end.
 

@@ -237,8 +237,8 @@ def format_report(result: dict) -> str:
         "  thresholds the search always returns something if a term matches (M4).",
         "- *Cold* latency dominates because `search_notes` reloads notes and indexes on",
         "  every call: it is the O(N) bottleneck that M4 (persistent indexes) removes.",
-        "- The UI is type-checked against Flet but not verified at runtime in this session",
-        "  (needs a display); runtime verification stays pending (M9 adds a web test mode).",
+        "- The web workbench is verified by its service/API tests; runtime browser",
+        "  verification is handled outside this baseline benchmark.",
     ]
     return "\n".join(lines) + "\n"
 
