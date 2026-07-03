@@ -43,6 +43,22 @@ mkdocs serve            # preview the docs site at http://127.0.0.1:8000
 
 Keep changes focused, explain the *why*, and make sure the gate is green.
 
+## Releases
+
+PyPI publishing uses Trusted Publishing, not repository secrets. To publish a
+release:
+
+1. Update `version` in `pyproject.toml`.
+2. Run `python dev.py`.
+3. Commit and push the version change.
+4. Create a GitHub release tagged `vX.Y.Z`, matching the exact
+   `pyproject.toml` version.
+
+The `Publish to PyPI` workflow builds the package, checks the distributions,
+and uploads them to PyPI through the `pypi` GitHub environment. Configure the
+PyPI Trusted Publisher for project `talamus` with owner `GCrapuzzi`, repository
+`Talamus-Wiki`, workflow `publish.yml`, and environment `pypi`.
+
 ## Where the project truth lives
 
 Start from [AGENTS.md](AGENTS.md) (yes, even as a human — it is the entry

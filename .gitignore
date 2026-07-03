@@ -59,6 +59,14 @@ benchmarks/results/*-ci.md
 # --- Built docs site (mkdocs build output) ----------------------------------
 site/
 
+# --- Local UI demo brains + dev server logs (created by `talamus ui` tests) --
+.uidemo/
+.uidemo*/
+*_server.log
+
+# --- Node / web workbench build inputs (the built SPA under src/ IS tracked) -
+webui/node_modules/
+
 # --- OS cruft (multi-OS: macOS / Windows / Linux) ---------------------------
 .DS_Store
 .AppleDouble
