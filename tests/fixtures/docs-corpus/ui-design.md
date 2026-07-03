@@ -1,19 +1,19 @@
-# Talamus UI — Design (Flet)
+# Talamus UI — Design (web workbench)
 
 **Data:** 2026-06-08 · **Stato:** design del primo cut. · La UI è il **primo componente non-MVP**: deve essere solida, nativa, installabile su tutti i dispositivi, bella e completa.
 
 ## Stack & principi
 
-- **Flet** (Python → Flutter): un solo codice Python → **desktop (Win/mac/Linux) + web + mobile**; `flet build <target>` produce gli installabili nativi.
-- **Nessuna API**: la UI chiama l'**SDK Talamus direttamente** (in-process). Flet gestisce il ponte col frontend Flutter.
+- **Web workbench** (FastAPI + React/Vite): interfaccia locale servita da `talamus ui`, apribile in finestra desktop via pywebview o browser.
+- **API locale**: la UI chiama servizi Talamus tipizzati nello stesso processo, attraverso il bridge HTTP locale.
 - **UI sottile**: tutta la logica sta nell'SDK già testato (`recall`, `ask`, `domains`, `store`, `timeline`, `correct`…). La UI orchestra e rende, non duplica logica.
 - **Local-first**: opera su un brain risolto come per la CLI (`--root`/scoping).
 
 ## Avvio & packaging
 
-- Comando **`talamus ui [--root ...]`** → lancia `flet` con `app(target=main)`.
-- Extra opzionale **`ui = ["flet>=0.24"]`** (il core resta stdlib).
-- Distribuzione: `flet build windows|macos|linux|web|apk|ipa`.
+- Comando **`talamus ui [--root ...]`** → lancia il web workbench locale.
+- Extra opzionale **`ui`**: FastAPI/Uvicorn/pywebview (il core resta stdlib).
+- Distribuzione: packaging desktop/web sopra il workbench locale.
 
 ## Schermate (primo cut)
 

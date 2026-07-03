@@ -85,8 +85,8 @@ real notes and cite them.
 
 Open `notes/` as an Obsidian vault: notes cross-link with `[[wikilinks]]`, so you
 navigate the knowledge by hovering and clicking. Prefer a dedicated app?
-**`talamus ui`** — a native Flet desktop/web app (`pip install talamus[ui]`) — gives you
-chat, search, clickable wikilinks, and domain browsing over the same SDK (no API).
+**`talamus ui`** — the local web workbench (`pip install talamus[ui]`) — gives you
+chat, search, clickable wikilinks, graph navigation, and domain browsing.
 
 ## How it works
 

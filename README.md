@@ -57,7 +57,7 @@ talamus init                    # your own brain (auto-detects your LLM engine)
 talamus ingest report.pdf       # PDF / DOCX / HTML / Markdown / URL -> linked concept-notes
 talamus import-vault ~/vault    # coming from Obsidian/Notion? 1:1 import, zero LLM cost
 talamus ask "how does X work?"  # cited answer
-talamus ui                      # optional native desktop app (pip install talamus[ui])
+talamus ui                      # optional web workbench (pip install talamus[ui])
 ```
 
 Run `talamus` with no arguments for a status panel, or follow the
@@ -86,8 +86,8 @@ real notes and cite them.
 
 Open `notes/` as an Obsidian vault: notes cross-link with `[[wikilinks]]`, so you
 navigate the knowledge by hovering and clicking. Prefer a dedicated app?
-**`talamus ui`** — a native Flet desktop/web app (`pip install talamus[ui]`) — gives you
-chat, search, clickable wikilinks, and domain browsing over the same SDK (no API).
+**`talamus ui`** — the local web workbench (`pip install talamus[ui]`) — gives you
+chat, search, clickable wikilinks, graph navigation, and domain browsing.
 
 ## How it works
 
@@ -145,7 +145,7 @@ review queue; multi-format ingestion (PDF/DOCX/HTML/URL); the CLI dashboard; the
 rendering with `talamus ui`).
 
 **Roadmap** ([details](dev/STATE.md)): OCR &
-more formats (PPTX/XLSX/EPUB/media), packaged installers (`flet build`), remote
+more formats (PPTX/XLSX/EPUB/media), packaged installers, remote
 authenticated MCP, synonym-merge for emergent types, graph canvas view.
 
 ## Development
