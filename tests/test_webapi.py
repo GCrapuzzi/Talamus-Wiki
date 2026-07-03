@@ -144,6 +144,39 @@ class WebApiTests(unittest.TestCase):
         self.assertFalse(body["success"])
         self.assertEqual("ask_empty", body["code"])
 
+    def test_note_as_of_reads_the_past(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_demo_brain(TalamusPaths(root))
+            client = self._client(root)
+            today = client.get("/api/note", params={"title": "Reranking"}).json()
+            self.assertTrue(today["success"])
+            past = client.get(
+                "/api/note", params={"title": "Reranking", "as_of": "2020-01-01"}
+            ).json()
+        self.assertFalse(past["success"])
+        self.assertEqual("note_version_not_found", past["code"])
+
+    def test_verify_endpoint_requires_a_title_and_reports_unchecked(self) -> None:
+        from talamus.demo import create_demo_brain
+        from talamus.paths import TalamusPaths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_demo_brain(TalamusPaths(root))
+            client = self._client(root)
+            missing = client.post("/api/verify", json={}).json()
+            self.assertEqual("verify_title_missing", missing["code"])
+            # the demo note's raw source does not resolve from a temp brain, so the
+            # service reports unchecked WITHOUT any LLM call — deterministic in CI
+            out = client.post("/api/verify", json={"title": "Reranking"}).json()
+        self.assertTrue(out["success"], out)
+        self.assertTrue(out["data"]["found"])
+        self.assertFalse(out["data"]["checked"])
+
     def test_ask_endpoint_degrades_to_sources_without_engine(self) -> None:
         from unittest.mock import patch
 

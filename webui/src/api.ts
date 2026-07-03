@@ -18,7 +18,22 @@ export type GraphData = {
 
 export type NoteSummary = { title: string; summary: string };
 
-export type NoteDetail = { title: string; found: boolean; markdown: string | null };
+export type NoteDetail = {
+  title: string;
+  found: boolean;
+  markdown: string | null;
+  as_of?: string;
+  version?: Record<string, unknown> | null;
+};
+
+export type VerifyResult = {
+  title: string;
+  found: boolean;
+  checked: boolean;
+  ok: boolean;
+  summary: string;
+  body: string;
+};
 
 export type IngestPreview = {
   target: string;
@@ -179,8 +194,13 @@ export const api = {
   readiness: () => get<ServiceResult<Record<string, unknown>>>("/api/readiness"),
   library: () => get<ServiceResult<{ notes: NoteSummary[] }>>("/api/library"),
   graph: () => get<ServiceResult<GraphData>>("/api/graph"),
-  note: (title: string) =>
-    get<ServiceResult<NoteDetail>>(`/api/note?title=${encodeURIComponent(title)}`),
+  note: (title: string, asOf = "") =>
+    get<ServiceResult<NoteDetail>>(
+      `/api/note?title=${encodeURIComponent(title)}${asOf ? `&as_of=${encodeURIComponent(asOf)}` : ""}`,
+    ),
+  verify: (title: string) => post<ServiceResult<VerifyResult>>("/api/verify", { title }),
+  importVault: (directory: string) =>
+    post<ServiceResult<Record<string, unknown>>>("/api/import/vault", { directory }),
   review: (status = "pending") =>
     get<ServiceResult<ReviewItem[]>>(`/api/review?status=${encodeURIComponent(status)}`),
   applyReview: (id: string) =>

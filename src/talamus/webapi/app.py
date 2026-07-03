@@ -35,6 +35,7 @@ from talamus.services.review import (
     reject_review_item,
 )
 from talamus.services.scan import preview_scan, run_scan
+from talamus.services.verification import verify_single_note
 from talamus.webapi.graph_layout import compute_note_graph
 
 _STATIC = Path(__file__).parent / "static"
@@ -92,8 +93,26 @@ def create_app(root: Path) -> FastAPI:
         return {"success": True, "code": "graph_laid_out", "data": compute_note_graph(root)}
 
     @app.get("/api/note")
-    def note(title: str) -> dict:
-        return read_note(root, title).to_dict()
+    def note(title: str, as_of: str = "") -> dict:
+        """Read a note; with as_of (e.g. 2026-01) read it AS IT WAS at that date."""
+        return read_note(root, title, as_of=as_of or None).to_dict()
+
+    @app.post("/api/verify")
+    def verify_note_endpoint(payload: dict | None = None) -> dict:
+        """The verifiability moat in the UI: check one note against its preserved
+        source (one LLM call on the quality tier when the source exists)."""
+        title = str((payload or {}).get("title", "")).strip()
+        if not title:
+            return {
+                "success": False,
+                "code": "verify_title_missing",
+                "message": "Provide the note title.",
+            }
+        try:
+            router = _router(root)
+        except EngineNotFound:
+            return _NO_ENGINE
+        return verify_single_note(root, title, router).to_dict()
 
     @app.post("/api/ask")
     def ask(payload: dict | None = None) -> dict:
