@@ -4,11 +4,14 @@ seam rule the CLI and MCP follow."""
 
 from __future__ import annotations
 
+import os
+import secrets
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from talamus.config import load_or_default
 from talamus.errors import EngineNotFound
@@ -75,9 +78,49 @@ def _brain_summary(root_path: Path) -> dict:
     }
 
 
+_LOCAL_ORIGINS = ("http://127.0.0.1", "http://localhost")
+
+
 def create_app(root: Path) -> FastAPI:
     app = FastAPI(title="Talamus", docs_url=None, redoc_url=None)
     root = Path(root)
+
+    # --- Local-only workbench guard (security, see dev/ROADMAP.md Phase S1) -------
+    # The API is served on 127.0.0.1 with no user auth, so a malicious website must
+    # not be able to drive it. Three layers: (1) the Host header must be local
+    # (a DNS-rebinding page sends `Host: evil.test` and is rejected here); (2) any
+    # request carrying a non-local Origin/Referer is refused; (3) every /api/* call
+    # must carry a per-launch token that only the served SPA can read — a
+    # cross-origin page cannot read the token out of index.html (CORS blocks the
+    # body read), and the custom header forces a preflight that also fails
+    # cross-origin. The token is minted per process; a launcher may pin it via
+    # TALAMUS_UI_TOKEN (used by tests for determinism).
+    ui_token = os.environ.get("TALAMUS_UI_TOKEN") or secrets.token_urlsafe(32)
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+
+    @app.middleware("http")
+    async def _require_local_ui(request: Request, call_next):
+        if request.url.path.startswith("/api/"):
+            origin = request.headers.get("origin") or request.headers.get("referer") or ""
+            if origin and not origin.startswith(_LOCAL_ORIGINS):
+                return JSONResponse(
+                    {
+                        "success": False,
+                        "code": "forbidden_origin",
+                        "message": "cross-origin request rejected",
+                    },
+                    status_code=403,
+                )
+            if not secrets.compare_digest(request.headers.get("x-talamus-ui", ""), ui_token):
+                return JSONResponse(
+                    {
+                        "success": False,
+                        "code": "forbidden",
+                        "message": "missing or invalid workbench token",
+                    },
+                    status_code=403,
+                )
+        return await call_next(request)
 
     @app.get("/api/readiness")
     def readiness() -> dict:
@@ -291,17 +334,23 @@ def create_app(root: Path) -> FastAPI:
         reason = str((payload or {}).get("reason", ""))
         return reject_ontology_candidate(root, type_id, reason=reason).to_dict()
 
+    def _with_token(html: str) -> str:
+        # Inject the per-launch token so the SPA can send it on /api calls. A
+        # cross-origin page cannot read this HTML body (CORS), so it cannot steal it.
+        tag = f'<meta name="talamus-ui-token" content="{ui_token}">'
+        return html.replace("</head>", f"{tag}</head>", 1) if "</head>" in html else tag + html
+
     index = _STATIC / "index.html"
     if index.is_file():
         app.mount("/assets", StaticFiles(directory=_STATIC / "assets"), name="assets")
 
         @app.get("/", response_class=HTMLResponse)
         def root_page() -> str:
-            return index.read_text(encoding="utf-8")
+            return _with_token(index.read_text(encoding="utf-8"))
     else:
 
         @app.get("/", response_class=HTMLResponse)
         def root_page() -> str:
-            return _PLACEHOLDER
+            return _with_token(_PLACEHOLDER)
 
     return app

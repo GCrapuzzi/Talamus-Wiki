@@ -8,16 +8,19 @@ _HAS_FASTAPI = importlib.util.find_spec("fastapi") is not None
 
 @unittest.skipUnless(_HAS_FASTAPI, "fastapi not installed (ui extra)")
 class WebApiTests(unittest.TestCase):
+    UI_TOKEN = "test-ui-token"
+
     def setUp(self) -> None:
-        # the ontology schema is machine-wide by default: isolate TALAMUS_HOME
-        # per test so seeded candidates never leak across tests or into the
-        # developer's real home
+        # isolate TALAMUS_HOME per test (the ontology schema is machine-wide), and
+        # pin the workbench token so the client can authenticate deterministically
         import os
         import tempfile
         from unittest.mock import patch as _patch
 
         self._home = tempfile.TemporaryDirectory()
-        patcher = _patch.dict(os.environ, {"TALAMUS_HOME": self._home.name})
+        patcher = _patch.dict(
+            os.environ, {"TALAMUS_HOME": self._home.name, "TALAMUS_UI_TOKEN": self.UI_TOKEN}
+        )
         patcher.start()
         self.addCleanup(patcher.stop)
         self.addCleanup(self._home.cleanup)
@@ -27,7 +30,13 @@ class WebApiTests(unittest.TestCase):
 
         from talamus.webapi.app import create_app
 
-        return TestClient(create_app(root))
+        # base_url is 127.0.0.1 so the Host passes TrustedHost; the token header
+        # is what the real served SPA sends on every /api call.
+        return TestClient(
+            create_app(root),
+            base_url="http://127.0.0.1",
+            headers={"X-Talamus-UI": self.UI_TOKEN},
+        )
 
     def test_readiness_endpoint_returns_service_result(self) -> None:
         from talamus.demo import create_demo_brain
@@ -41,6 +50,51 @@ class WebApiTests(unittest.TestCase):
         self.assertTrue(body["success"])
         self.assertIn("data", body)
         self.assertEqual(body["data"]["notes"], 3)
+
+    def test_api_rejects_a_request_without_the_ui_token(self) -> None:
+        # a foreign page (post-rebinding) has no token — every /api call must 403
+        from fastapi.testclient import TestClient
+
+        from talamus.webapi.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            bare = TestClient(create_app(Path(tmp)), base_url="http://127.0.0.1")
+            get_resp = bare.get("/api/readiness")
+            post_resp = bare.post("/api/ask", json={"question": "x"})
+        self.assertEqual(get_resp.status_code, 403)
+        self.assertEqual(post_resp.status_code, 403)
+        self.assertEqual(post_resp.json()["code"], "forbidden")
+
+    def test_api_rejects_a_foreign_origin(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = self._client(Path(tmp))  # has the valid token
+            resp = client.post(
+                "/api/ask", json={"question": "x"}, headers={"Origin": "https://evil.test"}
+            )
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.json()["code"], "forbidden_origin")
+
+    def test_api_rejects_a_spoofed_host(self) -> None:
+        # DNS rebinding delivers Host: evil.test — TrustedHost must reject it
+        from fastapi.testclient import TestClient
+
+        from talamus.webapi.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(
+                create_app(Path(tmp)),
+                base_url="http://evil.test",
+                headers={"X-Talamus-UI": self.UI_TOKEN},
+            )
+            resp = client.get("/api/readiness")
+        self.assertEqual(resp.status_code, 400)  # TrustedHostMiddleware
+
+    def test_served_html_carries_the_token_for_the_spa(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            resp = self._client(Path(tmp)).get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('name="talamus-ui-token"', resp.text)
+        self.assertIn(self.UI_TOKEN, resp.text)
 
     def test_library_endpoint_lists_notes(self) -> None:
         from talamus.demo import create_demo_brain

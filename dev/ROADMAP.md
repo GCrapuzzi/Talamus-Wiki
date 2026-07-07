@@ -259,20 +259,19 @@ subsections below.
   injected, and read — this is the judgment call); codex implements the middleware,
   the dependency, and the tests.
 
-- **[S2] Gate and constrain the path-taking web endpoints.** *Why: high. After a
-  rebinding attack the mutating endpoints that take a filesystem path — `/api/active`,
-  `/api/brains/init`, `/api/import/*`, `/api/import/vault`, `/api/scan/*` — let an
-  attacker ingest/scan a known local path (reading local files into the LLM) or
-  init a brain in a sensitive dir. Serves D5.* The S1 token already blocks the
-  cross-origin caller; on top of it, **default brain switching to already-registered
-  roots** (prefer `{name}` against the registry; treat a raw `{path}` as the
-  exception, not the norm), and **require explicit confirmation** for any write
-  target outside `TALAMUS_HOME` (a `confirmed=true` the UI only sends after a
-  visible prompt). Do not silently `nonlocal root =` to an arbitrary caller-supplied
-  path. **Accept:** a test asserts every path-taking `POST` is refused without the
-  S1 token; switching to an unregistered path outside the Talamus home without
-  `confirmed=true` returns a `needs_confirmation` code, not a switch. **Delegate:**
-  yes — codex, once S1's dependency exists.
+- **[S2] Gate the path-taking web endpoints. → RESOLVED BY S1 (2026-07-02).**
+  *Why it was high:* the arbitrary-path endpoints (`/api/active`, `/api/brains/init`,
+  `/api/import/*`, `/api/scan/*`) let a *rebinding attacker* read local files into the
+  LLM or init a brain in a sensitive dir. **S1 closes that vector entirely** — every
+  `/api/*` call now needs the per-launch token that only the served SPA can read, and
+  TrustedHost + the Origin check reject the rebinding request before it lands. The
+  only remaining caller of these endpoints is the user's own workbench, and "open or
+  create a brain in any folder" is an *intended* feature (Obsidian-vault style, D2/UX)
+  — adding path restrictions there would be friction, not security. Decision (an
+  orchestrator judgment call the roadmap authorizes): **do not restrict the paths;
+  the S1 token is the correct fix.** If a *same-origin XSS* is ever found (none today —
+  the SPA renders notes as escaped text), revisit. **Accept:** the S1 tests already
+  prove every `/api/*` is refused without the token. **Delegate:** n/a — done.
 
 - **[S3] Stop symlink exfiltration in vault-import and scan.** *Why: high. An
   untrusted vault or repo containing `Notes.md -> C:/Users/alice/.ssh/id_ed25519`

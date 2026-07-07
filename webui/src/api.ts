@@ -174,8 +174,14 @@ export type AskResult = {
   sources: AskSource[];
 };
 
+// The per-launch workbench token, injected into index.html by the server. It is
+// sent on every /api call so a cross-origin page (which cannot read this token)
+// cannot drive the local API. See dev/ROADMAP.md Phase S1.
+const UI_TOKEN =
+  document.querySelector('meta[name="talamus-ui-token"]')?.getAttribute("content") ?? "";
+
 async function get<T>(path: string): Promise<T> {
-  const resp = await fetch(path);
+  const resp = await fetch(path, { headers: { "X-Talamus-UI": UI_TOKEN } });
   if (!resp.ok) throw new Error(`${path} -> ${resp.status}`);
   return (await resp.json()) as T;
 }
@@ -183,7 +189,7 @@ async function get<T>(path: string): Promise<T> {
 async function post<T>(path: string, body?: unknown): Promise<T> {
   const resp = await fetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Talamus-UI": UI_TOKEN },
     body: JSON.stringify(body ?? {}),
   });
   if (!resp.ok) throw new Error(`${path} -> ${resp.status}`);
