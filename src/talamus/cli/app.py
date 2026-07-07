@@ -84,7 +84,13 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
 
     if command == "setup":
         resolved = resolve_init_root(args.root, args.brain, args.use_global)
-        return _cmd_setup(resolved.root, args.engine, args.capture)
+        return _cmd_setup(
+            resolved.root,
+            args.engine,
+            args.capture,
+            router=StaticRouter(llm) if llm is not None else None,
+            verify=args.verify_engine,
+        )
 
     if command == "init":
         resolved = resolve_init_root(args.root, args.brain, args.use_global)

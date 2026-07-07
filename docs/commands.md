@@ -7,7 +7,7 @@ options. Most commands accept the [global flags](#global-flags) below.
 
 | Command | What it does |
 | --- | --- |
-| `talamus setup [--engine E] [--capture ask\|yes\|no]` | One-command onboarding: brain + engine + MCP + the capture hook (installed only with your consent). |
+| `talamus setup [--engine E] [--capture ask\|yes\|no] [--verify-engine]` | One-command onboarding: brain + engine + MCP + the capture hook (installed only with your consent). In a terminal the engine is probed with one tiny live call and any failure comes with the exact fix. |
 | `talamus init [--engine E] [--scan] [--profile docs\|code\|all]` | Create a brain here; auto-detects your LLM engine. `--scan` shows the repo scan plan after init. |
 | `talamus demo` | Create a small example brain to try instantly (no LLM needed). |
 | `talamus status` | Check the brain layout is intact. |

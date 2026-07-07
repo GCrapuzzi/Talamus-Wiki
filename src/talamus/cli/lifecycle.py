@@ -21,6 +21,7 @@ from talamus.paths import TalamusPaths
 from talamus.registry import (
     register_brain,
 )
+from talamus.routing import Router
 from talamus.scan import (
     build_plan,
     format_plan,
@@ -38,8 +39,55 @@ from talamus.services.integrations import (
 from talamus.services.readiness import ReadinessReport, inspect_readiness
 from talamus.store import reindex
 
+_ENGINE_HINTS = {
+    "opencode": (
+        "connect a provider first: run `opencode auth login`, pick a provider and model\n"
+        "     (free tiers exist), then re-run: talamus setup --engine opencode --verify-engine"
+    ),
+    "ollama": "is the ollama service running and a model pulled? try `ollama pull llama3.2`",
+    "claude-cli": "run `claude` once to log in, then retry",
+    "codex-cli": "run `codex` once to log in, then retry",
+    "gemini-cli": "run `gemini` once to authenticate, then retry",
+    "antigravity-cli": "run `agy` once to authenticate, then retry",
+    "anthropic-api": "set ANTHROPIC_API_KEY, or save a key from the workbench Settings",
+}
 
-def _cmd_setup(root: Path, engine: str | None, capture: str = "ask") -> int:
+
+def _should_verify_engine(verify: bool | None, router: Router | None) -> bool:
+    """Explicit flags always win. The AUTO default probes only a real terminal
+    session (stdin AND stdout are ttys) with no injected router: scripts, CI,
+    harnesses and tests must never fire a live engine call they did not ask for."""
+    if verify is not None:
+        return verify
+    return router is None and sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _verify_engine(root: Path, chosen: str, router: Router | None) -> None:
+    """One tiny live probe (A1/D3): declare the engine working only after it
+    answered. Failure never aborts setup — brain/MCP/hook are still valid —
+    but it must be loud and actionable."""
+    from talamus.errors import EngineFailed, EngineLimitReached, EngineNotFound
+    from talamus.routing import TaskClass
+
+    print("     Verifying the engine with one tiny call...")
+    try:
+        llm = (router or _router_for(root)).for_task(TaskClass.QUERY_EXPANSION)
+        answer = llm.complete("Reply with exactly: ok")
+    except (EngineFailed, EngineNotFound, EngineLimitReached) as exc:
+        hint = _ENGINE_HINTS.get(chosen, "run `talamus doctor` for a full diagnosis")
+        print(f"     engine '{chosen}' NOT verified: {exc}", file=sys.stderr)
+        print(f"     fix: {hint}", file=sys.stderr)
+        return
+    print(f"     engine verified: '{chosen}' answered ({answer.strip()[:20] or 'empty reply'})")
+
+
+def _cmd_setup(
+    root: Path,
+    engine: str | None,
+    capture: str = "ask",
+    router: Router | None = None,
+    verify: bool | None = None,
+) -> int:
     """One-command onboarding (Fase R4): the coding-agent subscription you
     already pay for becomes a personal + agentic memory, in minutes."""
     print("Talamus setup\n")
@@ -51,6 +99,8 @@ def _cmd_setup(root: Path, engine: str | None, capture: str = "ask") -> int:
     code = _cmd_init(root, chosen, "project")
     if code != 0:
         return code
+    if _should_verify_engine(verify, router):
+        _verify_engine(root, chosen, router)
     print()
     print("2/4  Connecting your agent (MCP)...")
     _cmd_mcp_install(root)

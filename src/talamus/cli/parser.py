@@ -56,6 +56,19 @@ def build_parser() -> argparse.ArgumentParser:
         default="ask",
         help="session-capture hook consent: ask interactively (default), yes, or no",
     )
+    setup.add_argument(
+        "--verify-engine",
+        dest="verify_engine",
+        action="store_true",
+        default=None,
+        help="probe the engine with one tiny live call (default: only in a terminal)",
+    )
+    setup.add_argument(
+        "--no-verify-engine",
+        dest="verify_engine",
+        action="store_false",
+        help="skip the engine probe",
+    )
     init = sub.add_parser("init", parents=[common], help="initialize a brain here")
     init.add_argument("--engine", default=None, help="LLM engine (else auto-detected).")
     init.add_argument(
