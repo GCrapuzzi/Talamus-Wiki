@@ -8,7 +8,7 @@ queries are free; degrades to plain search on any engine failure."""
 import io
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from talamus.errors import EngineFailed
@@ -82,6 +82,35 @@ class SmartSearchTests(unittest.TestCase):
             self.assertEqual(0, code)
             self.assertIn("Quantizzazione", out.getvalue())
             self.assertEqual(len(llm.prompts), 1)  # one expansion call
+
+    def test_cli_smart_multi_pass_unions_expansions(self) -> None:
+        from talamus.cli import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            _brain(tmp)
+            # each pass is a fresh sample; the union covers what one pass misses
+            llm = FakeLLMProvider(["hallucination", "quantization"])
+            out = io.StringIO()
+            with redirect_stdout(out):
+                code = main(
+                    ["search", "concetti chiave", "--smart", "--passes", "2", "--root", tmp],
+                    llm=llm,
+                )
+            self.assertEqual(0, code)
+            self.assertIn("Allucinazione", out.getvalue())
+            self.assertIn("Quantizzazione", out.getvalue())
+            self.assertEqual(len(llm.prompts), 2)  # one expansion call per pass
+
+    def test_cli_passes_requires_smart(self) -> None:
+        from talamus.cli import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            _brain(tmp)
+            err = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+                code = main(["search", "qualcosa", "--passes", "2", "--root", tmp])
+            self.assertEqual(1, code)
+            self.assertIn("--smart", err.getvalue())
 
 
 if __name__ == "__main__":
