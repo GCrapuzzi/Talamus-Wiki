@@ -155,6 +155,7 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
                 args.smart,
                 # lazy: only --smart needs an engine; _cmd_search falls back on its own
                 StaticRouter(llm) if llm is not None else None,
+                passes=args.passes,
             )
         if command == "read":
             return _cmd_read(root, args.title, json_out, args.as_of)

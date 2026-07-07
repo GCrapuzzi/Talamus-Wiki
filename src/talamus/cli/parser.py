@@ -229,6 +229,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="expand the query with the LLM before searching (cached); breaks the lexical ceiling",
     )
+    search.add_argument(
+        "--passes",
+        type=int,
+        default=1,
+        help="with --smart: union N expansion passes (uncached, N LLM calls) to smooth variance",
+    )
     for scoped in (overview, ask, search):
         scoped.add_argument(
             "--scope", choices=list(SCOPE_POLICIES), default=None, help="brain scope policy"

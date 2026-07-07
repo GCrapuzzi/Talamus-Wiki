@@ -164,13 +164,20 @@ def _cmd_search(
     policy: str | None = None,
     smart: bool = False,
     router: Router | None = None,
+    passes: int = 1,
 ) -> int:
     policy = policy or default_scope(root)
+    if passes > 1 and not smart:
+        print("error: --passes requires --smart", file=sys.stderr)
+        return 1
     if smart:  # Query2doc: expand the query with the user's LLM (cached), then search
-        from talamus.smartsearch import expand_query
+        from talamus.smartsearch import expand_query_multi
 
-        query = expand_query(
-            TalamusPaths(root), query, router if router is not None else _router_for(root)
+        query = expand_query_multi(
+            TalamusPaths(root),
+            query,
+            router if router is not None else _router_for(root),
+            passes=passes,
         )
     search_result = search_brain(root, query, policy=policy, limit=limit)
     if not search_result.success or search_result.data is None:
