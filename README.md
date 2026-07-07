@@ -139,22 +139,25 @@ last). Plus time, meaning and verifiability (100% of notes source-resolvable;
 ## Status & roadmap
 
 **Shipped** (tested, gate-green): the sources → notes → cited-answers loop;
-**multi-brain** with a federated read index (`brains`, `--all-brains`); **repo scan**
-with dry-run, secret redaction and resumable jobs (`scan`, `jobs`); **persistent
-indexes** (sqlite/FTS5 — search p95 at 10.000 notes: **34 ms**); the **Ontology Lab**
-(emergent relation types: induce → review → promote, with measured retrieval lift);
-the **temporal model** (`timeline`, `ask --as-of`); **batch verification** with a
-review queue; multi-format ingestion (PDF/DOCX/HTML/URL); the CLI dashboard; the
-**MCP server** (read+write with explicit scopes); the **UI workbench** (11 views,
-`talamus ui [--web]`).
+**per-task engine tiering** (each operation picks the cheapest model that's good
+enough); **multi-brain** with a federated read index (`brains`, `--all-brains`)
+and a **shared emergent ontology** across brains; **repo scan** with dry-run,
+secret redaction and resumable jobs (`scan`, `jobs`); **persistent indexes**
+(sqlite/FTS5 — search p95 at 10.000 notes: **72 ms**, usable at 100k); the
+**Ontology Lab** (emergent relation types: induce → review → promote, with
+measured retrieval lift); the **temporal model** (`timeline`, `ask --as-of`);
+**batch verification** with a review queue; multi-format ingestion
+(PDF/DOCX/HTML/URL) and **Obsidian/Notion vault import** (`import-vault`, no LLM);
+the CLI dashboard; the **MCP server** (read + write tools, including cited `ask`,
+`verify`, and `read_note` as-of); the **React web workbench** (`talamus ui`) with
+the time-travel and verify moats visible in the note inspector.
 
 **Experimental**: emergent-schema quality at large scale (metrics built-in:
-`ontology eval`/`stability`); UI runtime polish (smoke-tested headless, verify
-rendering with `talamus ui`).
+`ontology eval`/`stability`); UI runtime polish.
 
-**Roadmap** ([details](dev/STATE.md)): OCR &
-more formats (PPTX/XLSX/EPUB/media), packaged installers, remote
-authenticated MCP, synonym-merge for emergent types, graph canvas view.
+**Roadmap** ([details](dev/ROADMAP.md)): security hardening + public launch;
+frictionless MCP install across agents; absurd-performance pass; then OCR & more
+formats, optional local embeddings (measured), packaged installers.
 
 ## Development
 

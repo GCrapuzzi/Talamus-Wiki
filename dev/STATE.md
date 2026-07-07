@@ -91,6 +91,15 @@ Docs corpus (120 cases) floors in CI: recall ≥ 0.45, MRR ≥ 0.40, hit ≥ 0.5
 
 ## Open fronts (current queue)
 
+> **The forward plan now lives in [dev/ROADMAP.md](ROADMAP.md)** (rewritten
+> 2026-07-02 as the launch-first legacy document). The launch-critical order is:
+> **Phase S — security hardening (BLOCKING)** — a 2026-07-02 audit found a critical
+> (workbench CSRF / DNS-rebinding) + symlink exfiltration + MCP path traversal;
+> full findings in `scratchpad/audit_security.txt` and summarized in the roadmap —
+> then Phase M (developer magic), A (onboarding), U (UX), P (performance), B
+> (benchmark), C (code-health + docs truth), L (launch). The items below are the
+> older research queue, folded into the roadmap's post-launch backlog where still open.
+
 1. RESOLVED: the search ≥0.92 bar is met by `search --smart` (Query2doc).
    Plain search keeps its ~0.86 lexical ceiling as the instant/free path;
    smart search is the quality path. PRODUCT.md could note both tiers

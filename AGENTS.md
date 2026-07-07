@@ -13,6 +13,11 @@ for AI agents, powered only by the LLM the user already has.
    was REJECTED with data (do not redo dead experiments), the open queue.
 4. [dev/PRODUCT.md](dev/PRODUCT.md) — the final product definition and the
    numeric bar for "finished".
+5. [dev/ROADMAP.md](dev/ROADMAP.md) — **the forward plan and how to continue.**
+   Rewritten 2026-07-02 as a legacy document for successor models: it carries the
+   strategy (§0–§4) and the ordered, acceptance-tested execution phases to launch
+   (§5), plus how to delegate to codex (§6). If you are here to advance the
+   project, this is your map — read §0 every session.
 
 User-facing docs live in `docs/` (the mkdocs site) — update them in the same
 change that alters public behavior. Historical specs/plans are archived
