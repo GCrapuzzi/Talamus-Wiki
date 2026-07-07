@@ -165,8 +165,10 @@ accessibility, absurd performance, magic→virality). Every phase below traces t
   `codex mcp add`, brain resolved per project) in one command — codex path
   verified live on this machine; Cursor writes its documented config format
   (app not installed here to verify end-to-end).
-- **opencode onboarding** — the engine adapter exists, but setup does not yet guide
-  a user to configure/connect opencode (D3 requires this).
+- **opencode onboarding → CLOSED (2026-07-07).** Setup now probes the chosen
+  engine live and, on failure, prints the per-engine fix (for opencode:
+  `opencode auth login` + provider/model). Verified on this machine:
+  `talamus setup --engine opencode --verify-engine` → "engine verified".
 - **Performance is "usable," not "absurd"** — 624 ms @ 100k is fine, not a jaw-drop.
   D-priority "absurd performance" wants a front here.
 - **Dead code / clean-code** — a code-health audit was launched but did not finish;
@@ -421,12 +423,14 @@ smooth, demonstrable experience — the single most important thing for virality
 
 **Goal:** anyone with one LLM reaches a cited first answer in minutes, on a modest PC.
 
-- **[A1] opencode onboarding.** *Why: D3 — the pressure valve for the broke.*
-  `talamus setup` detects opencode, and if chosen, guides configuring/connecting it
-  (which provider/model, where its auth lives), verifying with a live one-word
-  completion before declaring success. **Accept:** on a machine with opencode,
-  `talamus setup --engine opencode` ends with a verified working engine or a clear,
-  actionable error. **Delegate:** yes; you verify live.
+- **[A1] opencode onboarding. → DONE (2026-07-07).** Setup verifies the chosen
+  engine with one tiny live call (`--verify-engine`; AUTO in a real terminal —
+  never in scripts/tests/harnesses or when a router is injected) and on failure
+  prints the per-engine actionable fix (opencode: `opencode auth login` +
+  provider/model choice; every engine has a hint). Failure never aborts setup —
+  brain/MCP/hook remain valid; the warning is loud on stderr. Verified live on
+  this machine: `talamus setup --engine opencode --verify-engine` ended
+  "engine verified: 'opencode' answered (ok)".
 
 - **[A2] The modest-PC path.** *Why: D3 + "runs everywhere."* Document and default
   a small-model ollama configuration; ensure the hostile-model robustness holds on a
