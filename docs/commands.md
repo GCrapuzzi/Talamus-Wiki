@@ -23,7 +23,7 @@ options. Most commands accept the [global flags](#global-flags) below.
 | `talamus ask "<question>"` | Cited answer composed from your brain. |
 | `talamus overview [--rebuild]` | Show the hierarchical domain map induced from the graph. |
 | `talamus search "<query>" [--limit N]` | List relevant notes (token-cheap, instant). |
-| `talamus search "<query>" --smart` | Same, but the LLM expands the query first (cached) — finds vague/paraphrased queries the plain search misses. |
+| `talamus search "<query>" --smart [--passes N]` | Same, but the LLM expands the query first (cached) — finds vague/paraphrased queries the plain search misses. `--passes N` unions N fresh expansion samples (N LLM calls, uncached) to smooth expansion variance. |
 | `talamus read "<title>"` | Print one note. |
 | `talamus recall "<question>" [--limit N]` | Retrieve the relevant context (for agents to reason over). |
 | `talamus neighbors "<concept>"` | Show a concept's typed connections. |
