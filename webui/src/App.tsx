@@ -11,6 +11,7 @@ import { Import } from "./views/Import";
 import { Ontology } from "./views/Ontology";
 import { Review } from "./views/Review";
 import { Brains } from "./views/Brains";
+import { Connect } from "./views/Connect";
 import { System } from "./views/System";
 
 type SwitchOutcome = { success: boolean; message?: string };
@@ -64,6 +65,7 @@ export default function App() {
         ontology: <Ontology />,
         review: <Review onOpenNote={setNote} />,
         brains: <Brains active={active} onSwitch={switchBrain} onInit={initBrain} />,
+        connect: <Connect />,
         system: <System />,
       }}
       inspector={note ? <Inspector title={note} onClose={() => setNote(null)} /> : null}
