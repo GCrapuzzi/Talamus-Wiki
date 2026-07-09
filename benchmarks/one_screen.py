@@ -14,14 +14,16 @@ import json
 import sys
 from pathlib import Path
 
-_BOOK = "2026-06-17-shootout-book.json"
-_SCIFACT = "2026-06-15-shootout-scifact.json"
+_BOOK = "2026-07-08-shootout-book.json"  # expansion engine claude-cli (strong)
+_BOOK_FREE = "2026-06-17-shootout-book.json"  # expansion engine gemini-flash-lite (free)
+_SCIFACT = "2026-07-08-shootout-scifact.json"
+_TOKEN = "2026-07-08-token-efficiency.md"
 _ASK = "2026-06-17-ask-eval.json"
 _ASK_LOCAL = "2026-06-17-ask-eval-ollama.json"
 _ABLATION = "2026-06-17-ask-ablation.json"
 _SCALE = "2026-07-02-scale-100k.json"
 
-REQUIRED = [_BOOK, _SCIFACT, _ASK, _ASK_LOCAL, _ABLATION, _SCALE]
+REQUIRED = [_BOOK, _BOOK_FREE, _SCIFACT, _TOKEN, _ASK, _ASK_LOCAL, _ABLATION, _SCALE]
 
 _HEADER = "| claim | number | vs competitors | source artifact |"
 
@@ -29,15 +31,19 @@ _PARAGRAPH = """\
 The honest read: on cross-language and vague queries (a real bilingual book
 corpus) Talamus beats BM25 and a MiniLM vector DB with zero embedding
 infrastructure, and its end-to-end judged answers lead every competitor while
-refusing cleanly on questions the brain cannot answer. It does NOT win
-everything: a strong multilingual dense model (multilingual-e5) ranks better
-(nDCG/MRR) on that same corpus, and that row stays on this screen on purpose.
-The trade Talamus offers is different: the semantic power comes from the LLM
-you already have, so answers cost EUR 0 marginal, burn ~98% fewer tokens than
-loading the corpus into context, and every answer cites sources you can open —
-plus the time (as-of) and self-emerging-ontology moats no retrieval stack here
-has. Reproduce it: every row's artifact is committed, with the command that
-generated it in its sibling .md report."""
+refusing cleanly on questions the brain cannot answer. The one thing to know
+is that retrieval quality tracks the LLM you bring: with a strong expansion
+engine, talamus-smart leads even a strong multilingual dense model
+(multilingual-e5) on every metric including ranking; with a free/weak one, e5
+leads ranking while Talamus keeps the best hit and recall. Either way the trade
+is the same: the semantic power comes from the LLM you already have, so answers
+cost EUR 0 marginal, burn ~98% fewer tokens than loading the corpus into
+context, and every answer cites sources you can open — plus the time (as-of)
+and self-emerging-ontology moats no retrieval stack here has. Reproduce it:
+every row's artifact is committed, with the command that generated it in its
+sibling .md report. Caveat: the book numbers are single runs and LLM query
+expansion is nondeterministic (RS4 measured ~0.06 hit swings); latency is
+canonical from the scale artifact, not these GPU-contended runs."""
 
 
 def _load(results_dir: Path, name: str) -> dict:
@@ -52,14 +58,21 @@ def build_rows(results_dir: Path) -> list[tuple[str, str, str, str]]:
     """Every parsed number comes straight from its artifact — traceable by
     construction. The four STATE-sourced rows carry their ledger row instead."""
     book = _load(results_dir, _BOOK)["systems"]
+    book_free = _load(results_dir, _BOOK_FREE)["systems"]
+    scifact = _load(results_dir, _SCIFACT)["systems"]
     ask = _load(results_dir, _ASK)["systems"]
     ask_local = _load(results_dir, _ASK_LOCAL)["systems"]
     ablation = _load(results_dir, _ABLATION)
     scale = _load(results_dir, _SCALE)
-    _load(results_dir, _SCIFACT)  # presence check; the post-fix numbers live in STATE (RS8)
 
     smart, bm25, minilm = book["talamus-smart"], book["bm25"], book["vectordb"]
     e5 = book["dense-multilingual"]
+    smart_free, e5_free = book_free["talamus-smart"], book_free["dense-multilingual"]
+    sci, sci_bm25, sci_minilm = (
+        scifact["talamus-search"],
+        scifact["bm25"],
+        scifact["vectordb"],
+    )
     ask_smart, ask_bm25, ask_minilm = ask["talamus-smart"], ask["bm25"], ask["vectordb"]
     at_10k = next(r for r in scale if r["n_notes"] == 10000)
     at_100k = next(r for r in scale if r["n_notes"] == 100000)
@@ -70,7 +83,7 @@ def build_rows(results_dir: Path) -> list[tuple[str, str, str, str]]:
             "Tokens per answer",
             "-97.7% vs loading the brain into context",
             "load-all grows linearly and hits the context wall",
-            "dev/STATE.md (RS5 profiler row)",
+            f"{results_rel}/{_TOKEN}",
         ),
         (
             "Answers cited & source-resolvable",
@@ -91,17 +104,19 @@ def build_rows(results_dir: Path) -> list[tuple[str, str, str, str]]:
             f"{results_rel}/{_BOOK}",
         ),
         (
-            "THE HONEST LOSS: strong dense ranking (book)",
-            f"multilingual-e5 nDCG {_fmt(e5['ndcg_at_k'])} / MRR {_fmt(e5['mrr'])}",
-            f"talamus-smart {_fmt(smart['ndcg_at_k'])} / {_fmt(smart['mrr'])} "
-            "(we keep best hit/recall)",
-            f"{results_rel}/{_BOOK}",
+            "Retrieval quality tracks your engine (book, ranking)",
+            f"strong engine: talamus-smart nDCG {_fmt(smart['ndcg_at_k'])} / "
+            f"MRR {_fmt(smart['mrr'])} - leads e5 ({_fmt(e5['ndcg_at_k'])} / {_fmt(e5['mrr'])})",
+            f"free engine: e5 leads ranking ({_fmt(e5_free['ndcg_at_k'])} vs "
+            f"{_fmt(smart_free['ndcg_at_k'])}); Talamus keeps best hit/recall",
+            f"{results_rel}/{_BOOK} (strong) + {_BOOK_FREE} (free)",
         ),
         (
             "English-only turf (SciFact, after the adaptive-trigram fix)",
-            "talamus-search nDCG 0.664 / recall 0.797",
-            "BM25 0.652 / 0.776 - MiniLM 0.645 / 0.783",
-            f"dev/STATE.md (RS8 row; pre-fix baseline {results_rel}/{_SCIFACT})",
+            f"talamus-search nDCG {_fmt(sci['ndcg_at_k'])} / recall {_fmt(sci['recall_at_k'])}",
+            f"beats BM25 ({_fmt(sci_bm25['ndcg_at_k'])} / {_fmt(sci_bm25['recall_at_k'])}); "
+            f"MiniLM {_fmt(sci_minilm['ndcg_at_k'])} / {_fmt(sci_minilm['recall_at_k'])}",
+            f"{results_rel}/{_SCIFACT}",
         ),
         (
             "Answer quality end-to-end (judged, book)",

@@ -8,17 +8,20 @@ front ends gate-green.
 
 The one-screen artifacts date 2026-06-15/17 (pre-RS8-refactor code). Re-run:
 
-- [x] shootout book (smart + all systems incl. multilingual-e5) — launched
-- [x] shootout scifact (full set, no-smart) — launched; validates the adaptive
-      trigram after the C1 model_json refactor
-- [ ] ask-eval full set (gen gemini-flash-lite, judge local gemma4:e4b) +
-      refusal on the 30-negative set
-- [ ] token consumption re-measured (benchmarks/token_efficiency.py — the
-      −97.7% headline; plus per-answer token cost from ask --trace)
-- [ ] regenerate benchmarks/results/one-screen.md + docs/benchmarks.md from
-      the fresh artifacts; refresh the STATE dashboard rows
-- SKIPPED with reason: 100k scale re-run (index code path untouched since
-  2026-07-02 measurement; CACHE_VERSION unchanged)
+- [x] shootout book (claude-cli expansion): talamus-smart 0.929/0.847/0.865/
+      0.971 — leads multilingual-e5 on all four; search unchanged (no regression)
+- [x] shootout scifact (full set): talamus-search beats BM25 on all four
+      (RS8 confirmed post-refactor, now artifact-backed)
+- [x] token consumption re-measured: −97.7% recall / −99.8% search
+      (2026-07-08-token-efficiency.md)
+- [x] one_screen.py + one-screen.md + docs/benchmarks.md regenerated from the
+      fresh artifacts (two-faced honest row: quality tracks the expansion
+      engine); STATE dashboard + build-history rows refreshed
+- DONE (F1 DELIVERED 2026-07-09)
+- SKIPPED with reason: (a) 100k scale re-run — index code path + CACHE_VERSION
+  untouched since 2026-07-02. (b) ask-eval full re-run — ask path unchanged and
+  retrieval proven identical to June by the shootouts; the 2026-06-17 ask-eval
+  artifacts stay valid. Both stated honestly in STATE.
 
 ## F2 — The ontology level-jump (RULED 2026-07-07: A + B + C, all three)
 
