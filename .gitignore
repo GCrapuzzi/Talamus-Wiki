@@ -86,3 +86,6 @@ $RECYCLE.BIN/
 *.tmp
 *.temp
 ~$*
+
+# benchmark judge cache (generated, machine-local)
+benchmarks/results/.judge-cache.json
