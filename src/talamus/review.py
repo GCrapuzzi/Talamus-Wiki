@@ -25,6 +25,7 @@ REVIEW_KINDS = (
     "stale_source",
     "low_confidence_note",
     "scan_safety",
+    "supersedes",
 )
 
 

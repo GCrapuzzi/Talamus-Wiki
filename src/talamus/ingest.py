@@ -8,6 +8,7 @@ from pathlib import Path
 from talamus.errors import EngineFailed, EngineNotFound
 from talamus.extract import extract_notes
 from talamus.linking import NoteRegistry
+from talamus.models import CanonicalNote
 from talamus.naming import note_slug
 from talamus.normalize import NormalizedPackage, normalize_text
 from talamus.paths import TalamusPaths
@@ -15,6 +16,7 @@ from talamus.routing import Router, TaskClass
 from talamus.session import normalize_session, session_worth_remembering
 from talamus.sources import extract_text, is_url, read_url
 from talamus.store import load_notes, rebuild_indexes, render_note_markdown, write_note_json
+from talamus.supersedes import detect_supersedes
 
 _SUPPORTED = {".md", ".markdown", ".txt", ".rst", ".pdf", ".docx", ".html", ".htm"}
 
@@ -40,7 +42,7 @@ def _compile_package(
     preamble: str = "",
     reindex: bool = True,
     task: TaskClass = TaskClass.EXTRACTION,
-) -> int:
+) -> list[CanonicalNote]:
     """Extract the notes from the package, write them, resolve wikilinks in batch,
     and rebuild the indexes."""
     from talamus.config import load_or_default, resolve_language
@@ -68,7 +70,7 @@ def _compile_package(
         render_note_markdown(paths, note, registry)
     if reindex:
         rebuild_indexes(paths)
-    return len(notes)
+    return notes
 
 
 CHUNK_CHARS = 20_000  # ~5k tokens per extraction call: bigger documents are chunked
@@ -157,11 +159,15 @@ def ingest_file(paths: TalamusPaths, file_path: Path, router: Router) -> dict:
     chunks = split_chunks(text)
     if len(chunks) == 1:
         package = normalize_text(raw_copy.as_posix(), text)
-        written = _compile_package(paths, package, router)
+        notes = _compile_package(paths, package, router)
         hashes = _load_hashes(paths)
         hashes[file_path.name] = _content_hash(text)
         _save_hashes(paths, hashes)
-        return {"notes_written": written, "source": file_path.name}
+        result: dict = {"notes_written": len(notes), "source": file_path.name}
+        detection = detect_supersedes(paths, notes, router)
+        if detection["applied"] or detection["proposed"]:
+            result["supersedes"] = detection
+        return result
     return ingest_large(paths, file_path, router)
 
 
@@ -195,7 +201,7 @@ def ingest_large(paths: TalamusPaths, file_path: Path, router: Router, job_recor
             try:
                 # no reindex per chunk: a book would do N rebuilds on a growing
                 # brain — rebuild ONCE at the end of the job (even on a crash)
-                notes_total += _compile_package(paths, package, router, reindex=False)
+                notes_total += len(_compile_package(paths, package, router, reindex=False))
                 return
             except (EngineFailed, EngineNotFound):
                 raise  # engine down: the job stops resumably, the chunks are not burned
@@ -232,7 +238,7 @@ def ingest_url(paths: TalamusPaths, url: str, router: Router) -> dict:
     raw_path = paths.raw / f"web-{_content_hash(text)[:8]}.md"
     raw_path.write_text(text, encoding="utf-8")
     package = normalize_text(raw_path.as_posix(), text)
-    written = _compile_package(paths, package, router)
+    written = len(_compile_package(paths, package, router))
     return {"notes_written": written, "source": url}
 
 
@@ -304,9 +310,15 @@ def remember_session(paths: TalamusPaths, transcript: str, diff: str, router: Ro
         transcript + ("\n\n---\n\n" + diff if diff.strip() else ""), encoding="utf-8"
     )
     package = normalize_session(raw_path.as_posix(), transcript, diff)
-    written = _compile_package(paths, package, router, task=TaskClass.SESSION_REMEMBER)
-    _log_capture(paths, "capture", f"session-{digest}: {written} notes")
-    return {"skipped": False, "notes_written": written}
+    notes = _compile_package(paths, package, router, task=TaskClass.SESSION_REMEMBER)
+    _log_capture(paths, "capture", f"session-{digest}: {len(notes)} notes")
+    result: dict = {"skipped": False, "notes_written": len(notes)}
+    detection = detect_supersedes(paths, notes, router)
+    for entry in detection["applied"]:
+        _log_capture(paths, "supersedes", f"'{entry['new']}' replaced '{entry['old']}' (auto)")
+    if detection["applied"] or detection["proposed"]:
+        result["supersedes"] = detection
+    return result
 
 
 def _pending_dir(paths: TalamusPaths) -> Path:
@@ -391,6 +403,7 @@ def ingest_text(
     router: Router,
     name: str = "insight",
     preamble: str = "",
+    detect: bool = True,
 ) -> dict:
     """Ingest a snippet of text (e.g. an insight the agent wants to remember) as a
     note. ``preamble`` adds instructions to the extractor (used by scan for the
@@ -405,5 +418,10 @@ def ingest_text(
         raise ValueError("raw path escapes the raw directory")
     raw_path.write_text(text, encoding="utf-8")
     package = normalize_text(raw_path.as_posix(), text)
-    written = _compile_package(paths, package, router, preamble=preamble)
-    return {"notes_written": written}
+    notes = _compile_package(paths, package, router, preamble=preamble)
+    result: dict = {"notes_written": len(notes)}
+    if detect:
+        detection = detect_supersedes(paths, notes, router)
+        if detection["applied"] or detection["proposed"]:
+            result["supersedes"] = detection
+    return result

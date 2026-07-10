@@ -61,6 +61,7 @@ already are. The built-in search index has known limits. What works today:
 | `OLLAMA_HOST` | Ollama HTTP endpoint for local model calls when HTTP options are used (default `http://localhost:11434`). |
 | `TALAMUS_UI_TOKEN` | Advanced: override the random per-launch workbench token. Normally leave unset. |
 | `TALAMUS_MONO_TRIGRAM_SCALE` | Advanced retrieval tuning: trigram scale for monolingual-ASCII corpora (default `0.3`). |
+| `TALAMUS_SUPERSEDES_DETECTION` | Set to `0` to disable automatic supersedes detection at ingest. |
 | `TALAMUS_LOG` | Set (any value) to enable DEBUG logging — same as `--verbose`. |
 
 ## Related command flags

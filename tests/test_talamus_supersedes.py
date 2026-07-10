@@ -151,6 +151,8 @@ class FreshAskTests(unittest.TestCase):
             prompt = llm.prompts[-1]
             self.assertIn("(updated ", prompt)
             self.assertIn("recently updated one", prompt)
+            # the successor carries the handover notice from the bitemporal record
+            self.assertIn(f"[fact validity] this note supersedes '{OLD_TITLE}'", prompt)
 
 
 if __name__ == "__main__":

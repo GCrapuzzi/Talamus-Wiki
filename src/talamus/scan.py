@@ -328,7 +328,9 @@ def execute_plan(
             if n_secrets:
                 store.log(record.job_id, f"{rel_path}: {n_secrets} redaction(s) applied")
             name = rel_path.replace("/", "-").replace("\\", "-")
-            result = ingest_text(paths, redacted, router, name=name, preamble=preamble)
+            result = ingest_text(
+                paths, redacted, router, name=name, preamble=preamble, detect=False
+            )
             notes_written += result["notes_written"]
         except Exception as exc:  # record, don't abort the batch
             failures.append({"path": rel_path, "error": str(exc)})

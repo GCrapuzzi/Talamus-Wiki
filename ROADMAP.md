@@ -28,13 +28,14 @@ versions of a fact entered as different notes:
 - **Shipped: dated context** — every note in an answer's context carries its
   last-updated date, and the answer contract prefers the most recent when
   notes conflict — saying explicitly that the information changed.
-- **Claims-aware answers** — the valid-time claim store (already recorded,
-  already invalidate-not-delete) feeds the answer: "X was valid until March;
-  superseded by Y".
-- **Supersedes detection at ingest** — when a new note conflicts with an
-  existing one on the same subject, Talamus proposes the handover
-  automatically (auto-applied when the model is confident, notified;
-  review-gated otherwise), so the temporal graph populates itself.
+- **Shipped: claims-aware answers** — every context note carries its
+  fact-validity record and successors state what they replaced and since
+  when, so answers can say "X was valid until March; superseded by Y" —
+  and never present a closed fact as current.
+- **Shipped: supersedes detection at ingest** — new notes are checked
+  against their closest existing neighbor; confident replacements apply the
+  handover automatically (reported, reversible), uncertain ones go to the
+  review queue. The temporal graph populates itself.
 - **A temporal benchmark** proving it: procedure v1 (2025) + v2 (2026) in the
   brain, question asked "today" must answer v2 and note the change.
 

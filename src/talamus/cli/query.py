@@ -153,6 +153,9 @@ def _cmd_remember(
         print("session skipped (below the gate threshold)")
     else:
         print(f"remembered {result['notes_written']} notes from the session")
+        from talamus.cli.pipeline import _print_supersedes
+
+        _print_supersedes(result)
     return 0
 
 
