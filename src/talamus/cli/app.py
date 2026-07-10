@@ -40,6 +40,7 @@ from talamus.cli.pipeline import (
     _cmd_ingest,
     _cmd_overview,
     _cmd_scan,
+    _cmd_supersede,
     _cmd_verify,
     _cmd_verify_batch,
 )
@@ -195,6 +196,8 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
             return _cmd_consolidate(root, args.apply, _build_router(), json_out)
         if command == "enrich":
             return _cmd_enrich(root, args.yes, _build_router(), json_out)
+        if command == "supersede":
+            return _cmd_supersede(root, args.old, args.by)
         if command == "verify":
             if args.all or args.stale or args.source:
                 return _cmd_verify_batch(root, _build_router(), args.stale, args.source, json_out)

@@ -242,6 +242,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--stale", action="store_true", help="batch: provenance health only (no LLM)"
     )
     verify.add_argument("--source", default=None, help="batch: only notes from this source")
+    supersede = sub.add_parser(
+        "supersede", parents=[common], help="mark a note as replaced by a newer one"
+    )
+    supersede.add_argument(
+        "old", help="title of the outdated note (kept in history, never deleted)"
+    )
+    supersede.add_argument("--by", required=True, help="title of the note that replaces it")
     overview = sub.add_parser("overview", parents=[common], help="show the domain overview")
     overview.add_argument("--rebuild", action="store_true", help="re-induce the domains")
     ask = sub.add_parser("ask", parents=[common], help="ask the brain (cited answer)")

@@ -289,6 +289,27 @@ def _cmd_verify_batch(
     return 0
 
 
+def _cmd_supersede(root: Path, old: str, new: str) -> int:
+    """The bitemporal handover: nothing is deleted — the old note moves into
+    the past (claims closed, typed edge in the graph) and stays reachable
+    through history and --as-of."""
+    from talamus.temporal import record_supersedes
+
+    try:
+        result = record_supersedes(TalamusPaths(root), old, new)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    closed = len(result["claims_closed"])
+    print(
+        f"'{result['old']}' is now superseded by '{result['new']}'\n"
+        f"  the old note is KEPT (history + --as-of still reach it); "
+        f"{closed} open claim(s) closed\n"
+        f"  default answers now read the successor"
+    )
+    return 0
+
+
 def _cmd_verify(root: Path, title: str, do_apply: bool, router: Router, json_out: bool) -> int:
     if do_apply:
         apply_result = apply_note_correction(root, title, router)

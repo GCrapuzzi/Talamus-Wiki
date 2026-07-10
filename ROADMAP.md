@@ -21,16 +21,20 @@ Today `--as-of` answers from the past on request; the complement is a
 guarantee that the *default* answer is never stale, even when old and new
 versions of a fact entered as different notes:
 
-- **Dated context** — every note placed in an answer's context carries its
-  timestamp, and the answer contract prefers the most recent when notes
-  conflict — saying explicitly that the information changed.
+- **Shipped: the supersedes handover** — `talamus supersede "<old>" --by
+  "<new>"` records the replacement bitemporally: the old note is *kept*
+  (prose, history, `--as-of`), its open claims close, a typed `supersedes`
+  edge enters the graph, and default answers read only the successor.
+- **Shipped: dated context** — every note in an answer's context carries its
+  last-updated date, and the answer contract prefers the most recent when
+  notes conflict — saying explicitly that the information changed.
 - **Claims-aware answers** — the valid-time claim store (already recorded,
   already invalidate-not-delete) feeds the answer: "X was valid until March;
   superseded by Y".
 - **Supersedes detection at ingest** — when a new note conflicts with an
-  existing one on the same subject, Talamus proposes the `supersedes`
-  relation and the claim closure automatically (review-gated), so the
-  temporal graph populates itself.
+  existing one on the same subject, Talamus proposes the handover
+  automatically (auto-applied when the model is confident, notified;
+  review-gated otherwise), so the temporal graph populates itself.
 - **A temporal benchmark** proving it: procedure v1 (2025) + v2 (2026) in the
   brain, question asked "today" must answer v2 and note the change.
 

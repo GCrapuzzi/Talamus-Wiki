@@ -10,6 +10,13 @@ from talamus.paths import TalamusPaths
 
 # Keyword patterns; first match wins, so order matters.
 _RELATION_PATTERNS: list[tuple[str, tuple[str, ...]]] = [
+    # "supersedes" is a SYSTEM type (the temporal handover — see
+    # temporal.record_supersedes): it must survive normalization so default
+    # answers can prefer the successor, so it is fixed, not emergent.
+    (
+        "supersedes",
+        ("supersede", "sostituisce", "sostituita da", "replaces", "replaced by", "rimpiazza"),
+    ),
     (
         "is-a",
         ("is-a", "is a", "isa", "tipo di", "\u00e8 un", "e un", "sottotipo", "kind of", "subclass"),
