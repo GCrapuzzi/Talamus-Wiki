@@ -181,6 +181,17 @@ def current_claims(paths: TalamusPaths, note_id: str | None = None) -> list[Clai
     ]
 
 
+def claims_by_note(paths: TalamusPaths) -> dict[str, list[Claim]]:
+    """Every claim ever recorded (open AND closed), grouped by note, newest
+    first — the read feed for surfacing fact validity inside answers."""
+    grouped: dict[str, list[Claim]] = {}
+    for claim in _load_states(paths).values():
+        grouped.setdefault(claim.note_id, []).append(claim)
+    for claims in grouped.values():
+        claims.sort(key=lambda c: c.valid_from, reverse=True)
+    return grouped
+
+
 def record_supersedes(
     paths: TalamusPaths, old_title: str, new_title: str, evidence: str = ""
 ) -> dict:

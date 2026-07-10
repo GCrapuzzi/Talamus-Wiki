@@ -68,7 +68,25 @@ def apply_review_item(root: str | Path, item_id: str) -> ServiceResult[ReviewEnt
                 message=f"Cannot apply correction for note {item_result.detail.get('title')!r}",
                 code="review_correction_target_missing",
             )
-    resolution = "correction written" if item_result.kind == "correction" else ""
+    if item_result.kind == "supersedes":
+        from talamus.temporal import record_supersedes
+
+        try:
+            record_supersedes(
+                TalamusPaths(Path(root)),
+                str(item_result.detail.get("old", "")),
+                str(item_result.detail.get("new", "")),
+            )
+        except ValueError as exc:
+            return ServiceResult(
+                success=False,
+                message=str(exc),
+                code="review_supersedes_target_missing",
+            )
+    resolution = {
+        "correction": "correction written",
+        "supersedes": "supersedes recorded",
+    }.get(item_result.kind, "")
     try:
         applied = _queue(root).apply(item_id, resolution=resolution)
     except (OSError, TypeError, ValueError, AttributeError) as exc:

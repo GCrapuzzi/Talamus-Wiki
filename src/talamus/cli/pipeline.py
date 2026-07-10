@@ -178,6 +178,7 @@ def _cmd_ingest(root: Path, target: str, router: Router, json_out: bool, yes: bo
         print(f"ingested {result['notes_written']} notes from {result['source']}{suffix}")
         for failure in result.get("failed", []):
             print(f"  ! chunk {failure['chunk']}: {failure['error']}")
+    _print_supersedes(result)
     return 0
 
 
@@ -287,6 +288,20 @@ def _cmd_verify_batch(
     if report["corrections_proposed"] or report["stale"]:
         print("review with `talamus review list`")
     return 0
+
+
+def _print_supersedes(result: dict) -> None:
+    detection = result.get("supersedes") or {}
+    for entry in detection.get("applied", []):
+        print(
+            f"supersedes: '{entry['new']}' replaced '{entry['old']}' "
+            f"(auto, confidence {entry['confidence']:.2f}) — the old note is kept in history"
+        )
+    for entry in detection.get("proposed", []):
+        print(
+            f"supersedes? '{entry['new']}' may replace '{entry['old']}' — "
+            "decide with `talamus review`"
+        )
 
 
 def _cmd_supersede(root: Path, old: str, new: str) -> int:

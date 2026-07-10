@@ -169,7 +169,14 @@ extras (`[central]` items) are appended by the CLI layer per scope policy.
   claim, and a system-typed `supersedes` edge (new → old) enters the graph.
   The default ask path drops superseded notes from context (the past stays
   reachable via `--as-of`), stamps every context note with its last-updated
-  date, and the answer contract prefers the most recent when notes conflict.
+  date, attaches each note's fact-validity record (claims, open and closed)
+  plus the handover notice on successors ("supersedes X since DATE"), and the
+  answer contract prefers the most recent when notes conflict and never
+  presents a closed fact as current. At ingest, `supersedes.py` checks each
+  new note against its closest existing neighbor (deterministic prefilter,
+  one LLM judge call): confident replacements apply the handover
+  automatically (reported, reversible), uncertain ones go to the review
+  queue. `TALAMUS_SUPERSEDES_DETECTION=0` disables detection.
 
 ## Verification (`correct.py`)
 

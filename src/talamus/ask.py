@@ -241,6 +241,8 @@ Cite the notes with their bracketed number, e.g. [1].
 If the context is not enough, say so explicitly.
 Notes may carry their last-updated date. When notes disagree, trust the most
 recently updated one and say explicitly that the information changed.
+A note may include a [fact validity] record: facts whose validity is closed
+are PAST facts — never present them as current.
 ANSWER IN THE SAME LANGUAGE AS THE QUESTION.
 
 QUESTION: {question}
@@ -248,6 +250,26 @@ QUESTION: {question}
 CONTEXT:
 {context}
 """
+
+
+def _note_id_of(item: dict) -> str:
+    match = re.search(r"^id:\s*(\S+)", item.get("content", ""), re.MULTILINE)
+    return match.group(1) if match else ""
+
+
+def _validity_block(claims: list) -> str:
+    """A compact fact-validity record for one context note: open facts read as
+    current, closed ones as past. Capped so it never eats the budget."""
+    if not claims:
+        return ""
+    lines = ["[fact validity]"]
+    for claim in claims[:5]:
+        end = claim.valid_to[:10] if claim.valid_to else "now"
+        closed = (
+            f"; closed: {claim.invalidated_by}" if claim.valid_to and claim.invalidated_by else ""
+        )
+        lines.append(f"- {claim.text} (valid {claim.valid_from[:10]} → {end}{closed})")
+    return "\n".join(lines)
 
 
 def _freshness_pass(
@@ -258,38 +280,68 @@ def _freshness_pass(
     Notes superseded by another note in this brain are dropped from the
     default answer context — the successor carries the current truth, and the
     past stays fully reachable through history and --as-of. Surviving items
-    are stamped with their last-updated date (read from the machine record)
-    so the answer contract can prefer the newest when unlinked notes conflict.
-    """
+    are stamped with their last-updated date, carry their fact-validity
+    record (claims, open and closed), and a successor notes what it replaced
+    and since when — so the answer can say "X was valid until March"."""
+    from talamus.temporal import claims_by_note
+
     ontology = load_ontology(paths)
-    superseded = {
-        note_filename(str(edge.get("target", "")))
+    superseded: dict[str, tuple[str, str]] = {
+        note_filename(str(edge.get("target", ""))): (
+            str(edge.get("source", "")),
+            str(edge.get("target", "")),
+        )
         for edge in ontology.get("edges", [])
         if edge.get("type") == "supersedes"
     }
+    claims_map = claims_by_note(paths)
     kept: list[dict] = []
     dropped: list[str] = []
+    dropped_ids: dict[str, str] = {}
     for item in items:
         name = Path(item.get("path", "")).name
         if name in superseded:
             dropped.append(name)
+            dropped_ids[name] = _note_id_of(item)
             continue
         kept.append(item)
     if trace is not None and dropped:
         trace["superseded_dropped"] = dropped
+    kept_by_name = {Path(item.get("path", "")).name: item for item in kept}
     for item in kept:
-        match = re.search(r"^id:\s*(\S+)", item.get("content", ""), re.MULTILINE)
-        if match is None:
+        note_id = _note_id_of(item)
+        if not note_id:
             continue
-        record = paths.notes_cache / f"{match.group(1)}.json"
-        if not record.is_file():
+        record = paths.notes_cache / f"{note_id}.json"
+        if record.is_file():
+            try:
+                updated = str(json.loads(record.read_text(encoding="utf-8")).get("updated_at", ""))
+                if updated:
+                    item["updated"] = updated[:10]
+            except (OSError, json.JSONDecodeError):
+                pass
+        block = _validity_block(claims_map.get(note_id, []))
+        if block:
+            item["content"] = f"{item['content']}\n{block}"
+    # the handover notice: a successor tells the reader what it replaced and
+    # since when, using the marker claim recorded on the (dropped) old note
+    for name, (source_title, target_title) in superseded.items():
+        successor = kept_by_name.get(note_filename(source_title))
+        if successor is None or name not in dropped_ids:
             continue
-        try:
-            updated = str(json.loads(record.read_text(encoding="utf-8")).get("updated_at", ""))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if updated:
-            item["updated"] = updated[:10]
+        marker = next(
+            (
+                claim
+                for claim in claims_map.get(dropped_ids[name], [])
+                if claim.text.startswith("Superseded by")
+            ),
+            None,
+        )
+        since = f" since {marker.valid_from[:10]}" if marker and marker.valid_from else ""
+        successor["content"] += (
+            f"\n[fact validity] this note supersedes '{target_title}'{since} — "
+            "the older version is historical, not current."
+        )
     return kept
 
 
