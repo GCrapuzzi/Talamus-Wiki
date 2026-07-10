@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -238,6 +239,8 @@ def _expand_query(question: str, router: Router) -> str:
 _ANSWER_PROMPT = """Answer the question using ONLY the context below.
 Cite the notes with their bracketed number, e.g. [1].
 If the context is not enough, say so explicitly.
+Notes may carry their last-updated date. When notes disagree, trust the most
+recently updated one and say explicitly that the information changed.
 ANSWER IN THE SAME LANGUAGE AS THE QUESTION.
 
 QUESTION: {question}
@@ -245,6 +248,49 @@ QUESTION: {question}
 CONTEXT:
 {context}
 """
+
+
+def _freshness_pass(
+    paths: TalamusPaths, items: list[dict], trace: dict | None = None
+) -> list[dict]:
+    """Freshness by default (the temporal guarantee for "now" questions).
+
+    Notes superseded by another note in this brain are dropped from the
+    default answer context — the successor carries the current truth, and the
+    past stays fully reachable through history and --as-of. Surviving items
+    are stamped with their last-updated date (read from the machine record)
+    so the answer contract can prefer the newest when unlinked notes conflict.
+    """
+    ontology = load_ontology(paths)
+    superseded = {
+        note_filename(str(edge.get("target", "")))
+        for edge in ontology.get("edges", [])
+        if edge.get("type") == "supersedes"
+    }
+    kept: list[dict] = []
+    dropped: list[str] = []
+    for item in items:
+        name = Path(item.get("path", "")).name
+        if name in superseded:
+            dropped.append(name)
+            continue
+        kept.append(item)
+    if trace is not None and dropped:
+        trace["superseded_dropped"] = dropped
+    for item in kept:
+        match = re.search(r"^id:\s*(\S+)", item.get("content", ""), re.MULTILINE)
+        if match is None:
+            continue
+        record = paths.notes_cache / f"{match.group(1)}.json"
+        if not record.is_file():
+            continue
+        try:
+            updated = str(json.loads(record.read_text(encoding="utf-8")).get("updated_at", ""))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if updated:
+            item["updated"] = updated[:10]
+    return kept
 
 
 def answer_question(
@@ -274,7 +320,7 @@ def answer_question(
             bundle = build_context_bundle(paths, graph, search, _expand_query(question, router))
             if bundle.items:
                 route = "expansion"
-    all_items = [*bundle.items, *(extra_items or [])]
+    all_items = _freshness_pass(paths, [*bundle.items, *(extra_items or [])], trace=trace)
     if trace is not None:
         trace["route"] = route
         trace["extra_items"] = len(extra_items or [])
@@ -291,8 +337,14 @@ def answer_from_items(
     if trace is not None:
         trace["items_read"] = [item["path"] for item in items]
         trace["context_tokens"] = sum(estimate_tokens(item["content"]) for item in items)
+
+    def _header(idx: int, item: dict) -> str:
+        updated = item.get("updated", "")
+        stamp = f" (updated {updated})" if updated else ""
+        return f"[{idx}] {item['path']}{stamp}"
+
     context = "\n\n".join(
-        f"[{idx}] {item['path']}\n{item['content']}" for idx, item in enumerate(items, start=1)
+        f"{_header(idx, item)}\n{item['content']}" for idx, item in enumerate(items, start=1)
     )
     llm = router.for_task(TaskClass.ASK_ANSWER)
     answer = llm.complete(_ANSWER_PROMPT.format(question=question, context=context)).strip()

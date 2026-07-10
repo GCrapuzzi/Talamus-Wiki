@@ -181,6 +181,62 @@ def current_claims(paths: TalamusPaths, note_id: str | None = None) -> list[Clai
     ]
 
 
+def record_supersedes(
+    paths: TalamusPaths, old_title: str, new_title: str, evidence: str = ""
+) -> dict:
+    """The bitemporal handover: NEW supersedes OLD. Nothing is deleted.
+
+    The old note keeps its prose, its sources and its full history — it stays
+    readable and reachable as-of any past instant. What changes is its place
+    in time: every open claim on it is closed (invalidated by the successor),
+    the handover itself is recorded as a claim naming the successor, and a
+    typed `supersedes` edge (new → old) enters the graph so default answers
+    prefer the successor."""
+    import dataclasses
+
+    from talamus.linking import NoteRegistry
+    from talamus.models import Relation
+    from talamus.store import load_notes, overwrite_note_json, rebuild_indexes
+
+    notes = load_notes(paths)
+    registry = NoteRegistry.from_notes(notes)
+    old_canonical = registry.resolve(old_title)
+    new_canonical = registry.resolve(new_title)
+    if old_canonical is None:
+        raise ValueError(f"note not found: {old_title!r}")
+    if new_canonical is None:
+        raise ValueError(f"note not found: {new_title!r}")
+    if old_canonical == new_canonical:
+        raise ValueError("a note cannot supersede itself")
+    by_title = {note.title: note for note in notes}
+    old, new = by_title[old_canonical], by_title[new_canonical]
+
+    closed: list[str] = []
+    for claim in current_claims(paths, old.note_id):
+        got = invalidate_claim(paths, claim.claim_id, f"superseded by '{new.title}'")
+        if got is not None:
+            closed.append(got.claim_id)
+    marker = record_claim(
+        paths,
+        old.note_id,
+        f"Superseded by '{new.title}'",
+        evidence=evidence,
+        confidence=0.95,
+    )
+    if not any(r.relation == "supersedes" and r.target == old.title for r in new.relations):
+        relation = Relation(
+            source=new.title, relation="supersedes", target=old.title, confidence=0.95
+        )
+        overwrite_note_json(paths, dataclasses.replace(new, relations=[*new.relations, relation]))
+        rebuild_indexes(paths)
+    return {
+        "old": old.title,
+        "new": new.title,
+        "claims_closed": closed,
+        "claim": marker.claim_id,
+    }
+
+
 def claims_as_of(paths: TalamusPaths, when: ParsedWhen, note_id: str | None = None) -> list[Claim]:
     """Claims valid AT the given instant — including ones invalidated later."""
     instant = when.instant_utc

@@ -163,6 +163,13 @@ extras (`[central]` items) are appended by the CLI layer per scope policy.
   `invalidate_claim` (corrections close the old claim and open the new one —
   never delete); `claims_as_of`, `note_timeline`. `parse_when`: partial dates
   mean the END of the period; naive datetimes warn and use the local tz.
+- **Freshness by default**: `record_supersedes` (CLI `talamus supersede`) is
+  the bitemporal handover — the old note is kept (prose, sources, history),
+  its open claims are closed by the successor, the handover is recorded as a
+  claim, and a system-typed `supersedes` edge (new → old) enters the graph.
+  The default ask path drops superseded notes from context (the past stays
+  reachable via `--as-of`), stamps every context note with its last-updated
+  date, and the answer contract prefers the most recent when notes conflict.
 
 ## Verification (`correct.py`)
 
