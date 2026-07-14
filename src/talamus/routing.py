@@ -2,13 +2,17 @@
 
 A TaskClass names one point in the pipeline that makes exactly one LLM call. Each task
 carries a TaskIntent (tier, effort); an EngineRouter resolves that intent, within the
-single provider configured for the brain, into a concrete LLMProvider — never across
-providers. Task classes
+single provider configured for the brain, into a concrete LLMProvider. Task classes
 never know provider-specific model names; providers never know about task classes.
+The one sanctioned cross-provider path is the FALLBACK CHAIN: when the engine
+signals it cannot serve right now (usage limit exhausted, CLI missing), the same
+request retries on the next provider in config.fallback_providers.
 """
 
 from __future__ import annotations
 
+import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
@@ -20,6 +24,7 @@ from talamus.adapters.llm import (
     canonical_provider,
 )
 from talamus.config import TalamusConfig
+from talamus.errors import EngineLimitReached, EngineNotFound
 
 
 class TaskClass(StrEnum):
@@ -91,6 +96,58 @@ class StaticRouter:
         return self._provider
 
 
+def _fallback_chain(config: TalamusConfig, primary: str) -> list[str]:
+    """The configured chain, normalized: canonical names, no dupes, no primary.
+    Accepts a comma-separated string too (a TALAMUS_FALLBACK_PROVIDERS env
+    override arrives as a raw string)."""
+    raw = getattr(config, "fallback_providers", []) or []
+    if isinstance(raw, str):
+        raw = [part for part in raw.split(",")]
+    chain: list[str] = []
+    for entry in raw:
+        name = canonical_provider(str(entry).strip())
+        if name and name != primary and name not in chain:
+            chain.append(name)
+    return chain
+
+
+class FallbackProvider:
+    """The engine chain. Tries the primary; when it signals "cannot serve right
+    now" (EngineLimitReached, EngineNotFound) the SAME prompt retries on the
+    next engine, with a loud stderr notice naming the switch. Generic
+    EngineFailed does NOT fall back — that usually means a real bug, and
+    silently retrying elsewhere would hide it (and double-spend)."""
+
+    def __init__(
+        self,
+        primary_name: str,
+        primary: LLMProvider,
+        alternates: list[tuple[str, Callable[[], LLMProvider]]],
+    ) -> None:
+        self._primary_name = primary_name
+        self._primary = primary
+        self._alternates = alternates
+
+    def complete(self, prompt: str) -> str:
+        failed_name = self._primary_name
+        try:
+            return self._primary.complete(prompt)
+        except (EngineLimitReached, EngineNotFound) as exc:
+            last: Exception = exc
+        for name, build in self._alternates:
+            print(
+                f"warning: engine '{failed_name}' unavailable ({last}) — falling back to '{name}'",
+                file=sys.stderr,
+            )
+            failed_name = name
+            try:
+                provider = build()
+                return provider.complete(prompt)
+            except (EngineLimitReached, EngineNotFound) as exc:
+                last = exc
+        raise last
+
+
 class EngineRouter:
     """Resolves each TaskClass to a concrete LLMProvider, within the single provider
     configured for the brain (see the design doc's scope note). Built fresh per call
@@ -109,7 +166,42 @@ class EngineRouter:
         intent = _resolve_intent(self._config, task)
         key = (intent.tier, intent.effort)
         if key not in self._cache:
-            self._cache[key] = build_provider_for_task(
-                self._provider_name, self._config, intent.tier, intent.effort
-            )
+            self._cache[key] = self._build_with_chain(intent.tier, intent.effort)
         return self._cache[key]
+
+    def _build_with_chain(self, tier: str, effort: str) -> LLMProvider:
+        chain = _fallback_chain(self._config, self._provider_name)
+        names = [self._provider_name, *chain]
+        primary: LLMProvider | None = None
+        primary_name = self._provider_name
+        rest: list[str] = []
+        last: Exception | None = None
+        for index, name in enumerate(names):
+            try:
+                primary = build_provider_for_task(name, self._config, tier, effort)
+            except EngineNotFound as exc:
+                last = exc
+                if index < len(names) - 1:
+                    print(
+                        f"warning: engine '{name}' unavailable ({exc}) — "
+                        f"falling back to '{names[index + 1]}'",
+                        file=sys.stderr,
+                    )
+                continue
+            primary_name = name
+            rest = names[index + 1 :]
+            break
+        if primary is None:
+            raise last if last is not None else EngineNotFound(self._provider_name)
+        if not rest:
+            return primary
+        config = self._config
+
+        def _alternate(name: str) -> Callable[[], LLMProvider]:
+            def build() -> LLMProvider:
+                return build_provider_for_task(name, config, tier, effort)
+
+            return build
+
+        alternates = [(name, _alternate(name)) for name in rest]
+        return FallbackProvider(primary_name, primary, alternates)

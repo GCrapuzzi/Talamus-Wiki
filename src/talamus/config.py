@@ -29,6 +29,12 @@ class TalamusConfig:
     task_tiers: dict[str, dict[str, str]] = field(default_factory=dict)
     # provider_models: {"<provider>": {"economy": "<model>", "quality": "<model>"}}
     provider_models: dict[str, dict[str, str]] = field(default_factory=dict)
+    # Engine fallback chain: when the configured engine hits its usage limit
+    # (or its CLI is missing), the SAME request retries on the next provider in
+    # this list, in order — e.g. ["codex-cli", "ollama"]. A local ollama model
+    # last means work never fully stops. Generic engine failures do NOT fall
+    # back. Empty = today's single-engine behavior.
+    fallback_providers: list[str] = field(default_factory=list)
     # Where the learned relation-type schema lives (the emergent ontology):
     # "global" (default) = one ontology shared across all brains (TALAMUS_HOME);
     # "brain" = the historical per-brain isolation. Evidence always stays per brain.
