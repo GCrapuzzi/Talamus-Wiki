@@ -76,11 +76,11 @@ safety split:
 
 ## Engines & resilience
 
-- **Fallback chain** — an ordered list of engines per brain: when one hits
-  its usage limit mid-operation, the next takes over (a local ollama model as
-  the last resort means captures and answers never fully stop). Shipped
-  already: limit detection with actionable errors, resumable job pause, and
-  parked-capture retry (`talamus hook --retry`).
+- **Shipped: the fallback chain** — `fallback_providers` in `talamus.json`:
+  when an engine hits its usage limit (or its CLI is missing) the same
+  request retries on the next one, with a visible warning; ollama last means
+  captures and answers never fully stop. Generic failures stay loud. Also
+  shipped earlier: limit detection, resumable job pause, capture retry.
 - **Workbench surfacing** — pending captures, limit warnings and the retry
   action visible on Home, not only in `doctor`.
 - **More engines** — kimi-cli when verifiable; Anthropic API thinking-budget

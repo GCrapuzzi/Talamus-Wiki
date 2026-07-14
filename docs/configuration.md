@@ -8,6 +8,7 @@ Created by `talamus init` in the brain directory. Fields:
 | --- | --- | --- |
 | `llm_provider` | Which LLM engine to use | `claude-cli` (auto-detected) |
 | `llm_model` | Model name for the engine (optional) | engine default |
+| `fallback_providers` | The engine chain, in order — e.g. `["codex-cli", "ollama"]`. When your engine hits its usage limit (or its CLI is missing), the same request retries on the next one, with a visible warning; a local `ollama` model last means work never fully stops. Generic engine errors do NOT fall back. | `[]` (single engine) |
 | `language` | The language notes are written in (prose). Prompts are always English (cheap local models follow English best); the machine layer (relation verbs, canonical aliases, half of `retrieval_text`) stays English-canonical for cross-language search. | auto from system locale |
 | `storage_provider` | Notes rendering | `obsidian` |
 | `graph_provider` | Graph index | `deterministic-json` |
