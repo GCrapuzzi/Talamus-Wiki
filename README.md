@@ -1,12 +1,14 @@
 # Talamus
 
-[![CI](https://github.com/GCrapuzzi/Talamus-Wiki/actions/workflows/ci.yml/badge.svg)](https://github.com/GCrapuzzi/Talamus-Wiki/actions/workflows/ci.yml) ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![python](https://img.shields.io/badge/python-3.11%2B-blue)
+[![CI](https://github.com/ampres-ai/talamus/actions/workflows/ci.yml/badge.svg)](https://github.com/ampres-ai/talamus/actions/workflows/ci.yml) ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 
 **Talamus is a local-first knowledge compiler — a second brain you and your AI agents share.**
 
 **Your agent remembers. Locally. €0.**
 
 It turns documents, notes, repos, URLs, and agent sessions into source-grounded Markdown concept notes, then answers from those notes with citations — powered entirely by the LLM you already have.
+
+Talamus is an open-source project by [Ampres](https://ampres.io), an independent AI and open-source lab.
 
 ## The 60-second story
 
@@ -82,6 +84,8 @@ Run `talamus` for the status dashboard, `talamus quickstart` for essential comma
 Docs: [quickstart](docs/quickstart.md), [commands](docs/commands.md), [agent tool calling](docs/agent-tool-calling.md), [configuration](docs/configuration.md), [benchmarks](docs/benchmarks.md), [architecture](docs/architecture.md), [design principles](docs/design-principles.md), [evaluation](docs/evaluation.md), [multi-brain](docs/multi-brain.md), [ontology](docs/ontology.md).
 
 Project: [security](SECURITY.md), [contributing](CONTRIBUTING.md), [roadmap](ROADMAP.md), [changelog](CHANGELOG.md).
+
+Maintained by [Ampres](https://ampres.io). Source code and issue tracking live at [ampres-ai/talamus](https://github.com/ampres-ai/talamus).
 
 ## Development
 
