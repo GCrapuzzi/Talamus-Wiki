@@ -17,7 +17,7 @@ Copy-pasteable arc, with the reproducible version in [`scripts/demo/run_magic.py
 1. Install the CLI.
 
    ```bash
-   pipx install talamus
+   pipx install "talamus[mcp]"
    ```
 
 2. Set up the project brain. `talamus setup` initializes the brain, chooses an engine, installs MCP for Claude Code/Cursor/codex, asks once before installing the session-capture hook, and can probe the engine with one tiny live call.
@@ -72,7 +72,7 @@ Bring the LLM you already have: `claude-cli`, `codex-cli`, `antigravity-cli` (ag
 ## Quickstart
 
 ```bash
-pipx install talamus
+pipx install "talamus[mcp]"
 talamus setup
 talamus ingest ./notes && talamus ask "what should I remember?"
 ```
