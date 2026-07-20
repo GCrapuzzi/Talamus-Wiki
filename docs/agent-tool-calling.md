@@ -7,7 +7,7 @@ grounded context and write tools that preserve review/provenance rules.
 
 ```bash
 talamus mcp install
-talamus-mcp --root .                 # stdio
+talamus mcp serve --root .           # stdio
 talamus-mcp --http --host 127.0.0.1 --port 8000
 ```
 

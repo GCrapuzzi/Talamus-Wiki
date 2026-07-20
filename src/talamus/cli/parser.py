@@ -206,7 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
     mcp = sub.add_parser(
         "mcp", parents=[common], help="connect your agents to the brain (MCP server config)"
     )
-    mcp.add_argument("action", nargs="?", default="install", choices=["install"])
+    mcp.add_argument("action", nargs="?", default="install", choices=["install", "serve"])
     mcp.add_argument(
         "--agent",
         choices=["auto", "claude", "cursor", "codex", "opencode", "all"],

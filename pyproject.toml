@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "talamus"
-version = "1.0.1"
+version = "1.0.2"
 description = "Local-first knowledge compiler with graph-first retrieval for AI agents."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,10 +18,10 @@ maintainers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://ampres.io"
+Homepage = "https://ampres-ai.github.io/talamus/"
 Repository = "https://github.com/ampres-ai/talamus"
 Issues = "https://github.com/ampres-ai/talamus/issues"
-Documentation = "https://github.com/ampres-ai/talamus/tree/main/docs"
+Documentation = "https://ampres-ai.github.io/talamus/"
 
 [project.optional-dependencies]
 docling = ["docling>=2.0"]

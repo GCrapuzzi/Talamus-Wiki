@@ -8,6 +8,23 @@ semantic versioning once it reaches a public release.
 
 No changes yet.
 
+## [1.0.2] - 2026-07-20
+
+### Added
+
+- **Official MCP Registry metadata**: `server.json` describes the PyPI package,
+  stdio transport, source repository, and deterministic launch arguments.
+- **Registry-native MCP launch**: `talamus mcp serve` starts the existing stdio
+  server from the main CLI, while `talamus mcp install` keeps its current behavior.
+- **Launch demo**: the README now shows a reproducible animated session-capture
+  and cited-recall walkthrough near the top of the page.
+
+### Changed
+
+- Release automation publishes MCP metadata through GitHub OIDC after PyPI
+  succeeds; no long-lived registry token is stored.
+- PyPI homepage and documentation metadata now point to the public Talamus docs.
+
 ## [1.0.1] - 2026-07-20
 
 ### Added

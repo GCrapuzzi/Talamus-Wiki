@@ -144,6 +144,11 @@ def main(argv: list[str] | None = None, llm: LLMProvider | None = None) -> int:
         if command == "ui":
             return _cmd_ui(root, args.web, args.port)
         if command == "mcp":
+            if args.action == "serve":
+                from talamus.mcp_server import main as mcp_main
+
+                mcp_main(["--root", str(root)])
+                return 0
             return _cmd_mcp_install(root, args.agent)
         if command == "hook":
             if args.retry:

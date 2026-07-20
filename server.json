@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ampres-ai/talamus",
+  "title": "Talamus",
+  "description": "Local-first, source-grounded memory that survives AI agent sessions.",
+  "repository": {
+    "url": "https://github.com/ampres-ai/talamus",
+    "source": "github"
+  },
+  "websiteUrl": "https://ampres-ai.github.io/talamus/",
+  "version": "1.0.2",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "talamus",
+      "version": "1.0.2",
+      "runtimeHint": "uvx",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--with",
+          "value": "mcp>=1.0"
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
