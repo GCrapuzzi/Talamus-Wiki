@@ -37,6 +37,8 @@ No changes yet.
 
 - `scope=all` always includes the current brain, even before the federated index
   exists, so a clean-install `talamus demo` is immediately searchable.
+- Note-version timestamps remain strictly ordered on coarse-resolution clocks,
+  so immediate consecutive writes are distinguishable with `--as-of`.
 
 ### Security
 
