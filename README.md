@@ -10,6 +10,8 @@
 
 It turns documents, notes, repos, URLs, and agent sessions into source-grounded Markdown concept notes, then answers from those notes with citations — powered entirely by the LLM you already have.
 
+![Talamus demo — a completed agent session becomes cited, local memory for the next one.](docs/assets/talamus-demo.gif)
+
 Talamus is an open-source project by [Ampres](https://ampres.io), an independent AI and open-source lab.
 
 ## The 60-second story
