@@ -332,9 +332,10 @@ class TalamusCliTests(unittest.TestCase):
 
     def test_mcp_serve_dispatches_to_stdio_server(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            with mock.patch("talamus.mcp_server.main") as serve:
+            server_module = mock.MagicMock()
+            with mock.patch.dict("sys.modules", {"talamus.mcp_server": server_module}):
                 self.assertEqual(0, main(["mcp", "serve", "--root", tmp]))
-            serve.assert_called_once_with(["--root", str(Path(tmp).resolve())])
+            server_module.main.assert_called_once_with(["--root", str(Path(tmp).resolve())])
 
     def test_hook_prints_snippet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
