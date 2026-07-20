@@ -13,3 +13,15 @@ npx --yes @anthropic-ai/mcpb pack packaging/mcpb talamus-1.0.3.mcpb
 
 Before publishing, validate the archive with the same CLI and smoke-test the launcher
 against a temporary brain directory.
+
+Smithery's current CLI does not yet map the MCPB 0.4 `uv` runtime to its registry
+runtime enum, and its server card requires complete tool schemas. Build the equivalent
+compatibility artifact with:
+
+```bash
+python scripts/build_smithery_mcpb.py talamus-1.0.3-smithery.mcpb
+```
+
+That artifact labels the registry runtime as Python, keeps `uv` as the actual launch
+command, and copies the exact input/output schemas exposed by FastMCP. The canonical
+MCPB remains the standards-first UV bundle above.

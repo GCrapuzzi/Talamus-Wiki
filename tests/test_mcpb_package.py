@@ -1,6 +1,10 @@
 import json
+import subprocess
+import sys
+import tempfile
 import tomllib
 import unittest
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +62,30 @@ class McpbPackageTests(unittest.TestCase):
             },
             names,
         )
+
+    def test_smithery_bundle_contains_runtime_tool_schemas(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "talamus-smithery.mcpb"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "build_smithery_mcpb.py"),
+                    str(output),
+                ],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            with zipfile.ZipFile(output) as archive:
+                manifest = json.loads(archive.read("manifest.json"))
+
+        self.assertEqual("python", manifest["server"]["type"])
+        self.assertEqual("uv", manifest["server"]["mcp_config"]["command"])
+        self.assertEqual(16, len(manifest["tools"]))
+        for tool in manifest["tools"]:
+            self.assertEqual("object", tool["inputSchema"]["type"])
+            self.assertEqual("object", tool["outputSchema"]["type"])
 
 
 if __name__ == "__main__":
