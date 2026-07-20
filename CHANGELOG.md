@@ -8,6 +8,31 @@ semantic versioning once it reaches a public release.
 
 No changes yet.
 
+## [1.0.3] - 2026-07-20
+
+### Added
+
+- Consent-safe `llms-install.md` instructions for AI coding clients and MCP
+  marketplaces, including standard stdio configuration and verification steps.
+- Community issue forms, pull-request template, code of conduct, private
+  vulnerability-reporting link, and reusable social/marketplace artwork.
+
+### Changed
+
+- Vite is updated to 6.4.3 and esbuild to 0.25.12; the packaged React workbench
+  assets are rebuilt from the patched toolchain.
+- CI and release workflows use Node 24-compatible `actions/checkout@v6` and
+  `actions/setup-python@v6` runtimes.
+- README badges, roadmap status, release guidance, and tracked fixture links now
+  reflect the public `ampres-ai/talamus` project and official MCP Registry entry.
+
+### Security
+
+- Four Dependabot findings in the Web UI development toolchain are resolved,
+  including the high-severity Vite development-server advisory and three
+  moderate Vite/esbuild advisories. The bundled production UI contains no Node
+  development server.
+
 ## [1.0.2] - 2026-07-20
 
 ### Added
