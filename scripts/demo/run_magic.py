@@ -312,7 +312,7 @@ def _run_fake(root: Path, engine: str | None, transcript_file: str | None, start
 
     elapsed = max(1, round(time.perf_counter() - start))
     _scene(5, "The memory survived the session boundary.")
-    print(f"Your agent remembered. Locally. €0. ({elapsed}s)")
+    print(f"Your agent remembered. Locally. ({elapsed}s)")
     return 0
 
 
@@ -351,7 +351,7 @@ def _run_real(root: Path, engine: str | None, transcript_file: str | None, start
 
     elapsed = max(1, round(time.perf_counter() - start))
     _scene(5, "The memory survived the session boundary.")
-    print(f"Your agent remembered. Locally. €0. ({elapsed}s)")
+    print(f"Your agent remembered. Locally. ({elapsed}s)")
     return 0
 
 
