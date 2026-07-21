@@ -52,12 +52,14 @@ release:
 1. Update `version` in `pyproject.toml`.
 2. Run `python dev.py`.
 3. Commit, push, and merge the version change into `main`.
-4. Create a **draft** GitHub release tagged `vX.Y.Z` at the merged release
-   commit, matching the exact `pyproject.toml` version.
-5. Dispatch `Publish release` with that tag. Wait for its read-only quality
+4. Create and push the annotated tag `vX.Y.Z` at the merged release commit,
+   matching the exact `pyproject.toml` version.
+5. Create a **draft** GitHub release for that existing tag; with the GitHub CLI,
+   pass `--verify-tag` so a missing remote tag fails closed.
+6. Dispatch `Publish release` with that tag. Wait for its read-only quality
    gate and draft-asset job to attach the wheel, source archive, checksums, and
    commit-bound release manifest.
-6. Publish the draft. The `published` event uploads those exact checked files
+7. Publish the draft. The `published` event uploads those exact checked files
    to PyPI and then publishes `server.json` to the official MCP Registry.
 
 The same workflow input safely recovers a published release: it compares
