@@ -1,0 +1,17 @@
+{
+  "name": "talamus",
+  "version": "1.0.3",
+  "description": "Local-first, source-grounded memory for AI agents with citations, provenance, and history.",
+  "skills": {
+    "paths": [
+      "./plugins/talamus-memory/skills"
+    ],
+    "exclusive": true
+  },
+  "mcpServers": {
+    "paths": [
+      "./plugins/talamus-memory/.goose-mcp.json"
+    ],
+    "exclusive": true
+  }
+}

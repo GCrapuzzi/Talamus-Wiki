@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add repository-level Open Plugin support for goose while reusing the bundled
+  skill and pinned MCP launcher.
+
 ## 1.0.0 - 2026-07-21
 
 - Add the consent-aware Talamus memory skill.

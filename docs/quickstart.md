@@ -59,6 +59,17 @@ the right brain from whatever project codex runs in. OpenClaw gets a global
 read-oriented tool filter by default; enable LLM-backed or mutating tools only
 when you intend to use them.
 
+goose uses the repository's Open Plugin instead of `talamus mcp install`. With
+`uv` available on `PATH`, install the plugin once and start a new goose session
+from the project whose memory you want to use:
+
+```bash
+goose plugin install https://github.com/ampres-ai/talamus.git
+```
+
+The plugin imports the bundled `talamus-memory` skill and runs the pinned PyPI
+MCP server with the current project as its brain root.
+
 Agents can then `search` / `read_note` / `recall` / `overview` / `neighbors` / `remember`
 against your brain. To capture your work sessions automatically:
 
