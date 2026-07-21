@@ -6,7 +6,10 @@ semantic versioning once it reaches a public release.
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- A repository-level goose Open Plugin that installs the consent-aware Talamus
+  memory skill and starts the pinned local MCP server for the active project.
 
 ## [1.0.3] - 2026-07-20
 

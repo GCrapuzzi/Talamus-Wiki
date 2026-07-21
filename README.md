@@ -106,6 +106,16 @@ does not modify the cloned source tree:
 gemini extensions install https://github.com/ampres-ai/talamus --auto-update
 ```
 
+goose can install the repository as an Open Plugin. This adds the consent-aware
+memory skill and starts the pinned local MCP server for each new CLI session:
+
+```bash
+goose plugin install https://github.com/ampres-ai/talamus.git
+```
+
+The plugin requires `uv` on `PATH`; `uvx` downloads Talamus and its MCP
+dependencies into an isolated cache on first use.
+
 Containerized MCP (the brain remains in the mounted local folder):
 
 ```bash
