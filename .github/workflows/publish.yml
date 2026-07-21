@@ -18,12 +18,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  inspect-release:
+    name: Inspect GitHub release
+    runs-on: ubuntu-latest
+    # GitHub hides draft releases from tokens without push access. Keep this
+    # permission in a metadata-only job that never checks out or runs project code.
+    permissions:
+      contents: write
+    outputs:
+      is_draft: ${{ steps.release.outputs.is_draft }}
+
+    steps:
+      - name: Inspect requested release
+        id: release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must be a stable vMAJOR.MINOR.PATCH tag." >&2
+            exit 1
+          fi
+          release="$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease)"
+          is_draft="$(jq -r .isDraft <<<"$release")"
+          is_prerelease="$(jq -r .isPrerelease <<<"$release")"
+          if [[ "$is_prerelease" != "false" ]]; then
+            echo "Stable package publication does not accept a prerelease." >&2
+            exit 1
+          fi
+          if [[ "${GITHUB_EVENT_NAME}" == "release" && "$is_draft" != "false" ]]; then
+            echo "A published release event must reference a published release." >&2
+            exit 1
+          fi
+          echo "is_draft=${is_draft}" >> "$GITHUB_OUTPUT"
+
   validate:
     name: Validate release source
+    needs: inspect-release
     runs-on: ubuntu-latest
     outputs:
       commit: ${{ steps.source.outputs.commit }}
-      is_draft: ${{ steps.release.outputs.is_draft }}
+      is_draft: ${{ needs.inspect-release.outputs.is_draft }}
       release_tag: ${{ steps.source.outputs.release_tag }}
       version: ${{ steps.source.outputs.version }}
 
@@ -74,26 +111,6 @@ jobs:
           echo "release_tag=${REQUESTED_TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      - name: Inspect GitHub release
-        id: release
-        env:
-          GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.source.outputs.release_tag }}
-        run: |
-          set -euo pipefail
-          is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"
-          is_prerelease="$(gh release view "$RELEASE_TAG" --json isPrerelease --jq .isPrerelease)"
-          if [[ "$is_prerelease" != "false" ]]; then
-            echo "Stable package publication does not accept a prerelease." >&2
-            exit 1
-          fi
-          if [[ "${GITHUB_EVENT_NAME}" == "release" && "$is_draft" != "false" ]]; then
-            echo "A published release event must reference a published release." >&2
-            exit 1
-          fi
-          echo "is_draft=${is_draft}" >> "$GITHUB_OUTPUT"
-
       - name: Install release and quality tools
         run: python -m pip install --upgrade build twine ".[dev]"
 
@@ -101,17 +118,17 @@ jobs:
         run: python dev.py
 
       - name: Build draft distributions
-        if: github.event_name == 'workflow_dispatch' && steps.release.outputs.is_draft == 'true'
+        if: github.event_name == 'workflow_dispatch' && needs.inspect-release.outputs.is_draft == 'true'
         run: python -m build
 
       - name: Check draft distributions
-        if: github.event_name == 'workflow_dispatch' && steps.release.outputs.is_draft == 'true'
+        if: github.event_name == 'workflow_dispatch' && needs.inspect-release.outputs.is_draft == 'true'
         env:
           VERSION: ${{ steps.source.outputs.version }}
         run: python -m twine check "dist/talamus-${VERSION}-py3-none-any.whl" "dist/talamus-${VERSION}.tar.gz"
 
       - name: Create release manifest and checksums
-        if: github.event_name == 'workflow_dispatch' && steps.release.outputs.is_draft == 'true'
+        if: github.event_name == 'workflow_dispatch' && needs.inspect-release.outputs.is_draft == 'true'
         shell: python
         env:
           RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
@@ -152,7 +169,7 @@ jobs:
           )
 
       - name: Preserve checked draft artifacts
-        if: github.event_name == 'workflow_dispatch' && steps.release.outputs.is_draft == 'true'
+        if: github.event_name == 'workflow_dispatch' && needs.inspect-release.outputs.is_draft == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: release-distributions-${{ steps.source.outputs.version }}
