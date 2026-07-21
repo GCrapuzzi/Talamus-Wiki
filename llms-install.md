@@ -51,6 +51,30 @@ For a client that accepts standard MCP JSON, add this server entry:
 Replace `<project-root>` with the absolute path selected in step 1. Preserve
 all unrelated entries when editing an existing MCP configuration.
 
+### Cline
+
+Cline is not configured by `talamus mcp install --agent auto`. In the Cline
+IDE extension, open **MCP Servers → Configure → Configure MCP Servers**, then
+merge this entry into the existing configuration:
+
+```json
+{
+  "mcpServers": {
+    "talamus": {
+      "command": "talamus-mcp",
+      "args": ["--root", "<project-root>"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+Replace `<project-root>` with the absolute path selected in step 1. The empty
+`autoApprove` list leaves every Talamus tool out of Cline's auto-approval
+list. For Cline CLI, run `cline mcp` and add a local STDIO server with the same
+server name, command, and arguments.
+
 Talamus can configure supported clients itself after the user approves the
 configuration change:
 
@@ -58,9 +82,9 @@ configuration change:
 talamus mcp install --agent auto
 ```
 
-Use `--agent claude`, `cursor`, `codex`, `opencode`, or `all` only when the
-target is known. For clients not covered by that command, use the standard JSON
-entry above.
+Use `--agent claude`, `cursor`, `codex`, `opencode`, `openclaw`, or `all` only
+when the target is known. For clients not covered by that command, use the
+standard JSON entry above.
 
 ## 5. Verify the connection
 
