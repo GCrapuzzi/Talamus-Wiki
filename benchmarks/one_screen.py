@@ -36,10 +36,10 @@ is that retrieval quality tracks the LLM you bring: with a strong expansion
 engine, talamus-smart leads even a strong multilingual dense model
 (multilingual-e5) on every metric including ranking; with a free/weak one, e5
 leads ranking while Talamus keeps the best hit and recall. Either way the trade
-is the same: the semantic power comes from the LLM you already have, so answers
-cost EUR 0 marginal, burn ~98% fewer tokens than loading the corpus into
-context, and every answer cites sources you can open — plus the time (as-of)
-and self-emerging-ontology moats no retrieval stack here has. Reproduce it:
+is the same: semantic quality follows the engine you configure, while the
+measured retrieval path burns ~98% fewer tokens than loading the corpus into
+context. Generated answers expose the sources they use, and Talamus adds
+as-of retrieval plus a versioned, self-emerging ontology. Reproduce it:
 every row's artifact is committed, with the command that generated it in its
 sibling .md report. Caveat: the book numbers are single runs and LLM query
 expansion is nondeterministic (repeat runs measured ~0.06 hit swings); latency
@@ -55,8 +55,7 @@ def _fmt(value: float, digits: int = 3) -> str:
 
 
 def build_rows(results_dir: Path) -> list[tuple[str, str, str, str]]:
-    """Every parsed number comes straight from its artifact — traceable by
-    construction. The four STATE-sourced rows carry their ledger row instead."""
+    """Every rendered number comes straight from a committed result artifact."""
     book = _load(results_dir, _BOOK)["systems"]
     book_free = _load(results_dir, _BOOK_FREE)["systems"]
     scifact = _load(results_dir, _SCIFACT)["systems"]
@@ -87,18 +86,6 @@ def build_rows(results_dir: Path) -> list[tuple[str, str, str, str]]:
             f"{results_rel}/{_TOKEN}",
         ),
         (
-            "Answers cited & source-resolvable",
-            "100%",
-            "no competitor here has a provenance model",
-            "benchmarks/profiler (book-brain profiler run)",
-        ),
-        (
-            "Marginal cost per answer",
-            "EUR 0 (the LLM you already have)",
-            "dense RAG pays embedding infrastructure per corpus",
-            "benchmarks/profiler (book-brain profiler run)",
-        ),
-        (
             "Cross-language + vague retrieval (book, hit@10)",
             f"talamus-smart {_fmt(smart['hit_rate'])} (recall {_fmt(smart['recall_at_k'])})",
             f"BM25 {_fmt(bm25['hit_rate'])} - MiniLM vector DB {_fmt(minilm['hit_rate'])}",
@@ -110,7 +97,7 @@ def build_rows(results_dir: Path) -> list[tuple[str, str, str, str]]:
             f"MRR {_fmt(smart['mrr'])} - leads e5 ({_fmt(e5['ndcg_at_k'])} / {_fmt(e5['mrr'])})",
             f"free engine: e5 leads ranking ({_fmt(e5_free['ndcg_at_k'])} vs "
             f"{_fmt(smart_free['ndcg_at_k'])}); Talamus keeps best hit/recall",
-            f"{results_rel}/{_BOOK} (strong) + {_BOOK_FREE} (free)",
+            f"{results_rel}/{_BOOK} (strong) + {results_rel}/{_BOOK_FREE} (free)",
         ),
         (
             "English-only turf (SciFact, after the adaptive-trigram fix)",
@@ -137,7 +124,7 @@ def build_rows(results_dir: Path) -> list[tuple[str, str, str, str]]:
             f"{results_rel}/{_ABLATION}",
         ),
         (
-            "Fully local, EUR 0 (ollama gemma as generator AND judge)",
+            "Fully local Ollama (Gemma as generator and judge)",
             f"correctness {_fmt(ask_local['talamus-search']['answer_correctness'])}",
             "0.857 with a cloud engine — a small, stated gap",
             f"{results_rel}/{_ASK_LOCAL}",

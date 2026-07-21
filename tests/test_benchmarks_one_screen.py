@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -37,7 +38,7 @@ class OneScreenBenchmarkTests(unittest.TestCase):
             self.assertIn("multilingual-e5", rendered)
             self.assertEqual(written.strip(), rendered.strip())
 
-    def test_source_artifact_cells_point_to_existing_files(self) -> None:
+    def test_source_artifact_cells_point_to_committed_result_files(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             proc = self._run_one_screen("--out", td)
 
@@ -48,8 +49,10 @@ class OneScreenBenchmarkTests(unittest.TestCase):
                 cells = [cell.strip() for cell in line.strip("|").split("|")]
                 if len(cells) != 4 or cells[0].startswith("---"):
                     continue
-                source_path = cells[3].split(" (", 1)[0]
-                self.assertTrue((ROOT / source_path).exists(), source_path)
+                source_paths = re.findall(r"benchmarks/results/[A-Za-z0-9._-]+", cells[3])
+                self.assertTrue(source_paths, cells[3])
+                for source_path in source_paths:
+                    self.assertTrue((ROOT / source_path).is_file(), source_path)
 
     def test_missing_artifact_fails_clearly(self) -> None:
         with (
