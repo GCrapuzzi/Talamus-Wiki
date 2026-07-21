@@ -5,10 +5,11 @@ Local-first knowledge that both you and your AI agents can read and write.
 ## 1. Install
 
 ```bash
-pipx install talamus            # or: pip install talamus
+pipx install "talamus[mcp]"     # or: pip install "talamus[mcp]"
 ```
 
-Optional: `pipx install "talamus[mcp]"` for the agent MCP server.
+The MCP extra powers the agent setup in step 5. If you only need the core CLI,
+install `talamus` without the extra instead.
 
 ## 2. Try it instantly (no setup, no LLM)
 
