@@ -25,7 +25,7 @@ If local, inspectable agent memory should stay discoverable, click **Star** at
 the top of this page. It is the clearest signal that Talamus is worth
 maintaining in public.
 
-![Talamus — Memory that survives the session.](docs/assets/talamus-social-preview.png)
+![Talamus demo — a completed agent session becomes cited, local memory for the next one.](docs/assets/talamus-demo.gif)
 
 Talamus is an open-source project by [Ampres](https://ampres.io), an independent AI and open-source lab.
 
